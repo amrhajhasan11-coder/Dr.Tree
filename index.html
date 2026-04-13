@@ -430,6 +430,9 @@ textarea { min-height:72px; resize:vertical; }
 </div>
 
 <script>
+// ── Colors ──
+const GD='#1B4332',GM='#2D6A4F',GL='#52B788',GP='#D8F3DC',GOLD='#D4AC0D',GOLDL='#FFF9E6',OR='#E07B39',ORL='#FEF0E7',RED='#C0392B',REDL='#FADBD8',BLUE='#1A56DB';
+
 // ── Data ──
 const TODAY = new Date().toISOString().split('T')[0];
 let visits = [], nextId = 1, editId = null, invType = 'monthly', selectedVisits = [];
@@ -883,7 +886,6 @@ function buildInvoiceHTML(forPrint) {
   const ext = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
   const total = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
   const payBadge = payStatus==='مدفوع' ? `background:#D8F3DC;color:#2D6A4F` : `background:#FADBD8;color:#C0392B`;
-  const GD='#1B4332',GL='#52B788',GM='#2D6A4F',GP='#D8F3DC',GOLD='#D4AC0D',GOLDL='#FFF9E6',OR='#E07B39',RED='#C0392B';
 
   const rows = invType==='monthly'
     ? selData.map((v,i) => `<tr style="background:${i%2===0?'#fff':'#f7f7f7'}">
@@ -905,7 +907,6 @@ function buildInvoiceHTML(forPrint) {
       </tr>`:''}`;
 
   const printBtn = forPrint ? '' : `<button onclick="window.print()" style="display:block;width:200px;margin:20px auto;padding:12px;background:#1B4332;color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:Arial">🖨 طباعة / PDF</button>`;
-  const GD='#1B4332',GM='#2D6A4F',GL='#52B788',GP='#D8F3DC',GOLD='#D4AC0D',GOLDL='#FFF9E6',OR='#E07B39',RED='#C0392B';
   const payColor = payStatus==='مدفوع'?'#2D6A4F':payStatus==='مدفوع جزئياً'?'#D4AC0D':'#C0392B';
   const payBg    = payStatus==='مدفوع'?'#D8F3DC':payStatus==='مدفوع جزئياً'?'#FFF9E6':'#FADBD8';
 
@@ -1100,7 +1101,6 @@ function renderUpcoming() {
 function printVisitReport(id) {
   const v = visits.find(x => x.id === id);
   if (!v) return;
-  const GD='#1B4332',GM='#2D6A4F',GL='#52B788',GP='#D8F3DC';
   const GOLD='#D4AC0D',GOLDL='#FFF9E6',OR='#E07B39',RED='#C0392B',BLUE='#1A56DB',BLUEL='#EBF5FF';
 
   const payColor = v.payStatus==='مدفوع' ? GM : v.payStatus==='مدفوع جزئياً' ? GOLD : RED;
