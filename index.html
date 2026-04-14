@@ -1052,6 +1052,84 @@ function markVisitsPaid() {
   renderAll();
 }
 
+function doPrint() {
+  const html = buildInvoiceHTML(true);
+  saveInvoiceNum();
+  markVisitsPaid();
+  const w = window.open('','_blank');
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => { w.print(); w.close(); }, 400);
+}
+
+function saveInvoiceNum() {
+  const client = document.getElementById('inv-client').value;
+  if (!client) return;
+  try {
+    const allInv = JSON.parse(localStorage.getItem('dt_invoices') || '{}');
+    allInv[client] = (allInv[client] || 0) + 1;
+    localStorage.setItem('dt_invoices', JSON.stringify(allInv));
+    if (window._fbReady) {
+      const { db, ref, set } = window._fb;
+      set(ref(db, 'invoices'), allInv).catch(e => console.log(e));
+    }
+  } catch {}
+}
+
+function shareInvoiceWhatsApp() {
+  const client = document.getElementById('inv-client').value;
+  const invNum = document.getElementById('inv-num').value;
+  const fee = parseFloat(document.getElementById('inv-fee').value)||0;
+  const selData = visits.filter(v => selectedVisits.includes(v.id));
+  const ext = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
+  const total = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+  const due = document.getElementById('inv-due').value;
+  let msg = `🌳 *Dr.Tree — فاتورة خدمات*\n\n`;
+  msg += `رقم الفاتورة: *${invNum}*\n`;
+  msg += `العميل: *${client}*\n`;
+  msg += `التاريخ: ${new Date().toLocaleDateString('ar-QA')}\n\n`;
+  msg += `📋 *تفصيل الخدمات:*\n`;
+  if (invType === 'monthly') {
+    selData.forEach((v,i) => {
+      msg += `• زيارة ${i+1} — ${fmtDate(v.date)} (${v.type||'—'})\n`;
+      if (v.extra && v.extraAmount > 0) msg += `  ⚙ ${v.extra}: ${v.extraAmount.toLocaleString('en')} QAR\n`;
+    });
+    msg += `\n• الباقة الشهرية: ${fee.toLocaleString('en')} QAR\n`;
+    if (ext > 0) msg += `• الأعمال الإضافية: ${ext.toLocaleString('en')} QAR\n`;
+  } else {
+    const v = selData[0];
+    msg += `• ${v?.type||'—'} — ${fmtDate(v?.date)}\n`;
+    msg += `• سعر الزيارة: ${fee.toLocaleString('en')} QAR\n`;
+    if ((v?.extraAmount||0) > 0) msg += `• أعمال إضافية: ${v.extraAmount.toLocaleString('en')} QAR\n`;
+  }
+  msg += `\n💰 *الإجمالي المستحق: ${total.toLocaleString('en')} QAR*`;
+  if (due) msg += `\n📅 تاريخ الاستحقاق: ${fmtDate(due)}`;
+  msg += `\n\nشكراً لثقتكم بخدماتنا 🌿`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function shareReportWhatsApp(id) {
+  const v = visits.find(x => x.id === id);
+  if (!v) return;
+  let msg = `🌳 *Dr.Tree — تقرير زيارة*\n\n`;
+  msg += `👤 العميل: *${v.client}*`;
+  if (v.area) msg += ` — ${v.area}`;
+  msg += `\n📅 التاريخ: ${fmtDate(v.date)}\n`;
+  msg += `🔧 نوع العمل: ${v.type||'—'}\n\n`;
+  if (v.work) msg += `📋 *الأعمال المنجزة:*\n${v.work}\n\n`;
+  if (v.notes) msg += `📝 *ملاحظات:*\n${v.notes}\n\n`;
+  if (v.extra) {
+    msg += `⚙ *أعمال إضافية:*\n${v.extra}`;
+    if (v.extraAmount > 0) msg += ` — ${v.extraAmount.toLocaleString('en')} QAR`;
+    if (v.extraStatus) msg += ` (${v.extraStatus})`;
+    msg += `\n\n`;
+  }
+  if (v.nextDate) msg += `📅 الموعد القادم: ${fmtDate(v.nextDate)}${v.nextNote?' — '+v.nextNote:''}\n\n`;
+  msg += `شكراً لثقتكم بخدماتنا 🌿`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function generatePDF(id) { if (typeof id === 'number') printVisitReport(id); }
+
 function doExportHTML() {
   const client = document.getElementById('inv-client').value;
   const invNum = document.getElementById('inv-num').value;
@@ -1188,7 +1266,9 @@ function printVisitReport(id) {
   </div>
   </body></html>`;
 
-  generatePDF(html, 'تقرير_' + v.client + '_' + fmtDate(v.date));
+  const w = window.open('','_blank');
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => { w.print(); w.close(); }, 400);
 }
 
 // ── Clients ──
