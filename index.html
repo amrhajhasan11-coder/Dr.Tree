@@ -364,11 +364,20 @@ textarea { min-height:72px; resize:vertical; }
 
     <div class="field">
       <label>اسم العميل *</label>
-      <input type="text" id="f-client" list="clients-list" placeholder="مثال: محمد العلي" oninput="autoFillArea(this.value)">
+      <select id="f-client-select" onchange="onClientSelect(this.value)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:var(--color-background-primary,#fafafa);outline:none;-webkit-appearance:none;margin-bottom:6px">
+        <option value="">اختر عميل موجود...</option>
+      </select>
+      <input type="text" id="f-client" list="clients-list" placeholder="أو اكتب اسم جديد..." oninput="autoFillArea(this.value)" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;box-sizing:border-box">
       <datalist id="clients-list"></datalist>
     </div>
     <div class="grid2">
-      <div class="field"><label>المنطقة</label><input type="text" id="f-area" list="areas-list" placeholder="الدحيل"><datalist id="areas-list"></datalist></div>
+      <div class="field"><label>المنطقة</label>
+        <select id="f-area-select" onchange="document.getElementById('f-area').value=this.value" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none;margin-bottom:6px">
+          <option value="">اختر منطقة...</option>
+        </select>
+        <input type="text" id="f-area" list="areas-list" placeholder="أو اكتب منطقة جديدة..." style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;box-sizing:border-box">
+        <datalist id="areas-list"></datalist>
+      </div>
       <div class="field"><label>التاريخ *</label><input type="date" id="f-date"></div>
     </div>
     <div class="field">
@@ -518,6 +527,12 @@ function badgeClass(s) {
 function badge(s, small) { return s ? `<span class="badge ${small?'badge-sm':''} ${badgeClass(s)}">${s}</span>` : ''; }
 function getClients() { return [...new Set(visits.map(v=>v.client).filter(Boolean))].sort(); }
 function getAreas() { return [...new Set(visits.map(v=>v.area).filter(Boolean))].sort(); }
+function onClientSelect(name) {
+  if (!name) return;
+  document.getElementById('f-client').value = name;
+  autoFillArea(name);
+}
+
 function autoFillArea(clientName) {
   if (!clientName) return;
   // Find the most recent visit for this client
@@ -638,9 +653,19 @@ function updateClientSelects() {
   const clients = getClients();
   // datalist
   document.getElementById('clients-list').innerHTML = clients.map(c=>`<option value="${c}">`).join('');
+  const csel = document.getElementById('f-client-select');
+  if (csel) {
+    const cv = csel.value;
+    csel.innerHTML = '<option value="">اختر عميل موجود...</option>' + clients.map(c=>`<option value="${c}"${c===cv?' selected':''}>${c}</option>`).join('');
+  }
   const areas = getAreas();
   const al = document.getElementById('areas-list');
   if (al) al.innerHTML = areas.map(a=>`<option value="${a}">`).join('');
+  const asel = document.getElementById('f-area-select');
+  if (asel) {
+    const av = asel.value;
+    asel.innerHTML = '<option value="">اختر منطقة...</option>' + areas.map(a=>`<option value="${a}"${a===av?' selected':''}>${a}</option>`).join('');
+  }
   // Build last 12 months
   const monthSel = document.getElementById('filter-month');
   if (monthSel) {
@@ -671,6 +696,8 @@ function openAdd() {
   document.getElementById('modal-title').textContent = '➕ إضافة زيارة جديدة';
   document.getElementById('modal-save-btn').textContent = '✚ أضف للسجل';
   document.getElementById('f-client').value = '';
+  const csel=document.getElementById('f-client-select');if(csel)csel.value='';
+  const asel=document.getElementById('f-area-select');if(asel)asel.value='';
   document.getElementById('f-area').value = '';
   document.getElementById('f-date').value = TODAY;
   document.getElementById('f-type').value = '';
@@ -697,7 +724,9 @@ function openEdit(id) {
   document.getElementById('modal-title').textContent = '✏️ تعديل الزيارة';
   document.getElementById('modal-save-btn').textContent = '💾 حفظ التعديل';
   document.getElementById('f-client').value = v.client||'';
+  const ces=document.getElementById('f-client-select');if(ces)ces.value=v.client||'';
   document.getElementById('f-area').value = v.area||'';
+  const aes=document.getElementById('f-area-select');if(aes)aes.value=v.area||'';
   document.getElementById('f-date').value = v.date||TODAY;
   document.getElementById('f-type').value = v.type||'';
   document.getElementById('f-work').value = v.work||'';
