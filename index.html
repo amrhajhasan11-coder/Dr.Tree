@@ -525,8 +525,16 @@ function badgeClass(s) {
   return '';
 }
 function badge(s, small) { return s ? `<span class="badge ${small?'badge-sm':''} ${badgeClass(s)}">${s}</span>` : ''; }
-function getClients() { return [...new Set(visits.map(v=>v.client).filter(Boolean))].sort(); }
-function getAreas() { return [...new Set(visits.map(v=>v.area).filter(Boolean))].sort(); }
+function getClients() {
+  const fromVisits = visits.map(v=>v.client).filter(Boolean);
+  const fromClients = clients_data.map(c=>c.name).filter(Boolean);
+  return [...new Set([...fromClients,...fromVisits])].sort();
+}
+function getAreas() {
+  const fromVisits = visits.map(v=>v.area).filter(Boolean);
+  const fromClients = clients_data.map(c=>c.area).filter(Boolean);
+  return [...new Set([...fromClients,...fromVisits])].sort();
+}
 function onClientSelect(name) {
   if (!name) return;
   document.getElementById('f-client').value = name;
