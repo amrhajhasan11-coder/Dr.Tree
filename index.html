@@ -222,6 +222,15 @@ textarea { min-height:72px; resize:vertical; }
       <div id="upcoming-list"></div>
     </div>
 
+    <!-- Visits-due reminders -->
+    <div id="visits-due-card" class="card" style="display:none">
+      <div class="card-header between" style="background:var(--gold);color:var(--gd)">
+        <h2 style="color:var(--gd)">⏰ زيارات الباقة المتبقية هالشهر</h2>
+        <span id="visits-due-count" style="background:var(--gd);color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+      </div>
+      <div id="visits-due-list"></div>
+    </div>
+
     <div class="card">
       <div class="card-header between" style="background:var(--gd)">
         <h2>📋 آخر الزيارات</h2>
@@ -272,6 +281,22 @@ textarea { min-height:72px; resize:vertical; }
 
   <!-- INVOICE TAB -->
   <div id="tab-invoice" class="tab">
+    <!-- End-of-month banner -->
+    <div id="eom-banner" style="display:none;background:linear-gradient(to left,var(--goldl),#fff);border:1.5px solid var(--gold);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;color:var(--gd);font-size:14px">🗓 وقت إصدار فواتير الشهر</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px" id="eom-banner-text">الشهر قرّب على نهايته — جهّز فواتير العملاء</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-gold btn-sm" onclick="openBulkInvoiceModal()">إصدار الآن</button>
+          <button class="btn btn-secondary btn-sm" onclick="dismissEomBanner()">×</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-full" style="margin-bottom:12px;border-radius:12px;padding:14px;font-size:15px" onclick="openBulkInvoiceModal()">🗓 إصدار فواتير نهاية الشهر لكل العملاء</button>
+
     <div class="card">
       <div class="card-header" style="background:var(--gm)">
         <h2>🧾 إعداد الفاتورة</h2>
@@ -290,7 +315,11 @@ textarea { min-height:72px; resize:vertical; }
         </div>
         <div class="grid2">
           <div class="field"><label>رقم الفاتورة</label><input type="text" id="inv-num" value="INV-001"></div>
-          <div class="field"><label id="inv-fee-label">الباقة الشهرية (QAR)</label><input type="number" id="inv-fee" value="500"></div>
+          <div class="field"><label id="inv-fee-label">الباقة الشهرية (QAR)</label><input type="number" id="inv-fee" value="500" oninput="updateInvSummary()"></div>
+        </div>
+        <div class="field" id="inv-month-field" style="display:none">
+          <label>شهر الفاتورة</label>
+          <select id="inv-month" onchange="onInvMonthChange()"></select>
         </div>
         <div class="grid2">
           <div class="field"><label>تاريخ الاستحقاق</label><input type="date" id="inv-due"></div>
@@ -302,12 +331,34 @@ textarea { min-height:72px; resize:vertical; }
           </div>
         </div>
 
+        <!-- Overdue invoices alert -->
+        <div id="inv-overdue-box" style="display:none;background:var(--redl);border:1.5px solid var(--red);border-radius:10px;padding:12px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-weight:700;color:var(--red);font-size:13px">⚠️ فواتير غير مدفوعة سابقة</div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--red);cursor:pointer">
+              <input type="checkbox" id="inv-include-overdue" checked onchange="onIncludeOverdueChange()" style="width:auto;margin:0">
+              <span>إضافة للفاتورة</span>
+            </label>
+          </div>
+          <div id="inv-overdue-list"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px dashed var(--red);font-weight:700;color:var(--red);font-size:13px">
+            <span>إجمالي المتأخرات</span>
+            <span id="inv-overdue-total">0 QAR</span>
+          </div>
+        </div>
+
+        <!-- Add manual overdue button (shown when a client is selected) -->
+        <div id="inv-add-overdue-wrap" style="display:none;margin-bottom:14px">
+          <button class="btn btn-secondary btn-full" onclick="openManualOverdueModal()" style="border:1.5px dashed var(--red);color:var(--red);background:#fff">➕ إضافة فاتورة متأخرة يدوياً</button>
+        </div>
+
         <div id="inv-visits-section" style="display:none">
           <div style="font-size:13px;font-weight:700;color:var(--gm);margin-bottom:8px" id="inv-visits-label">اختر الزيارات:</div>
           <div class="visit-selector" id="inv-visits-list"></div>
           <div class="inv-summary" id="inv-summary" style="display:none">
             <div class="inv-summary-row" id="inv-sum-fee-row"><span id="inv-sum-fee-label">الباقة الشهرية</span><span id="inv-sum-fee">0 QAR</span></div>
             <div class="inv-summary-row orange" id="inv-sum-ext-row" style="display:none"><span>الأعمال الإضافية</span><span id="inv-sum-ext">0 QAR</span></div>
+            <div class="inv-summary-row" id="inv-sum-overdue-row" style="display:none;color:var(--red)"><span>المتأخرات من أشهر سابقة</span><span id="inv-sum-overdue">0 QAR</span></div>
             <div class="inv-summary-total"><span>الإجمالي</span><span id="inv-sum-total">0 QAR</span></div>
           </div>
         </div>
@@ -318,11 +369,123 @@ textarea { min-height:72px; resize:vertical; }
         <button class="btn btn-full" style="background:#25D366;color:#fff;border:none" onclick="shareInvoiceWhatsApp()">💬 مشاركة عبر واتساب</button>
       </div>
     </div>
+
+    <!-- Invoice Log -->
+    <div class="card">
+      <div class="card-header between" style="background:var(--gd);cursor:pointer" onclick="toggleInvoiceLog()">
+        <h2>📚 سجل الفواتير</h2>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="cloud-status" style="font-size:11px;color:#52B788;font-weight:600" title="حالة المزامنة">☁ متصل بالسحابة</span>
+          <span id="inv-log-count" style="background:var(--gl);color:white;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+        </div>
+      </div>
+      <div id="inv-log-body" style="display:none">
+        <div style="padding:12px">
+          <button class="btn btn-gold btn-full" onclick="openManualOverdueModal()" style="margin-bottom:10px">➕ إضافة فاتورة قديمة يدوياً</button>
+          <div class="grid2">
+            <select id="inv-log-filter-client" onchange="renderInvoiceLog()">
+              <option value="">كل العملاء</option>
+            </select>
+            <select id="inv-log-filter-status" onchange="renderInvoiceLog()">
+              <option value="">كل الحالات</option>
+              <option>غير مدفوع</option><option>مدفوع جزئياً</option><option>مدفوع</option>
+            </select>
+          </div>
+          <select id="inv-log-filter-month" onchange="renderInvoiceLog()" style="width:100%;margin-top:10px">
+            <option value="">كل الأشهر</option>
+          </select>
+        </div>
+        <div id="inv-log-list"></div>
+      </div>
+    </div>
   </div>
 
 </div>
 
 <!-- Bottom Nav -->
+  <!-- FINANCES TAB -->
+  <div id="tab-finances" class="tab">
+    <div class="field" style="margin-bottom:14px">
+      <label>الشهر</label>
+      <select id="fin-month" onchange="renderFinances()"></select>
+    </div>
+
+    <!-- Monthly summary -->
+    <div class="kpis">
+      <div class="kpi" style="background:var(--gp);border-color:var(--gl)">
+        <div class="kpi-label">الإيرادات</div>
+        <div class="kpi-value" id="fin-revenue" style="color:var(--gm);font-size:18px">0 QAR</div>
+      </div>
+      <div class="kpi" style="background:var(--goldl);border-color:var(--gold)">
+        <div class="kpi-label">المقبوضات</div>
+        <div class="kpi-value" id="fin-collected" style="color:var(--gold);font-size:18px">0 QAR</div>
+      </div>
+      <div class="kpi" style="background:var(--redl);border-color:var(--red)">
+        <div class="kpi-label">المصاريف</div>
+        <div class="kpi-value" id="fin-expenses" style="color:var(--red);font-size:18px">0 QAR</div>
+      </div>
+      <div class="kpi" style="background:var(--bluel);border-color:var(--blue)">
+        <div class="kpi-label">الربح الصافي</div>
+        <div class="kpi-value" id="fin-profit" style="color:var(--blue);font-size:18px">0 QAR</div>
+      </div>
+    </div>
+
+    <!-- 12-month revenue chart -->
+    <div class="card">
+      <div class="card-header" style="background:var(--gm)"><h2>📈 الإيرادات — 12 شهر</h2></div>
+      <div style="padding:14px" id="fin-chart"></div>
+    </div>
+
+    <!-- Top clients this month -->
+    <div class="card">
+      <div class="card-header" style="background:var(--gd)"><h2>🏆 أعلى العملاء (الشهر)</h2></div>
+      <div id="fin-top-clients"></div>
+    </div>
+
+    <button class="btn btn-primary btn-full" style="margin:14px 0 10px;border-radius:12px;padding:14px;font-size:15px" onclick="openExpenseModal()">➕ إضافة مصروف</button>
+
+    <!-- Backup/Restore card -->
+    <div class="card">
+      <div class="card-header" style="background:var(--gm)"><h2>💾 نسخ احتياطي واستعادة</h2></div>
+      <div style="padding:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-gold btn-sm" onclick="backupData()">📥 تصدير نسخة احتياطية</button>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('restore-file').click()">📤 استعادة من ملف</button>
+          <input type="file" id="restore-file" accept=".json,application/json" style="display:none" onchange="restoreData(event)">
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">النسخة بتشمل: العملاء، الزيارات، الفواتير، والمصاريف (JSON)</div>
+      </div>
+    </div>
+
+    <!-- Expense filters -->
+    <div class="card filters">
+      <div class="grid2">
+        <select id="exp-filter-cat" onchange="renderExpenses()">
+          <option value="">كل التصنيفات</option>
+          <option>بنزين ووقود</option>
+          <option>مواد زراعية</option>
+          <option>أدوات ومعدات</option>
+          <option>صيانة معدات</option>
+          <option>عمالة</option>
+          <option>رواتب</option>
+          <option>اتصالات وإنترنت</option>
+          <option>ضيافة وإقامة</option>
+          <option>رسوم وتراخيص</option>
+          <option>أخرى</option>
+        </select>
+        <button class="btn btn-sm" style="background:var(--goldl);color:#8B6914;border:1px solid var(--gold)" onclick="exportExpenses()">📥 Excel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header between" style="background:var(--red)">
+        <h2>💸 المصاريف</h2>
+        <span id="exp-count" style="background:#fff;color:var(--red);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+      </div>
+      <div id="exp-list"></div>
+    </div>
+  </div>
+
   <!-- CLIENTS TAB -->
   <div id="tab-clients" class="tab">
     <button class="btn btn-primary btn-full" style="margin-bottom:14px;border-radius:12px;padding:14px;font-size:15px" onclick="openAddClient()">
@@ -353,6 +516,10 @@ textarea { min-height:72px; resize:vertical; }
   <div class="nav-item" id="nav-invoice" onclick="switchTab('invoice')">
     <div class="nav-icon">🧾</div>
     <div class="nav-label">الفواتير</div>
+  </div>
+  <div class="nav-item" id="nav-finances" onclick="switchTab('finances')">
+    <div class="nav-icon">💰</div>
+    <div class="nav-label">المالية</div>
   </div>
 </div>
 
@@ -424,6 +591,33 @@ textarea { min-height:72px; resize:vertical; }
       </div>
     </div>
 
+    <!-- Task checklist -->
+    <div style="background:#F0F4F1;border-radius:10px;padding:12px;margin-bottom:12px">
+      <h3 style="font-size:12px;font-weight:700;color:var(--gm);margin-bottom:10px">✅ قائمة المهام المنجزة</h3>
+      <div id="f-tasks-list" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px">
+        <label style="display:flex;gap:6px;align-items:center;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="task-cb" data-task="قص العشب" style="width:auto;margin:0"> قص العشب</label>
+        <label style="display:flex;gap:6px;align-items:center;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="task-cb" data-task="تشذيب" style="width:auto;margin:0"> تشذيب</label>
+        <label style="display:flex;gap:6px;align-items:center;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="task-cb" data-task="تسميد" style="width:auto;margin:0"> تسميد</label>
+        <label style="display:flex;gap:6px;align-items:center;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="task-cb" data-task="فحص ري" style="width:auto;margin:0"> فحص ري</label>
+        <label style="display:flex;gap:6px;align-items:center;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="task-cb" data-task="رش مبيد" style="width:auto;margin:0"> رش مبيد</label>
+        <label style="display:flex;gap:6px;align-items:center;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="task-cb" data-task="تنظيف" style="width:auto;margin:0"> تنظيف</label>
+        <label style="display:flex;gap:6px;align-items:center;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="task-cb" data-task="زراعة" style="width:auto;margin:0"> زراعة</label>
+        <label style="display:flex;gap:6px;align-items:center;background:#fff;padding:6px 8px;border-radius:8px;cursor:pointer"><input type="checkbox" class="task-cb" data-task="مكافحة آفات" style="width:auto;margin:0"> مكافحة آفات</label>
+      </div>
+    </div>
+
+    <!-- Photos -->
+    <div style="background:#F0F4F1;border-radius:10px;padding:12px;margin-bottom:12px">
+      <h3 style="font-size:12px;font-weight:700;color:var(--gm);margin-bottom:10px">📷 صور الزيارة (قبل/بعد)</h3>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button type="button" class="btn btn-sm" style="flex:1;background:#fff;color:var(--gm);border:1.5px dashed var(--gm);padding:10px" onclick="document.getElementById('f-photo-before-input').click()">📷 صورة قبل</button>
+        <button type="button" class="btn btn-sm" style="flex:1;background:#fff;color:var(--gm);border:1.5px dashed var(--gm);padding:10px" onclick="document.getElementById('f-photo-after-input').click()">📷 صورة بعد</button>
+      </div>
+      <input type="file" id="f-photo-before-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoPick(event,'before')">
+      <input type="file" id="f-photo-after-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoPick(event,'after')">
+      <div id="f-photos-preview" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    </div>
+
     <div class="section-next" style="background:#F0F4F1;border-radius:10px;padding:12px;margin-bottom:16px">
       <h3 style="font-size:12px;font-weight:700;color:var(--gm);margin-bottom:10px">📅 الموعد القادم</h3>
       <div class="grid2">
@@ -445,12 +639,28 @@ const GD='#1B4332',GM='#2D6A4F',GL='#52B788',GP='#D8F3DC',GOLD='#D4AC0D',GOLDL='
 // ── Data ──
 const TODAY = new Date().toISOString().split('T')[0];
 let visits = [], nextId = 1, editId = null, invType = 'monthly', selectedVisits = [];
+let invoiceRecords = []; // Stored issued invoices: {invNum, client, date, month, type, fee, extras, total, payStatus, paidAmount, dueDate, visitIds}
+let includeOverdue = true; // Toggle to include overdue invoices in the new invoice
+let expenses = []; // {id, date, amount, category, method, note}
+let _pendingPhotos = { before: '', after: '' };
 
 function loadData() {
   // Load from localStorage as fallback while Firebase loads
   try { visits = JSON.parse(localStorage.getItem('dt_visits') || '[]'); } catch { visits = []; }
   try { nextId = parseInt(localStorage.getItem('dt_nextid') || '1'); } catch { nextId = 1; }
+  try { invoiceRecords = JSON.parse(localStorage.getItem('dt_invoice_records') || '[]'); } catch { invoiceRecords = []; }
+  try { expenses = JSON.parse(localStorage.getItem('dt_expenses') || '[]'); } catch { expenses = []; }
   renderAll();
+}
+
+function saveExpenses() {
+  try { localStorage.setItem('dt_expenses', JSON.stringify(expenses)); } catch {}
+  if (window._fbReady) {
+    const { db, ref, set } = window._fb;
+    set(ref(db, 'expenses'), expenses)
+      .then(() => { setCloudStatus(true); showSync(); })
+      .catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
+  }
 }
 
 function saveData() {
@@ -461,6 +671,33 @@ function saveData() {
     const { db, ref, set } = window._fb;
     set(ref(db, 'visits'), visits).catch(e => console.log('Firebase save error:', e));
     set(ref(db, 'nextId'), nextId).catch(e => console.log('Firebase save error:', e));
+  }
+}
+
+function saveInvoiceRecords() {
+  try { localStorage.setItem('dt_invoice_records', JSON.stringify(invoiceRecords)); } catch {}
+  if (window._fbReady) {
+    const { db, ref, set } = window._fb;
+    set(ref(db, 'invoiceRecords'), invoiceRecords)
+      .then(() => { setCloudStatus(true); showSync(); })
+      .catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
+  } else {
+    setCloudStatus(false, 'offline');
+  }
+}
+
+function setCloudStatus(ok, err) {
+  const el = document.getElementById('cloud-status');
+  if (!el) return;
+  if (ok) {
+    el.textContent = '☁ متصل بالسحابة';
+    el.style.color = '#52B788';
+    el.dataset.lastSync = new Date().toLocaleTimeString('en-GB');
+    el.title = 'آخر مزامنة: ' + el.dataset.lastSync;
+  } else {
+    el.textContent = '⚠ غير متصل' + (err ? ' ('+(err==='offline'?'أوفلاين':err)+')' : '');
+    el.style.color = '#C0392B';
+    el.title = 'سيتم الحفظ محلياً والمزامنة عند عودة الاتصال';
   }
 }
 
@@ -489,12 +726,46 @@ function initFirebase() {
       try { localStorage.setItem('dt_invoices', JSON.stringify(data)); } catch {}
     }
   });
+  onValue(ref(db, 'invoiceRecords'), (snapshot) => {
+    const data = snapshot.val();
+    // Handle both array format and object format (Firebase may convert sparse arrays to objects)
+    let records = null;
+    if (Array.isArray(data)) records = data.filter(r => r);
+    else if (data && typeof data === 'object') records = Object.values(data).filter(r => r);
+    if (records) {
+      invoiceRecords = records;
+      try { localStorage.setItem('dt_invoice_records', JSON.stringify(invoiceRecords)); } catch {}
+      setCloudStatus(true);
+      showSync();
+      if (document.getElementById('tab-invoice') && document.getElementById('tab-invoice').classList.contains('active')) {
+        renderOverdueAlert();
+        renderInvoiceLog();
+        renderEomBanner();
+      }
+    }
+  });
   onValue(ref(db, 'clients'), (snapshot) => {
     const data = snapshot.val();
     if (data && Array.isArray(data)) {
       clients_data = data;
       try { localStorage.setItem('dt_clients', JSON.stringify(clients_data)); } catch {}
+      showSync();
       if (document.getElementById('tab-clients').classList.contains('active')) renderClients();
+    }
+  });
+  onValue(ref(db, 'expenses'), (snapshot) => {
+    const data = snapshot.val();
+    let rows = null;
+    if (Array.isArray(data)) rows = data.filter(r => r);
+    else if (data && typeof data === 'object') rows = Object.values(data).filter(r => r);
+    if (rows) {
+      expenses = rows;
+      try { localStorage.setItem('dt_expenses', JSON.stringify(expenses)); } catch {}
+      setCloudStatus(true);
+      showSync();
+      if (document.getElementById('tab-finances') && document.getElementById('tab-finances').classList.contains('active')) {
+        renderFinances();
+      }
     }
   });
   onValue(ref(db, 'nextId'), (snapshot) => {
@@ -556,14 +827,88 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// ── Photo handling ──
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > h && w > maxDim) { h = h * maxDim / w; w = maxDim; }
+        else if (h > maxDim) { w = w * maxDim / h; h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function onPhotoPick(event, slot) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    showToast('⏳ ضاغط الصورة...');
+    const dataUrl = await compressImage(file, 800, 0.7);
+    _pendingPhotos[slot] = dataUrl;
+    renderPhotosPreview();
+    showToast('✅ تمت إضافة الصورة');
+  } catch (err) {
+    alert('فشل معالجة الصورة: ' + err.message);
+  }
+  event.target.value = '';
+}
+
+function renderPhotosPreview() {
+  const wrap = document.getElementById('f-photos-preview');
+  if (!wrap) return;
+  let html = '';
+  ['before','after'].forEach(slot => {
+    const label = slot === 'before' ? 'قبل' : 'بعد';
+    if (_pendingPhotos[slot]) {
+      html += `<div style="position:relative">
+        <img src="${_pendingPhotos[slot]}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:2px solid var(--gm)">
+        <div style="position:absolute;top:2px;right:2px;background:var(--gm);color:#fff;padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700">${label}</div>
+        <button type="button" onclick="removePhoto('${slot}')" style="position:absolute;top:2px;left:2px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;padding:0">×</button>
+      </div>`;
+    }
+  });
+  if (!html) html = '<div style="color:var(--muted);font-size:11px">لم تُضاف صور بعد</div>';
+  wrap.innerHTML = html;
+}
+
+function removePhoto(slot) {
+  _pendingPhotos[slot] = '';
+  renderPhotosPreview();
+}
+
 // ── Tab switching ──
 function switchTab(tab) {
-  ['dashboard','log','clients','invoice'].forEach(t => {
-    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
-    document.getElementById('nav-'+t).classList.toggle('active', t===tab);
+  ['dashboard','log','clients','invoice','finances'].forEach(t => {
+    const tabEl = document.getElementById('tab-'+t);
+    const navEl = document.getElementById('nav-'+t);
+    if (tabEl) tabEl.classList.toggle('active', t===tab);
+    if (navEl) navEl.classList.toggle('active', t===tab);
   });
+  if (tab === 'finances') renderFinances();
   if (tab === 'log') renderLog();
-  if (tab === 'invoice') renderInvClients();
+  if (tab === 'invoice') {
+    renderInvClients();
+    if (invType === 'monthly') {
+      const monthField = document.getElementById('inv-month-field');
+      if (monthField) monthField.style.display = 'block';
+      populateInvMonthOptions();
+    }
+    renderInvoiceLog();
+    renderEomBanner();
+  }
   if (tab === 'clients') renderClients();
 }
 
@@ -606,8 +951,18 @@ function visitRowHTML(v, i, showEdit=true) {
     ${overdue ? `<div style="font-size:11px;color:var(--red);font-weight:700;margin-top:2px">⚠️ متأخر ${daysDiff(v.dueDate)} يوم (استحقاق: ${fmtDate(v.dueDate)})</div>` : ''}
     ${v.dueDate && !overdue ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">استحقاق: ${fmtDate(v.dueDate)}</div>` : ''}
     ${v.extra ? `<div class="visit-extra">⚙ ${v.extra} ${v.extraAmount>0?`<b>${v.extraAmount.toLocaleString('en')} QAR</b>`:''}${badge(v.extraStatus,true)}</div>` : ''}
+    ${Array.isArray(v.tasks)&&v.tasks.length ? `<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">${v.tasks.map(t=>`<span style="background:var(--gp);color:var(--gm);padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600">✅ ${t}</span>`).join('')}</div>` : ''}
+    ${(v.photoBefore||v.photoAfter) ? `<div style="display:flex;gap:6px;margin-top:6px">${v.photoBefore?`<img src="${v.photoBefore}" onclick="openPhotoLightbox('${v.photoBefore.replace(/'/g,"\\'")}','قبل')" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1.5px solid var(--gm);cursor:pointer" title="قبل">`:''}${v.photoAfter?`<img src="${v.photoAfter}" onclick="openPhotoLightbox('${v.photoAfter.replace(/'/g,"\\'")}','بعد')" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1.5px solid var(--gold);cursor:pointer" title="بعد">`:''}</div>` : ''}
     ${v.nextDate ? `<div style="font-size:12px;color:var(--gm);margin-top:4px;font-weight:600">📅 الموعد القادم: ${fmtDate(v.nextDate)}${v.nextNote?' — '+v.nextNote:''}</div>` : ''}
   </div>`;
+}
+
+function openPhotoLightbox(src, label) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+  overlay.onclick = () => overlay.remove();
+  overlay.innerHTML = `<div style="position:absolute;top:20px;right:20px;background:#fff;padding:6px 14px;border-radius:20px;font-weight:700">${label}</div><img src="${src}" style="max-width:95vw;max-height:95vh;border-radius:10px">`;
+  document.body.appendChild(overlay);
 }
 
 // ── Recent list ──
@@ -722,6 +1077,10 @@ function openAdd() {
   document.getElementById('f-next-note').value = '';
   document.getElementById('f-client').classList.remove('error');
   document.getElementById('f-date').classList.remove('error');
+  // Reset task checkboxes and photos
+  document.querySelectorAll('.task-cb').forEach(cb => cb.checked = false);
+  _pendingPhotos = { before: '', after: '' };
+  renderPhotosPreview();
   document.getElementById('modal').classList.add('open');
 }
 
@@ -750,6 +1109,12 @@ function openEdit(id) {
   document.getElementById('paid-amount-field').style.display = v.payStatus==='مدفوع جزئياً' ? 'block' : 'none';
   document.getElementById('f-client').classList.remove('error');
   document.getElementById('f-date').classList.remove('error');
+  // Restore task checkboxes
+  const savedTasks = Array.isArray(v.tasks) ? v.tasks : [];
+  document.querySelectorAll('.task-cb').forEach(cb => { cb.checked = savedTasks.includes(cb.dataset.task); });
+  // Restore photos
+  _pendingPhotos = { before: v.photoBefore || '', after: v.photoAfter || '' };
+  renderPhotosPreview();
   document.getElementById('modal').classList.add('open');
 }
 
@@ -769,6 +1134,7 @@ function saveVisit() {
   document.getElementById('f-date').classList.toggle('error', !date);
   if (!client || !date) return;
 
+  const tasks = Array.from(document.querySelectorAll('.task-cb')).filter(cb => cb.checked).map(cb => cb.dataset.task);
   const data = {
     id: editId || nextId,
     client, date,
@@ -784,6 +1150,9 @@ function saveVisit() {
     paidAmount: parseFloat(document.getElementById('f-paid-amount').value)||0,
     nextDate: document.getElementById('f-next-date').value,
     nextNote: document.getElementById('f-next-note').value.trim(),
+    tasks,
+    photoBefore: _pendingPhotos.before || '',
+    photoAfter: _pendingPhotos.after || '',
   };
 
   if (editId) {
@@ -822,8 +1191,51 @@ function setInvType(type) {
   document.getElementById('inv-monthly-btn').classList.toggle('active', type==='monthly');
   document.getElementById('inv-single-btn').classList.toggle('active', type==='single');
   document.getElementById('inv-fee-label').textContent = type==='monthly' ? 'الباقة الشهرية (QAR)' : 'سعر الزيارة (QAR)';
-  document.getElementById('inv-visits-label').textContent = type==='monthly' ? 'اختر الزيارات:' : 'اختر زيارة واحدة:';
+  document.getElementById('inv-visits-label').textContent = type==='monthly' ? 'زيارات الشهر:' : 'اختر زيارة واحدة:';
+  // Show/hide month picker
+  const monthField = document.getElementById('inv-month-field');
+  if (monthField) monthField.style.display = type==='monthly' ? 'block' : 'none';
+  if (type==='monthly') populateInvMonthOptions();
   renderInvVisits();
+  renderOverdueAlert();
+}
+
+function populateInvMonthOptions() {
+  const sel = document.getElementById('inv-month');
+  if (!sel) return;
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const now = new Date();
+  const curVal = sel.value || (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'));
+  let opts = '';
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const label = arMonths[d.getMonth()] + ' ' + d.getFullYear();
+    opts += `<option value="${val}"${val===curVal?' selected':''}>${label}</option>`;
+  }
+  sel.innerHTML = opts;
+}
+
+function onInvMonthChange() {
+  selectedVisits = [];
+  renderInvVisits();
+}
+
+function getSelectedInvMonth() {
+  const sel = document.getElementById('inv-month');
+  if (sel && sel.value) return sel.value;
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+}
+
+function visitMonth(v) {
+  if (!v.date) return '';
+  if (v.date.includes('-')) return v.date.substring(0,7);
+  if (v.date.includes('/')) {
+    const parts = v.date.split('/'); // DD/MM/YYYY
+    return parts[2] + '-' + parts[1].padStart(2,'0');
+  }
+  return '';
 }
 
 function renderInvClients() {
@@ -835,6 +1247,12 @@ function renderInvClients() {
 
 function onInvClientChange() {
   selectedVisits = [];
+  // Make sure the month selector is populated and visible for monthly invoices
+  if (invType === 'monthly') {
+    const monthField = document.getElementById('inv-month-field');
+    if (monthField) monthField.style.display = 'block';
+    populateInvMonthOptions();
+  }
   // Auto-generate invoice number for this client
   const client = document.getElementById('inv-client').value;
   if (client) {
@@ -849,8 +1267,491 @@ function onInvClientChange() {
     const arToEn = {'ا':'A','أ':'A','إ':'A','آ':'A','ب':'B','ت':'T','ث':'TH','ج':'J','ح':'H','خ':'KH','د':'D','ذ':'Z','ر':'R','ز':'Z','س':'S','ش':'SH','ص':'S','ض':'D','ط':'T','ظ':'Z','ع':'A','غ':'GH','ف':'F','ق':'Q','ك':'K','ل':'L','م':'M','ن':'N','ه':'H','و':'W','ي':'Y','ى':'Y','ة':'H','ء':'A'};
     const code = client.split(' ').map(w => arToEn[w[0]] || w[0].toUpperCase()).join('').substring(0,3).toUpperCase();
     document.getElementById('inv-num').value = `${code}-INV-${nextNum}`;
+
+    // Auto-load monthly fee from client's saved package (500 / 300 / etc.)
+    const cd = clients_data.find(c => c.name === client);
+    if (cd && cd.monthly && cd.monthly > 0) {
+      document.getElementById('inv-fee').value = cd.monthly;
+    }
   }
   renderInvVisits();
+  renderOverdueAlert();
+}
+
+// ── Overdue invoices ──
+function getOverdueInvoices(client) {
+  if (!client) return [];
+  const curMonth = new Date().toISOString().substring(0,7); // YYYY-MM
+  return invoiceRecords
+    .filter(r => r.client === client && r.payStatus !== 'مدفوع' && r.month && r.month < curMonth)
+    .sort((a,b) => (a.month||'').localeCompare(b.month||''));
+}
+
+function getOverdueRemaining(rec) {
+  return Math.max(0, (rec.total||0) - (rec.paidAmount||0));
+}
+
+function renderOverdueAlert() {
+  const client = document.getElementById('inv-client').value;
+  const box = document.getElementById('inv-overdue-box');
+  const list = document.getElementById('inv-overdue-list');
+  // Show the "add manual overdue" button whenever a client is selected
+  const addWrap = document.getElementById('inv-add-overdue-wrap');
+  if (addWrap) addWrap.style.display = client ? 'block' : 'none';
+  if (!box || !list) return;
+  const overdue = getOverdueInvoices(client);
+  if (!client || !overdue.length) {
+    box.style.display = 'none';
+    updateInvSummary();
+    return;
+  }
+  box.style.display = 'block';
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  list.innerHTML = overdue.map(r => {
+    const [y,m] = (r.month||'-').split('-');
+    const monthLabel = m ? `${arMonths[parseInt(m)-1]} ${y}` : (r.month||'—');
+    const remaining = getOverdueRemaining(r);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #f0c0bb;font-size:12px">
+      <div>
+        <div style="font-weight:700;color:var(--red)">${r.invNum} — ${monthLabel}</div>
+        <div style="font-size:11px;color:#888">${badge(r.payStatus,true)} ${r.dueDate?'· استحقاق '+fmtDate(r.dueDate):''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-weight:900;color:var(--red)">${remaining.toLocaleString('en')} QAR</span>
+        <button class="btn-icon" title="تعليم كمدفوعة" onclick="markRecordPaid('${r.invNum}')" style="color:var(--gm)">✓</button>
+        <button class="btn-icon" title="حذف السجل" onclick="deleteInvoiceRecord('${r.invNum}')" style="color:#ddd">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+  const total = overdue.reduce((s,r) => s + getOverdueRemaining(r), 0);
+  document.getElementById('inv-overdue-total').textContent = total.toLocaleString('en') + ' QAR';
+  // Sync checkbox to current state
+  const cb = document.getElementById('inv-include-overdue');
+  if (cb) cb.checked = includeOverdue;
+  updateInvSummary();
+}
+
+function onIncludeOverdueChange() {
+  includeOverdue = document.getElementById('inv-include-overdue').checked;
+  updateInvSummary();
+}
+
+function markRecordPaid(invNum) {
+  const r = invoiceRecords.find(x => x.invNum === invNum);
+  if (!r) return;
+  if (!confirm(`تعليم الفاتورة ${invNum} كمدفوعة بالكامل؟`)) return;
+  r.payStatus = 'مدفوع';
+  r.paidAmount = r.total;
+  saveInvoiceRecords();
+  renderOverdueAlert();
+  showToast('✅ تم تعليم الفاتورة كمدفوعة');
+}
+
+function deleteInvoiceRecord(invNum) {
+  if (!confirm(`حذف سجل الفاتورة ${invNum}؟`)) return;
+  invoiceRecords = invoiceRecords.filter(r => r.invNum !== invNum);
+  saveInvoiceRecords();
+  renderOverdueAlert();
+  renderInvoiceLog();
+  showToast('🗑 تم الحذف');
+}
+
+// ── Bulk End-of-Month Invoice Generation ──
+let bulkSelected = {}; // clientName -> boolean
+
+function openBulkInvoiceModal() {
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const monthSel = document.getElementById('bulk-month');
+  const now = new Date();
+  // Default: if today is in the last 7 days of the month, use current month. Otherwise use last month.
+  const isLastWeek = (new Date(now.getFullYear(), now.getMonth()+1, 0).getDate() - now.getDate()) < 7;
+  const def = isLastWeek ? now : new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const defaultVal = def.getFullYear() + '-' + String(def.getMonth()+1).padStart(2,'0');
+  let opts = '';
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const label = arMonths[d.getMonth()] + ' ' + d.getFullYear();
+    opts += `<option value="${val}"${val===defaultVal?' selected':''}>${label}</option>`;
+  }
+  monthSel.innerHTML = opts;
+
+  // Default due date = last day of selected month
+  const [dy,dm] = defaultVal.split('-');
+  const lastDay = new Date(parseInt(dy), parseInt(dm), 0);
+  document.getElementById('bulk-due').value = lastDay.toISOString().split('T')[0];
+
+  bulkSelected = {};
+  renderBulkList();
+  document.getElementById('bulk-modal').classList.add('open');
+}
+
+function renderBulkList() {
+  const month = document.getElementById('bulk-month').value;
+  const listEl = document.getElementById('bulk-client-list');
+  // Set due date default when month changes
+  const [dy,dm] = month.split('-');
+  if (dy && dm) {
+    const lastDay = new Date(parseInt(dy), parseInt(dm), 0);
+    document.getElementById('bulk-due').value = lastDay.toISOString().split('T')[0];
+  }
+
+  // All clients with monthly package > 0
+  const eligible = clients_data.filter(c => c.name && c.monthly && c.monthly > 0);
+
+  // Default selection on first render for the month: all eligible who don't already have an invoice for this month
+  if (Object.keys(bulkSelected).length === 0) {
+    eligible.forEach(c => {
+      const exists = invoiceRecords.some(r => r.client === c.name && r.month === month);
+      bulkSelected[c.name] = !exists;
+    });
+  }
+
+  if (!eligible.length) {
+    listEl.innerHTML = '<div class="empty" style="padding:24px"><div class="icon">👥</div><p>لا يوجد عملاء لديهم باقة شهرية</p><p style="font-size:12px;margin-top:4px">أضف مبلغ الباقة الشهرية في تاب العملاء</p></div>';
+    updateBulkSummary();
+    return;
+  }
+
+  listEl.innerHTML = eligible.map((c,i) => {
+    const sel = !!bulkSelected[c.name];
+    const cVisitsMonth = visits.filter(v => v.client === c.name && visitMonth(v) === month);
+    const extras = cVisitsMonth.reduce((s,v) => s + (v.extraAmount||0), 0);
+    const existing = invoiceRecords.find(r => r.client === c.name && r.month === month);
+    const overdueList = getOverdueInvoices(c.name);
+    const overdueSum = overdueList.reduce((s,r) => s + getOverdueRemaining(r), 0);
+    const total = (c.monthly||0) + extras;
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    return `<div style="padding:10px 14px;border-bottom:1px solid #F0F0F0;background:${bg}">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+        <input type="checkbox" ${sel?'checked':''} onchange="toggleBulkClient('${c.name.replace(/'/g,"\\'")}', this.checked)" style="width:18px;height:18px;margin-top:3px;flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <div style="font-weight:700;font-size:14px">${c.name}</div>
+            <div style="font-weight:900;color:var(--gm);font-size:14px">${total.toLocaleString('en')} QAR</div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">
+            باقة: ${(c.monthly||0).toLocaleString('en')}
+            · ${cVisitsMonth.length} زيارة
+            ${extras>0?' · إضافية: '+extras.toLocaleString('en'):''}
+          </div>
+          ${existing ? `<div style="font-size:11px;color:var(--or);margin-top:3px">⚠️ يوجد فاتورة لهذا الشهر (${existing.invNum}) — سيتم الاستبدال</div>` : ''}
+          ${overdueSum>0 ? `<div style="font-size:11px;color:var(--red);margin-top:3px">💰 متأخرات سابقة: ${overdueSum.toLocaleString('en')} QAR (${overdueList.length} فاتورة) — تُدرج في الفاتورة المطبوعة</div>` : ''}
+        </div>
+      </label>
+    </div>`;
+  }).join('');
+  updateBulkSummary();
+}
+
+function toggleBulkClient(name, checked) {
+  bulkSelected[name] = checked;
+  updateBulkSummary();
+}
+
+function bulkSelectAll(val) {
+  const eligible = clients_data.filter(c => c.name && c.monthly && c.monthly > 0);
+  eligible.forEach(c => bulkSelected[c.name] = val);
+  renderBulkList();
+}
+
+function updateBulkSummary() {
+  const month = document.getElementById('bulk-month').value;
+  const selected = Object.keys(bulkSelected).filter(k => bulkSelected[k]);
+  let totalAmount = 0;
+  selected.forEach(name => {
+    const c = clients_data.find(x => x.name === name);
+    if (!c) return;
+    const extras = visits.filter(v => v.client === name && visitMonth(v) === month)
+      .reduce((s,v) => s + (v.extraAmount||0), 0);
+    totalAmount += (c.monthly||0) + extras;
+  });
+  document.getElementById('bulk-summary').textContent = selected.length + ' عميل مختار';
+  document.getElementById('bulk-total-count').textContent = selected.length;
+  document.getElementById('bulk-total-amount').textContent = totalAmount.toLocaleString('en') + ' QAR';
+}
+
+function generateBulkInvoices() {
+  const month = document.getElementById('bulk-month').value;
+  const due = document.getElementById('bulk-due').value;
+  const selected = Object.keys(bulkSelected).filter(k => bulkSelected[k]);
+  if (!selected.length) { alert('اختر عميل واحد على الأقل'); return; }
+  if (!confirm(`سيتم إصدار ${selected.length} فاتورة لشهر ${month}. هل تريد المتابعة؟`)) return;
+
+  const arToEn = {'ا':'A','أ':'A','إ':'A','آ':'A','ب':'B','ت':'T','ث':'TH','ج':'J','ح':'H','خ':'KH','د':'D','ذ':'Z','ر':'R','ز':'Z','س':'S','ش':'SH','ص':'S','ض':'D','ط':'T','ظ':'Z','ع':'A','غ':'GH','ف':'F','ق':'Q','ك':'K','ل':'L','م':'M','ن':'N','ه':'H','و':'W','ي':'Y','ى':'Y','ة':'H','ء':'A'};
+  let created = 0, replaced = 0;
+  selected.forEach(name => {
+    const c = clients_data.find(x => x.name === name);
+    if (!c || !c.monthly || c.monthly <= 0) return;
+    const monthVisits = visits.filter(v => v.client === name && visitMonth(v) === month);
+    const extras = monthVisits.reduce((s,v) => s + (v.extraAmount||0), 0);
+    const total = (c.monthly||0) + extras;
+    // Remove any existing invoice for this client+month
+    const existing = invoiceRecords.find(r => r.client === name && r.month === month);
+    if (existing) {
+      invoiceRecords = invoiceRecords.filter(r => r !== existing);
+      replaced++;
+    }
+    // Generate invoice number
+    const code = name.split(' ').map(w => arToEn[w[0]] || w[0].toUpperCase()).join('').substring(0,3).toUpperCase();
+    const count = invoiceRecords.filter(r => r.client === name).length + 1;
+    const invNum = `${code}-INV-${String(count).padStart(3,'0')}`;
+    invoiceRecords.push({
+      invNum, client: name, date: TODAY, month,
+      type: 'monthly', fee: c.monthly, extras,
+      total,
+      payStatus: 'غير مدفوع',
+      paidAmount: 0,
+      dueDate: due || '',
+      visitIds: monthVisits.map(v => v.id),
+      auto: true,
+    });
+    created++;
+  });
+  saveInvoiceRecords();
+  document.getElementById('bulk-modal').classList.remove('open');
+  dismissEomBanner(month);
+  showToast(`✅ تم إصدار ${created} فاتورة${replaced?' (منها '+replaced+' مستبدلة)':''}`);
+  renderInvoiceLog();
+  renderOverdueAlert();
+}
+
+// ── End-of-month banner ──
+function shouldShowEomBanner() {
+  const now = new Date();
+  const day = now.getDate();
+  const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  // Show during last 3 days of month OR first 3 days of next month
+  const inLastWeek = day >= lastDay - 2;
+  const inFirstDays = day <= 3;
+  if (!inLastWeek && !inFirstDays) return false;
+  // Determine which month the banner is for
+  const targetMonth = inFirstDays
+    ? (() => { const d = new Date(now.getFullYear(), now.getMonth()-1, 1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); })()
+    : now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  // Hide if dismissed for this month
+  try {
+    const dismissed = localStorage.getItem('dt_eom_dismissed_'+targetMonth);
+    if (dismissed === '1') return false;
+  } catch {}
+  // Hide if invoices already generated for all eligible clients for target month
+  const eligible = clients_data.filter(c => c.name && c.monthly && c.monthly > 0);
+  if (eligible.length) {
+    const allBilled = eligible.every(c => invoiceRecords.some(r => r.client === c.name && r.month === targetMonth));
+    if (allBilled) return false;
+  }
+  return targetMonth;
+}
+
+function renderEomBanner() {
+  const banner = document.getElementById('eom-banner');
+  if (!banner) return;
+  const target = shouldShowEomBanner();
+  if (!target) { banner.style.display = 'none'; return; }
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const [y,m] = target.split('-');
+  const label = `${arMonths[parseInt(m)-1]} ${y}`;
+  document.getElementById('eom-banner-text').textContent = `جهّز فواتير شهر ${label} لعملائك`;
+  banner.style.display = 'block';
+  banner.dataset.targetMonth = target;
+}
+
+function dismissEomBanner(month) {
+  const banner = document.getElementById('eom-banner');
+  const target = month || (banner && banner.dataset ? banner.dataset.targetMonth : null);
+  if (target) {
+    try { localStorage.setItem('dt_eom_dismissed_'+target, '1'); } catch {}
+  }
+  if (banner) banner.style.display = 'none';
+}
+
+// Close modal on backdrop click
+document.addEventListener('DOMContentLoaded', () => {
+  const bm = document.getElementById('bulk-modal');
+  if (bm) bm.addEventListener('click', e => { if (e.target === e.currentTarget) bm.classList.remove('open'); });
+});
+
+// ── Manual Overdue Invoice ──
+function openManualOverdueModal() {
+  const currentClient = document.getElementById('inv-client')?.value || '';
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+  // Populate client dropdown
+  const clientSel = document.getElementById('of-client');
+  const clients = getClients();
+  clientSel.innerHTML = '<option value="">اختر العميل...</option>' + clients.map(c => `<option${c===currentClient?' selected':''}>${c}</option>`).join('');
+
+  // Populate month dropdown (last 24 months, default to last month)
+  const monthSel = document.getElementById('of-month');
+  const now = new Date();
+  const defaultD = new Date(now.getFullYear(), now.getMonth() - 1, 1); // last month default
+  const defaultVal = defaultD.getFullYear() + '-' + String(defaultD.getMonth()+1).padStart(2,'0');
+  let opts = '';
+  for (let i = 0; i < 36; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const label = arMonths[d.getMonth()] + ' ' + d.getFullYear();
+    opts += `<option value="${val}"${val===defaultVal?' selected':''}>${label}</option>`;
+  }
+  monthSel.innerHTML = opts;
+
+  // Pre-fill amount from client's monthly package if available
+  const totalInp = document.getElementById('of-total');
+  totalInp.value = '';
+  if (currentClient) {
+    const cd = clients_data.find(c => c.name === currentClient);
+    if (cd && cd.monthly && cd.monthly > 0) totalInp.value = cd.monthly;
+  }
+
+  // Auto invoice number suggestion
+  const invNumInp = document.getElementById('of-invnum');
+  invNumInp.value = '';
+  if (currentClient) {
+    const arToEn = {'ا':'A','أ':'A','إ':'A','آ':'A','ب':'B','ت':'T','ث':'TH','ج':'J','ح':'H','خ':'KH','د':'D','ذ':'Z','ر':'R','ز':'Z','س':'S','ش':'SH','ص':'S','ض':'D','ط':'T','ظ':'Z','ع':'A','غ':'GH','ف':'F','ق':'Q','ك':'K','ل':'L','م':'M','ن':'N','ه':'H','و':'W','ي':'Y','ى':'Y','ة':'H','ء':'A'};
+    const code = currentClient.split(' ').map(w => arToEn[w[0]] || w[0].toUpperCase()).join('').substring(0,3).toUpperCase();
+    const count = invoiceRecords.filter(r => r.client === currentClient).length + 1;
+    invNumInp.value = `${code}-INV-${String(count).padStart(3,'0')}`;
+  }
+
+  document.getElementById('of-due').value = '';
+  document.getElementById('of-paid').value = '';
+  document.getElementById('of-status').value = 'غير مدفوع';
+  document.getElementById('of-type').value = 'monthly';
+  document.getElementById('overdue-modal').classList.add('open');
+}
+
+function saveManualOverdue() {
+  const client = document.getElementById('of-client').value;
+  const invNum = document.getElementById('of-invnum').value.trim();
+  const month = document.getElementById('of-month').value;
+  const total = parseFloat(document.getElementById('of-total').value) || 0;
+  const paid = parseFloat(document.getElementById('of-paid').value) || 0;
+  const status = document.getElementById('of-status').value;
+  const type = document.getElementById('of-type').value;
+  const due = document.getElementById('of-due').value;
+
+  if (!client || !invNum || !month || total <= 0) {
+    alert('يرجى تعبئة: العميل، رقم الفاتورة، الشهر، والمبلغ الإجمالي');
+    return;
+  }
+
+  // Check duplicate
+  if (invoiceRecords.find(r => r.invNum === invNum)) {
+    if (!confirm(`الفاتورة ${invNum} موجودة مسبقاً. هل تريد الاستبدال؟`)) return;
+    invoiceRecords = invoiceRecords.filter(r => r.invNum !== invNum);
+  }
+
+  invoiceRecords.push({
+    invNum, client,
+    date: month + '-01', // nominal date = first day of month
+    month, type,
+    fee: type==='monthly' ? total : 0,
+    extras: 0,
+    total,
+    payStatus: status,
+    paidAmount: status==='مدفوع' ? total : paid,
+    dueDate: due || '',
+    visitIds: [],
+    manual: true,
+  });
+  saveInvoiceRecords();
+  document.getElementById('overdue-modal').classList.remove('open');
+  showToast('✅ تم إضافة الفاتورة القديمة');
+  renderOverdueAlert();
+  renderInvoiceLog();
+}
+
+// Close modal on backdrop click
+document.addEventListener('DOMContentLoaded', () => {
+  const om = document.getElementById('overdue-modal');
+  if (om) om.addEventListener('click', e => { if (e.target === e.currentTarget) om.classList.remove('open'); });
+});
+
+// ── Invoice Log ──
+function toggleInvoiceLog() {
+  const body = document.getElementById('inv-log-body');
+  if (!body) return;
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+  if (body.style.display === 'block') renderInvoiceLog();
+}
+
+function renderInvoiceLog() {
+  const listEl = document.getElementById('inv-log-list');
+  const countEl = document.getElementById('inv-log-count');
+  const filterClient = document.getElementById('inv-log-filter-client');
+  const filterStatus = document.getElementById('inv-log-filter-status');
+  const filterMonth = document.getElementById('inv-log-filter-month');
+  if (!listEl) return;
+
+  // Populate client filter
+  if (filterClient) {
+    const clients = [...new Set(invoiceRecords.map(r => r.client).filter(Boolean))].sort();
+    const cur = filterClient.value;
+    filterClient.innerHTML = '<option value="">كل العملاء</option>' + clients.map(c => `<option${c===cur?' selected':''}>${c}</option>`).join('');
+  }
+  // Populate month filter
+  if (filterMonth) {
+    const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const months = [...new Set(invoiceRecords.map(r => r.month).filter(Boolean))].sort().reverse();
+    const cur = filterMonth.value;
+    filterMonth.innerHTML = '<option value="">كل الأشهر</option>' + months.map(m => {
+      const [y,mn] = m.split('-');
+      const label = mn ? `${arMonths[parseInt(mn)-1]} ${y}` : m;
+      return `<option value="${m}"${m===cur?' selected':''}>${label}</option>`;
+    }).join('');
+  }
+
+  const fc = filterClient ? filterClient.value : '';
+  const fs = filterStatus ? filterStatus.value : '';
+  const fm = filterMonth ? filterMonth.value : '';
+  let filtered = invoiceRecords.filter(r => {
+    if (fc && r.client !== fc) return false;
+    if (fs && r.payStatus !== fs) return false;
+    if (fm && r.month !== fm) return false;
+    return true;
+  });
+  // Sort newest first by date
+  filtered = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  if (countEl) countEl.textContent = filtered.length;
+
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="empty"><div class="icon">🧾</div><p>لا توجد فواتير بعد</p></div>';
+    return;
+  }
+
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  listEl.innerHTML = filtered.map((r,i) => {
+    const [y,m] = (r.month||'-').split('-');
+    const monthLabel = m ? `${arMonths[parseInt(m)-1]} ${y}` : (r.month||'—');
+    const remaining = getOverdueRemaining(r);
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    const curMonth = new Date().toISOString().substring(0,7);
+    const isOverdue = r.payStatus !== 'مدفوع' && r.month && r.month < curMonth;
+    return `<div style="padding:12px 16px;border-bottom:1px solid #F0F0F0;background:${bg};${isOverdue?'border-right:4px solid var(--red)':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div>
+          <div style="font-weight:700;font-size:14px">${r.invNum}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${r.client}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${badge(r.payStatus,true)}
+          ${r.payStatus!=='مدفوع' ? `<button class="btn-icon" style="color:var(--gm)" onclick="markRecordPaid('${r.invNum}')" title="تعليم كمدفوعة">✓</button>` : ''}
+          <button class="btn-icon" style="color:#ddd" onclick="deleteInvoiceRecord('${r.invNum}')" title="حذف">🗑</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#555">
+        <div>
+          <span>${r.type==='monthly'?'📅 شهرية':'📄 زيارة'}</span>
+          · <span>${monthLabel}</span>
+          ${r.dueDate?` · استحقاق ${fmtDate(r.dueDate)}`:''}
+        </div>
+        <div style="font-weight:900;color:${isOverdue?'var(--red)':'var(--gd)'}">
+          ${r.payStatus==='مدفوع' ? (r.total||0).toLocaleString('en')+' QAR' : remaining.toLocaleString('en')+' / '+(r.total||0).toLocaleString('en')+' QAR'}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderInvVisits() {
@@ -858,9 +1759,32 @@ function renderInvVisits() {
   const section = document.getElementById('inv-visits-section');
   if (!client) { section.style.display = 'none'; updateInvButtons(); return; }
   section.style.display = 'block';
-  const cVisits = visits.filter(v => v.client === client);
+
+  // For monthly: filter by selected month and auto-select all; for single: show all
+  let cVisits = visits.filter(v => v.client === client);
+  if (invType === 'monthly') {
+    const month = getSelectedInvMonth();
+    cVisits = cVisits.filter(v => visitMonth(v) === month);
+    // Sort oldest-first within the month
+    cVisits = [...cVisits].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    // Auto-select all visits of this month (only if nothing was explicitly selected)
+    if (!selectedVisits.length) {
+      selectedVisits = cVisits.map(v => v.id);
+    } else {
+      // Keep only selections that are in the current filtered list
+      selectedVisits = selectedVisits.filter(id => cVisits.some(v => v.id === id));
+      if (!selectedVisits.length) selectedVisits = cVisits.map(v => v.id);
+    }
+  }
+
   const el = document.getElementById('inv-visits-list');
-  if (!cVisits.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:12px 0;text-align:center">لا توجد زيارات لهذا العميل</div>'; return; }
+  if (!cVisits.length) {
+    const msg = invType === 'monthly' ? 'لا توجد زيارات لهذا العميل في الشهر المختار' : 'لا توجد زيارات لهذا العميل';
+    el.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:12px 0;text-align:center">${msg}</div>`;
+    updateInvSummary();
+    updateInvButtons();
+    return;
+  }
   el.innerHTML = cVisits.map(v => {
     const sel = selectedVisits.includes(v.id);
     const isRound = invType === 'single';
@@ -887,7 +1811,14 @@ function updateInvSummary() {
   const selData = visits.filter(v => selectedVisits.includes(v.id));
   const fee = parseFloat(document.getElementById('inv-fee').value)||0;
   const extTotal = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
-  const total = invType==='monthly' ? fee+extTotal : selData.length===1 ? fee+(selData[0]?.extraAmount||0) : 0;
+  const baseTotal = invType==='monthly' ? fee+extTotal : selData.length===1 ? fee+(selData[0]?.extraAmount||0) : 0;
+
+  // Overdue amount (only for monthly invoices)
+  const client = document.getElementById('inv-client').value;
+  const overdue = (invType==='monthly' && includeOverdue) ? getOverdueInvoices(client) : [];
+  const overdueTotal = overdue.reduce((s,r) => s + getOverdueRemaining(r), 0);
+  const total = baseTotal + overdueTotal;
+
   const summary = document.getElementById('inv-summary');
   if (!selData.length) { summary.style.display='none'; return; }
   summary.style.display = 'block';
@@ -905,6 +1836,12 @@ function updateInvSummary() {
     extRow.style.display = ea > 0 ? 'flex' : 'none';
     document.getElementById('inv-sum-ext').textContent = fmtQAR(ea);
   }
+  // Overdue row in summary
+  const ovRow = document.getElementById('inv-sum-overdue-row');
+  if (ovRow) {
+    ovRow.style.display = overdueTotal > 0 ? 'flex' : 'none';
+    document.getElementById('inv-sum-overdue').textContent = fmtQAR(overdueTotal);
+  }
   document.getElementById('inv-sum-total').textContent = fmtQAR(total);
 }
 
@@ -921,8 +1858,13 @@ function buildInvoiceHTML(forPrint) {
   const payStatus = document.getElementById('inv-pay-status').value;
   const selData = visits.filter(v => selectedVisits.includes(v.id));
   const ext = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
-  const total = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+  const baseTotal = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+  // Overdue invoices (only monthly)
+  const overdue = (invType==='monthly' && includeOverdue) ? getOverdueInvoices(client) : [];
+  const overdueTotal = overdue.reduce((s,r) => s + getOverdueRemaining(r), 0);
+  const total = baseTotal + overdueTotal;
   const payBadge = payStatus==='مدفوع' ? `background:#D8F3DC;color:#2D6A4F` : `background:#FADBD8;color:#C0392B`;
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
   const rows = invType==='monthly'
     ? selData.map((v,i) => `<tr style="background:${i%2===0?'#fff':'#f7f7f7'}">
@@ -1044,6 +1986,42 @@ function buildInvoiceHTML(forPrint) {
       <span style="background:#FFF9E6;color:#D4AC0D;border:2px solid #D4AC0D;padding:5px 14px;border-radius:6px;font-weight:900;font-size:15px">${fee.toLocaleString('en')} QAR</span>
     </div>`:''}
 
+    ${overdue.length ? `
+    <!-- Overdue invoices section -->
+    <div style="background:#C0392B;padding:10px 24px;color:white;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center">
+      <span>⚠️ فواتير غير مدفوعة من أشهر سابقة</span>
+      <span style="background:#FADBD8;color:#C0392B;padding:2px 10px;border-radius:12px;font-size:11px">${overdue.length} فاتورة</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff5f4">
+      <thead>
+        <tr style="background:#FADBD8">
+          <th style="padding:8px 16px;text-align:center;color:#C0392B;font-size:11px;width:10%">#</th>
+          <th style="padding:8px 16px;text-align:right;color:#C0392B;font-size:11px">رقم الفاتورة</th>
+          <th style="padding:8px 16px;text-align:right;color:#C0392B;font-size:11px">الشهر</th>
+          <th style="padding:8px 16px;text-align:right;color:#C0392B;font-size:11px">تاريخ الاستحقاق</th>
+          <th style="padding:8px 16px;text-align:left;color:#C0392B;font-size:11px">المبلغ المتبقي</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${overdue.map((r,i) => {
+          const [y,m] = (r.month||'-').split('-');
+          const monthLabel = m ? `${arMonths[parseInt(m)-1]} ${y}` : (r.month||'—');
+          const remaining = getOverdueRemaining(r);
+          return `<tr>
+            <td style="padding:10px 16px;border-bottom:1px solid #f0d4d0;text-align:center;color:#C0392B;font-weight:700">${i+1}</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #f0d4d0;font-weight:700;color:#1B4332">${r.invNum}</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #f0d4d0;color:#555">${monthLabel}</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #f0d4d0;color:#555;font-size:11px">${r.dueDate?fmtDate(r.dueDate):'—'}</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #f0d4d0;text-align:left;font-weight:900;color:#C0392B">${remaining.toLocaleString('en')} QAR</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div style="background:#FADBD8;padding:10px 24px;display:flex;justify-content:space-between;align-items:center;border-top:2px dashed #C0392B">
+      <span style="font-weight:700;color:#C0392B;font-size:13px">إجمالي المتأخرات</span>
+      <span style="background:#fff;color:#C0392B;border:2px solid #C0392B;padding:5px 14px;border-radius:6px;font-weight:900;font-size:15px">${overdueTotal.toLocaleString('en')} QAR</span>
+    </div>` : ''}
+
     <!-- Totals -->
     <div style="padding:20px 24px;background:#fafafa;border-top:1px solid #eee">
       ${invType==='monthly'?`
@@ -1059,6 +2037,10 @@ function buildInvoiceHTML(forPrint) {
       ${(selData[0]?.extraAmount||0)>0?`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
         <span style="color:#555">أعمال إضافية</span><span style="font-weight:700;color:#E07B39">QAR ${(selData[0]?.extraAmount||0).toLocaleString('en')}</span>
       </div>`:''}`}
+      ${overdue.length?`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
+        <span style="color:#555">المتأخرات من أشهر سابقة</span><span style="font-weight:700;color:#C0392B">QAR ${overdueTotal.toLocaleString('en')}</span>
+      </div>`:''}
       <div style="height:1px;background:#e0e0e0;margin:12px 0"></div>
       <div style="background:#1B4332;border-radius:10px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
         <span style="color:white;font-size:14px;font-weight:700">💰 الإجمالي المستحق</span>
@@ -1078,6 +2060,9 @@ function buildInvoiceHTML(forPrint) {
 
 function markVisitsPaid() {
   if (!selectedVisits.length) return;
+  const status = document.getElementById('inv-pay-status').value || 'غير مدفوع';
+  // Only mark visits as paid if invoice itself is paid
+  if (status !== 'مدفوع') return;
   visits = visits.map(v => {
     if (selectedVisits.includes(v.id)) {
       return { ...v, payStatus: 'مدفوع', paidAmount: v.extraAmount || 0 };
@@ -1089,13 +2074,65 @@ function markVisitsPaid() {
   renderAll();
 }
 
+function recordIssuedInvoice() {
+  const client = document.getElementById('inv-client').value;
+  const invNum = document.getElementById('inv-num').value;
+  if (!client || !invNum) return;
+
+  const fee = parseFloat(document.getElementById('inv-fee').value)||0;
+  const due = document.getElementById('inv-due').value;
+  const payStatus = document.getElementById('inv-pay-status').value || 'غير مدفوع';
+  const selData = visits.filter(v => selectedVisits.includes(v.id));
+  const ext = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
+  const baseTotal = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+
+  // Determine invoice month: for monthly invoices, use the explicitly selected month
+  let month = new Date().toISOString().substring(0,7);
+  if (invType === 'monthly') {
+    month = getSelectedInvMonth();
+  } else if (selData.length) {
+    const vm = visitMonth(selData[0]);
+    if (vm) month = vm;
+  }
+
+  // Upsert invoice record (keyed by invNum)
+  const existing = invoiceRecords.find(r => r.invNum === invNum);
+  const rec = {
+    invNum, client, date: TODAY, month,
+    type: invType, fee, extras: invType==='monthly'?ext:(selData[0]?.extraAmount||0),
+    total: baseTotal,
+    payStatus,
+    paidAmount: payStatus==='مدفوع' ? baseTotal : 0,
+    dueDate: due || '',
+    visitIds: selData.map(v => v.id),
+  };
+  if (existing) {
+    Object.assign(existing, rec);
+  } else {
+    invoiceRecords.push(rec);
+  }
+  saveInvoiceRecords();
+
+  // If invoice is paid, also auto-mark any included overdue records as paid
+  if (payStatus === 'مدفوع' && includeOverdue) {
+    getOverdueInvoices(client).forEach(r => {
+      r.payStatus = 'مدفوع';
+      r.paidAmount = r.total;
+    });
+    saveInvoiceRecords();
+  }
+}
+
 function doPrint() {
   const html = buildInvoiceHTML(true);
   saveInvoiceNum();
+  recordIssuedInvoice();
   markVisitsPaid();
   const w = window.open('','_blank');
   w.document.write(html); w.document.close(); w.focus();
   setTimeout(() => { w.print(); w.close(); }, 400);
+  renderOverdueAlert();
+  renderInvoiceLog();
 }
 
 function saveInvoiceNum() {
@@ -1118,8 +2155,12 @@ function shareInvoiceWhatsApp() {
   const fee = parseFloat(document.getElementById('inv-fee').value)||0;
   const selData = visits.filter(v => selectedVisits.includes(v.id));
   const ext = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
-  const total = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+  const baseTotal = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+  const overdue = (invType==='monthly' && includeOverdue) ? getOverdueInvoices(client) : [];
+  const overdueTotal = overdue.reduce((s,r) => s + getOverdueRemaining(r), 0);
+  const total = baseTotal + overdueTotal;
   const due = document.getElementById('inv-due').value;
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
   let msg = `🌳 *Dr.Tree — فاتورة خدمات*\n\n`;
   msg += `رقم الفاتورة: *${invNum}*\n`;
   msg += `العميل: *${client}*\n`;
@@ -1138,10 +2179,31 @@ function shareInvoiceWhatsApp() {
     msg += `• سعر الزيارة: ${fee.toLocaleString('en')} QAR\n`;
     if ((v?.extraAmount||0) > 0) msg += `• أعمال إضافية: ${v.extraAmount.toLocaleString('en')} QAR\n`;
   }
+  if (overdue.length) {
+    msg += `\n⚠️ *فواتير غير مدفوعة سابقة:*\n`;
+    overdue.forEach(r => {
+      const [y,m] = (r.month||'-').split('-');
+      const monthLabel = m ? `${arMonths[parseInt(m)-1]} ${y}` : (r.month||'—');
+      msg += `• ${r.invNum} (${monthLabel}): ${getOverdueRemaining(r).toLocaleString('en')} QAR\n`;
+    });
+    msg += `• إجمالي المتأخرات: *${overdueTotal.toLocaleString('en')} QAR*\n`;
+  }
   msg += `\n💰 *الإجمالي المستحق: ${total.toLocaleString('en')} QAR*`;
   if (due) msg += `\n📅 تاريخ الاستحقاق: ${fmtDate(due)}`;
   msg += `\n\nشكراً لثقتكم بخدماتنا 🌿`;
-  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+  const phone = getClientPhone(client);
+  const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+
+function getClientPhone(clientName) {
+  const c = (clients_data || []).find(x => x.name === clientName);
+  if (!c || !c.phone) return '';
+  // Normalize: remove +, spaces, dashes; add 974 prefix if it looks local
+  let p = String(c.phone).replace(/[^\d]/g, '');
+  if (!p) return '';
+  if (p.length === 8) p = '974' + p; // Qatar local number
+  return p;
 }
 
 function shareReportWhatsApp(id) {
@@ -1162,7 +2224,8 @@ function shareReportWhatsApp(id) {
   }
   if (v.nextDate) msg += `📅 الموعد القادم: ${fmtDate(v.nextDate)}${v.nextNote?' — '+v.nextNote:''}\n\n`;
   msg += `شكراً لثقتكم بخدماتنا 🌿`;
-  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+  const phone = getClientPhone(v.client);
+  window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
 }
 
 function generatePDF(id) { if (typeof id === 'number') printVisitReport(id); }
@@ -1174,10 +2237,313 @@ function doExportHTML() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));
   saveInvoiceNum();
+  recordIssuedInvoice();
   markVisitsPaid();
   a.download = `فاتورة_${invNum}_${client}_${TODAY}.html`;
   a.click();
   showToast('📄 تم تصدير الفاتورة!');
+  renderOverdueAlert();
+  renderInvoiceLog();
+}
+
+// ── Visit reminders (remaining visits in monthly package) ──
+function renderVisitsDue() {
+  const now = new Date();
+  const curMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const today = now.getDate();
+  const daysLeft = lastDay - today;
+  const eligible = (clients_data||[]).filter(c => c.name && c.monthly && c.monthly > 0);
+  const rows = eligible.map(c => {
+    const done = visits.filter(v => v.client === c.name && visitMonth(v) === curMonth).length;
+    const target = parseInt(c.visitsPerMonth) || 4;
+    const remaining = Math.max(0, target - done);
+    return { name: c.name, area: c.area, phone: c.phone, done, remaining, target };
+  }).filter(r => r.remaining > 0).sort((a,b) => b.remaining - a.remaining);
+  const card = document.getElementById('visits-due-card');
+  const list = document.getElementById('visits-due-list');
+  const count = document.getElementById('visits-due-count');
+  if (!card || !list) return;
+  if (!rows.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  count.textContent = rows.length + ` · ${daysLeft} يوم متبقي`;
+  list.innerHTML = rows.map((r,i) => {
+    // Urgency relative to package size
+    const ratio = r.remaining / r.target;
+    const urgency = ratio >= 0.75 ? 'var(--red)' : ratio >= 0.5 ? 'var(--or)' : 'var(--gold)';
+    const bgUrg   = ratio >= 0.75 ? 'var(--redl)' : ratio >= 0.5 ? 'var(--orl)' : 'var(--goldl)';
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    return `<div style="padding:12px 16px;border-bottom:1px solid #F0F0F0;background:${bg};display:flex;align-items:center;gap:10px">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px">${r.name} <span style="color:var(--muted);font-size:11px;font-weight:400">${r.area?'— '+r.area:''}</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">أنجز ${r.done} من ${r.target} زيارات</div>
+      </div>
+      <span style="background:${bgUrg};color:${urgency};padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700">متبقي ${r.remaining}</span>
+      ${r.phone ? `<button class="btn-icon" style="color:#25D366" title="واتساب" onclick="openClientWhatsApp('${r.name.replace(/'/g,"\\'")}')">💬</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── Finances / Expenses ──
+function populateFinMonths() {
+  const sel = document.getElementById('fin-month');
+  if (!sel) return;
+  const cur = sel.value;
+  const options = [];
+  const now = new Date();
+  for (let i=0; i<24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const v = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    options.push(`<option value="${v}">${arMonths[d.getMonth()]} ${d.getFullYear()}</option>`);
+  }
+  sel.innerHTML = options.join('');
+  if (cur) sel.value = cur;
+  else sel.value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+}
+
+function getSelectedFinMonth() {
+  const sel = document.getElementById('fin-month');
+  return (sel && sel.value) || (new Date().toISOString().substring(0,7));
+}
+
+function renderFinances() {
+  populateFinMonths();
+  const month = getSelectedFinMonth();
+  // Revenue = sum of total for invoices in this month
+  const monthInvoices = invoiceRecords.filter(r => r.month === month);
+  const revenue = monthInvoices.reduce((s,r) => s + (r.total||0), 0);
+  const collected = monthInvoices.reduce((s,r) => s + (r.paidAmount||0), 0);
+  // Expenses = sum for this month
+  const monthExpenses = expenses.filter(e => (e.date||'').substring(0,7) === month);
+  const totalExp = monthExpenses.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
+  const profit = revenue - totalExp;
+  document.getElementById('fin-revenue').textContent = revenue.toLocaleString('en') + ' QAR';
+  document.getElementById('fin-collected').textContent = collected.toLocaleString('en') + ' QAR';
+  document.getElementById('fin-expenses').textContent = totalExp.toLocaleString('en') + ' QAR';
+  const profEl = document.getElementById('fin-profit');
+  profEl.textContent = profit.toLocaleString('en') + ' QAR';
+  profEl.style.color = profit >= 0 ? 'var(--blue)' : 'var(--red)';
+  renderFinChart();
+  renderTopClients(month);
+  renderExpenses();
+}
+
+function renderFinChart() {
+  const el = document.getElementById('fin-chart');
+  if (!el) return;
+  // Last 12 months revenue + expenses
+  const now = new Date();
+  const months = [];
+  for (let i=11; i>=0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const ym = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const rev = invoiceRecords.filter(r => r.month === ym).reduce((s,r) => s + (r.total||0), 0);
+    const exp = expenses.filter(e => (e.date||'').substring(0,7) === ym).reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
+    months.push({ ym, rev, exp, label: String(d.getMonth()+1)+'/'+String(d.getFullYear()).substring(2) });
+  }
+  const maxVal = Math.max(1, ...months.map(m => Math.max(m.rev, m.exp)));
+  const chartH = 140;
+  const barW = 22;
+  const gap = 6;
+  const groupW = barW*2 + gap;
+  const totalW = months.length * (groupW + 8);
+  let svg = `<div style="overflow-x:auto"><svg width="${totalW}" height="${chartH+40}" style="font-family:Arial">`;
+  // Grid lines
+  [0, 0.5, 1].forEach(t => {
+    const y = chartH - (t * chartH);
+    svg += `<line x1="0" y1="${y}" x2="${totalW}" y2="${y}" stroke="#e5e7eb" stroke-dasharray="2,2"/>`;
+    svg += `<text x="2" y="${y-2}" font-size="9" fill="#6B7280">${Math.round(maxVal*t).toLocaleString('en')}</text>`;
+  });
+  months.forEach((m, i) => {
+    const x = i*(groupW+8) + 4;
+    const hRev = (m.rev/maxVal) * chartH;
+    const hExp = (m.exp/maxVal) * chartH;
+    svg += `<rect x="${x}" y="${chartH-hRev}" width="${barW}" height="${hRev}" fill="#52B788" rx="3"><title>إيرادات ${m.label}: ${m.rev.toLocaleString('en')}</title></rect>`;
+    svg += `<rect x="${x+barW+gap}" y="${chartH-hExp}" width="${barW}" height="${hExp}" fill="#E07B39" rx="3"><title>مصاريف ${m.label}: ${m.exp.toLocaleString('en')}</title></rect>`;
+    svg += `<text x="${x+groupW/2}" y="${chartH+15}" font-size="9" fill="#6B7280" text-anchor="middle">${m.label}</text>`;
+  });
+  svg += `</svg></div>`;
+  svg += `<div style="display:flex;gap:14px;justify-content:center;margin-top:8px;font-size:11px"><span><span style="display:inline-block;width:10px;height:10px;background:#52B788;border-radius:2px;margin-left:4px"></span>إيرادات</span><span><span style="display:inline-block;width:10px;height:10px;background:#E07B39;border-radius:2px;margin-left:4px"></span>مصاريف</span></div>`;
+  el.innerHTML = svg;
+}
+
+function renderTopClients(month) {
+  const el = document.getElementById('fin-top-clients');
+  if (!el) return;
+  const byClient = {};
+  invoiceRecords.filter(r => r.month === month).forEach(r => {
+    byClient[r.client] = (byClient[r.client]||0) + (r.total||0);
+  });
+  const sorted = Object.entries(byClient).sort((a,b) => b[1]-a[1]).slice(0,5);
+  if (!sorted.length) { el.innerHTML = '<div class="empty"><p style="color:var(--muted);font-size:12px">لا توجد فواتير هالشهر</p></div>'; return; }
+  const max = sorted[0][1] || 1;
+  el.innerHTML = sorted.map(([name,amt],i) => {
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    const pct = Math.round((amt/max)*100);
+    return `<div style="padding:12px 16px;border-bottom:1px solid #F0F0F0;background:${bg}">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:4px"><span>${name}</span><span style="color:var(--gm)">${amt.toLocaleString('en')} QAR</span></div>
+      <div style="background:#eee;height:6px;border-radius:4px;overflow:hidden"><div style="background:var(--gl);height:100%;width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderExpenses() {
+  const month = getSelectedFinMonth();
+  const catFilter = document.getElementById('exp-filter-cat')?.value || '';
+  const list = document.getElementById('exp-list');
+  const count = document.getElementById('exp-count');
+  if (!list) return;
+  let rows = expenses.filter(e => (e.date||'').substring(0,7) === month);
+  if (catFilter) rows = rows.filter(e => e.category === catFilter);
+  rows.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  count.textContent = rows.length;
+  if (!rows.length) { list.innerHTML = '<div class="empty"><div class="icon">💸</div><p>لا مصاريف في هذا الشهر</p></div>'; return; }
+  list.innerHTML = rows.map((e,i) => {
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    return `<div style="padding:12px 16px;border-bottom:1px solid #F0F0F0;background:${bg}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div>
+          <div style="font-weight:700;font-size:14px">${e.category||'—'}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${fmtDate(e.date)} · ${e.method||'نقدي'}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-weight:900;color:var(--red);font-size:15px">${(parseFloat(e.amount)||0).toLocaleString('en')} QAR</span>
+          <button class="btn-icon" onclick="editExpense(${e.id})">✏️</button>
+          <button class="btn-icon" style="color:#ddd" onclick="deleteExpense(${e.id})">🗑</button>
+        </div>
+      </div>
+      ${e.note ? `<div style="font-size:11px;color:#666;margin-top:3px">📝 ${e.note}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openExpenseModal() {
+  document.getElementById('expense-modal-title').textContent = '➕ إضافة مصروف';
+  document.getElementById('exp-id').value = '';
+  document.getElementById('exp-date').value = TODAY;
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-category').value = '';
+  document.getElementById('exp-method').value = 'نقدي';
+  document.getElementById('exp-note').value = '';
+  document.getElementById('expense-modal').classList.add('open');
+}
+
+function editExpense(id) {
+  const e = expenses.find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('expense-modal-title').textContent = '✏️ تعديل مصروف';
+  document.getElementById('exp-id').value = e.id;
+  document.getElementById('exp-date').value = e.date || TODAY;
+  document.getElementById('exp-amount').value = e.amount || '';
+  document.getElementById('exp-category').value = e.category || '';
+  document.getElementById('exp-method').value = e.method || 'نقدي';
+  document.getElementById('exp-note').value = e.note || '';
+  document.getElementById('expense-modal').classList.add('open');
+}
+
+function saveExpense() {
+  const id = parseFloat(document.getElementById('exp-id').value);
+  const date = document.getElementById('exp-date').value;
+  const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+  const category = document.getElementById('exp-category').value;
+  const method = document.getElementById('exp-method').value;
+  const note = document.getElementById('exp-note').value.trim();
+  if (!date || !amount || !category) { alert('يرجى تعبئة: التاريخ، المبلغ، التصنيف'); return; }
+  if (id) {
+    const e = expenses.find(x => x.id === id);
+    if (e) Object.assign(e, { date, amount, category, method, note });
+  } else {
+    expenses.push({ id: Date.now() + Math.random(), date, amount, category, method, note });
+  }
+  saveExpenses();
+  document.getElementById('expense-modal').classList.remove('open');
+  showToast('✅ تم الحفظ');
+  renderFinances();
+}
+
+function deleteExpense(id) {
+  if (!confirm('حذف هذا المصروف؟')) return;
+  expenses = expenses.filter(e => e.id !== id);
+  saveExpenses();
+  renderFinances();
+  showToast('🗑 تم الحذف');
+}
+
+function backupData() {
+  const payload = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    visits, clients: clients_data, invoiceRecords, expenses, nextId,
+    invoices: (() => { try { return JSON.parse(localStorage.getItem('dt_invoices')||'{}'); } catch { return {}; } })()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `DrTree_backup_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  showToast('✅ تم تصدير النسخة');
+}
+
+function restoreData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data || typeof data !== 'object') throw new Error('Invalid format');
+      const summary = `سيتم استعادة:
+${(data.visits||[]).length} زيارة
+${(data.clients||[]).length} عميل
+${(data.invoiceRecords||[]).length} فاتورة
+${(data.expenses||[]).length} مصروف
+
+⚠️ سيتم استبدال البيانات الحالية. متابعة؟`;
+      if (!confirm(summary)) { event.target.value=''; return; }
+      if (Array.isArray(data.visits)) visits = data.visits;
+      if (Array.isArray(data.clients)) clients_data = data.clients;
+      if (Array.isArray(data.invoiceRecords)) invoiceRecords = data.invoiceRecords;
+      if (Array.isArray(data.expenses)) expenses = data.expenses;
+      if (typeof data.nextId === 'number') nextId = data.nextId;
+      // Save everything back
+      saveData();
+      saveClients();
+      saveInvoiceRecords();
+      saveExpenses();
+      if (data.invoices) {
+        try { localStorage.setItem('dt_invoices', JSON.stringify(data.invoices)); } catch {}
+        if (window._fbReady) {
+          const { db, ref, set } = window._fb;
+          set(ref(db, 'invoices'), data.invoices).catch(e => console.log(e));
+        }
+      }
+      renderAll();
+      if (document.getElementById('tab-finances').classList.contains('active')) renderFinances();
+      if (document.getElementById('tab-invoice').classList.contains('active')) { renderOverdueAlert(); renderInvoiceLog(); }
+      if (document.getElementById('tab-clients').classList.contains('active')) renderClients();
+      showToast('✅ تمت الاستعادة');
+    } catch (err) {
+      alert('❌ فشل استعادة الملف: ' + err.message);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function exportExpenses() {
+  const month = getSelectedFinMonth();
+  const rows = expenses.filter(e => (e.date||'').substring(0,7) === month);
+  if (!rows.length) { alert('لا توجد مصاريف للتصدير'); return; }
+  const header = ['التاريخ','التصنيف','المبلغ','طريقة الدفع','ملاحظة'];
+  const csv = [header.join(',')].concat(
+    rows.map(e => [e.date, e.category, e.amount, e.method||'', (e.note||'').replace(/,/g,' ')].join(','))
+  ).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `مصاريف_${month}.csv`;
+  a.click();
 }
 
 // ── Upcoming visits ──
@@ -1328,6 +2694,8 @@ function openAddClient() {
   document.getElementById('cf-area').value = '';
   document.getElementById('cf-phone').value = '';
   document.getElementById('cf-monthly').value = '';
+  const vpm0 = document.getElementById('cf-visits-per-month'); if (vpm0) vpm0.value = '4';
+  const locEl0 = document.getElementById('cf-location'); if (locEl0) locEl0.value = '';
   document.getElementById('cf-notes').value = '';
   document.getElementById('cf-name').classList.remove('error');
   window._editClientId = null;
@@ -1343,6 +2711,8 @@ function openEditClient(id) {
   document.getElementById('cf-area').value = c.area || '';
   document.getElementById('cf-phone').value = c.phone || '';
   document.getElementById('cf-monthly').value = c.monthly || '';
+  const vpm = document.getElementById('cf-visits-per-month'); if (vpm) vpm.value = c.visitsPerMonth || 4;
+  const locEl = document.getElementById('cf-location'); if (locEl) locEl.value = c.location || '';
   document.getElementById('cf-notes').value = c.notes || '';
   window._editClientId = id;
   document.getElementById('client-modal').classList.add('open');
@@ -1351,12 +2721,16 @@ function openEditClient(id) {
 function saveClient() {
   const name = document.getElementById('cf-name').value.trim();
   if (!name) { document.getElementById('cf-name').classList.add('error'); return; }
+  const locEl = document.getElementById('cf-location');
+  const vpmEl = document.getElementById('cf-visits-per-month');
   const data = {
     id: window._editClientId || Date.now(),
     name,
     area: document.getElementById('cf-area').value.trim(),
     phone: document.getElementById('cf-phone').value.trim(),
     monthly: parseFloat(document.getElementById('cf-monthly').value) || 0,
+    visitsPerMonth: parseInt(vpmEl && vpmEl.value) || 4,
+    location: locEl ? locEl.value.trim() : '',
     notes: document.getElementById('cf-notes').value.trim(),
   };
   if (window._editClientId) {
@@ -1412,11 +2786,14 @@ function renderClients() {
           <div style="font-size:12px;color:var(--muted);margin-top:2px">
             ${c.area ? '📍 '+c.area : ''}
             ${c.phone ? ' &nbsp;📞 '+c.phone : ''}
-          ${c.monthly ? `<span style="background:var(--goldl);color:var(--gold);padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-right:4px">💰 ${c.monthly.toLocaleString('en')} QAR/شهر</span>` : ''}
+          ${c.monthly ? `<span style="background:var(--goldl);color:var(--gold);padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-right:4px">💰 ${c.monthly.toLocaleString('en')} QAR/شهر · ${c.visitsPerMonth||4} زيارات</span>` : ''}
           </div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <span style="background:var(--gp);color:var(--gm);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${cVisits.length} زيارة</span>
+          <button class="btn-icon" title="كشف حساب" onclick="openClientStatement('${c.name.replace(/'/g,"\\'")}')">📊</button>
+          ${c.location ? `<button class="btn-icon" title="الموقع" style="color:#1A56DB" onclick="openClientMap('${c.name.replace(/'/g,"\\'")}')">📍</button>` : ''}
+          ${c.phone ? `<button class="btn-icon" title="واتساب" style="color:#25D366" onclick="openClientWhatsApp('${c.name.replace(/'/g,"\\'")}')">💬</button>` : ''}
           <button class="btn-icon" onclick="openEditClient(${c.id})">✏️</button>
           <button class="btn-icon" style="color:#ddd" onclick="delClient(${c.id})">🗑</button>
         </div>
@@ -1445,16 +2822,277 @@ function renderAll() {
   renderKPIs();
   renderRecent();
   renderUpcoming();
+  renderVisitsDue();
   updateClientSelects();
+}
+
+// ── Client Statement ──
+let _currentStatementClient = null;
+function openClientStatement(clientName) {
+  _currentStatementClient = clientName;
+  const c = clients_data.find(x => x.name === clientName);
+  const cVisits = visits.filter(v => v.client === clientName).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const cInvoices = invoiceRecords.filter(r => r.client === clientName).sort((a,b) => (a.month||a.date||'').localeCompare(b.month||b.date||''));
+  const totalInvoiced = cInvoices.reduce((s,r) => s + (r.total||0), 0);
+  const totalPaid = cInvoices.reduce((s,r) => s + (r.paidAmount||0), 0);
+  const balance = totalInvoiced - totalPaid;
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const monthLabel = (ym) => {
+    if (!ym) return '—';
+    const [y,m] = ym.split('-');
+    return m ? `${arMonths[parseInt(m)-1]} ${y}` : ym;
+  };
+  document.getElementById('statement-title').textContent = `📊 كشف حساب — ${clientName}`;
+  let body = `<div style="padding:4px 0 14px">`;
+  body += `<div style="background:var(--gp);padding:10px 12px;border-radius:10px;margin-bottom:12px;font-size:12px">`;
+  body += `<div style="display:flex;justify-content:space-between;color:var(--muted);margin-bottom:4px">المنطقة: <span style="color:var(--gd);font-weight:600">${c?.area||'—'}</span></div>`;
+  body += `<div style="display:flex;justify-content:space-between;color:var(--muted);margin-bottom:4px">الجوال: <span style="color:var(--gd);font-weight:600">${c?.phone||'—'}</span></div>`;
+  body += `<div style="display:flex;justify-content:space-between;color:var(--muted);margin-bottom:4px">الباقة الشهرية: <span style="color:var(--gd);font-weight:600">${c?.monthly?c.monthly.toLocaleString('en')+' QAR':'—'}</span></div>`;
+  body += `<div style="display:flex;justify-content:space-between;color:var(--muted)">إجمالي الزيارات: <span style="color:var(--gd);font-weight:600">${cVisits.length}</span></div>`;
+  body += `</div>`;
+  // Summary
+  body += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">`;
+  body += `<div style="background:var(--gp);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700">إجمالي الفواتير</div><div style="font-size:18px;font-weight:900;color:var(--gm)">${totalInvoiced.toLocaleString('en')}</div></div>`;
+  body += `<div style="background:var(--goldl);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700">المدفوع</div><div style="font-size:18px;font-weight:900;color:var(--gold)">${totalPaid.toLocaleString('en')}</div></div>`;
+  body += `<div style="background:${balance>0?'var(--redl)':'var(--gp)'};border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700">الرصيد</div><div style="font-size:18px;font-weight:900;color:${balance>0?'var(--red)':'var(--gm)'}">${balance.toLocaleString('en')}</div></div>`;
+  body += `</div>`;
+  // Invoices
+  if (cInvoices.length) {
+    body += `<div style="font-weight:700;font-size:14px;color:var(--gd);margin-bottom:8px">📄 الفواتير</div>`;
+    body += `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px">`;
+    body += `<div style="background:var(--gp);padding:8px 12px;display:grid;grid-template-columns:1.1fr 1.1fr 0.8fr 0.8fr 0.8fr 0.7fr;font-size:11px;font-weight:700;color:var(--gm);gap:4px"><span>رقم</span><span>الشهر</span><span>الإجمالي</span><span>المدفوع</span><span>المتبقي</span><span>الحالة</span></div>`;
+    let runningBal = 0;
+    cInvoices.forEach((r,i) => {
+      const remaining = (r.total||0) - (r.paidAmount||0);
+      runningBal += remaining;
+      const bg = i%2===0 ? '#fff' : '#f7f7f7';
+      body += `<div style="background:${bg};padding:8px 12px;display:grid;grid-template-columns:1.1fr 1.1fr 0.8fr 0.8fr 0.8fr 0.7fr;font-size:11px;gap:4px;border-top:1px solid #f0f0f0"><span style="font-weight:600">${r.invNum}</span><span>${monthLabel(r.month)}</span><span>${(r.total||0).toLocaleString('en')}</span><span style="color:var(--gm)">${(r.paidAmount||0).toLocaleString('en')}</span><span style="color:${remaining>0?'var(--red)':'var(--gm)'};font-weight:700">${remaining.toLocaleString('en')}</span><span class="badge badge-sm ${badgeClass(r.payStatus)}">${r.payStatus||'—'}</span></div>`;
+    });
+    body += `</div>`;
+  } else {
+    body += `<div style="padding:20px;text-align:center;color:var(--muted);background:#fafafa;border-radius:10px;margin-bottom:14px">لا توجد فواتير</div>`;
+  }
+  // Recent visits
+  if (cVisits.length) {
+    const recent = cVisits.slice(-8).reverse();
+    body += `<div style="font-weight:700;font-size:14px;color:var(--gd);margin-bottom:8px">🌿 آخر ${recent.length} زيارة</div>`;
+    body += `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px">`;
+    recent.forEach((v,i) => {
+      const bg = i%2===0 ? '#fff' : '#f7f7f7';
+      body += `<div style="background:${bg};padding:8px 12px;font-size:12px;border-bottom:1px solid #f0f0f0"><span style="color:var(--gm);font-weight:600">${fmtDate(v.date)}</span> · ${v.type||'—'}${v.extra?` · ⚙ ${v.extra}${v.extraAmount?' ('+v.extraAmount+' QAR)':''}`:''}</div>`;
+    });
+    body += `</div>`;
+  }
+  body += `</div>`;
+  document.getElementById('statement-body').innerHTML = body;
+  document.getElementById('statement-modal').classList.add('open');
+}
+
+function printStatement() {
+  const title = document.getElementById('statement-title').textContent;
+  const body = document.getElementById('statement-body').innerHTML;
+  const w = window.open('','_blank');
+  w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title>
+    <style>body{font-family:Arial,sans-serif;padding:24px;direction:rtl}
+    h1{color:#1B4332;font-size:22px;margin-bottom:20px;border-bottom:3px solid #D4AC0D;padding-bottom:8px}
+    .badge{padding:2px 8px;border-radius:12px;font-size:10px}
+    .badge-paid{background:#D8F3DC;color:#2D6A4F}.badge-unpaid{background:#FADBD8;color:#C0392B}.badge-partial{background:#FFF9E6;color:#D4AC0D}
+    </style></head><body><h1>${title}</h1>${body}<div style="text-align:center;margin-top:30px;color:#888;font-size:11px">تم الإصدار بتاريخ ${new Date().toLocaleDateString('ar-QA')} — 🌳 Dr.Tree</div></body></html>`);
+  w.document.close();
+  setTimeout(() => { w.print(); }, 400);
+}
+
+function shareStatementWhatsApp() {
+  if (!_currentStatementClient) return;
+  const clientName = _currentStatementClient;
+  const cInvoices = invoiceRecords.filter(r => r.client === clientName).sort((a,b) => (a.month||'').localeCompare(b.month||''));
+  const totalInvoiced = cInvoices.reduce((s,r) => s + (r.total||0), 0);
+  const totalPaid = cInvoices.reduce((s,r) => s + (r.paidAmount||0), 0);
+  const balance = totalInvoiced - totalPaid;
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  let msg = `🌳 *Dr.Tree — كشف حساب*\n\n`;
+  msg += `👤 العميل: *${clientName}*\n`;
+  msg += `📅 التاريخ: ${new Date().toLocaleDateString('ar-QA')}\n\n`;
+  msg += `📋 *الفواتير:*\n`;
+  cInvoices.forEach(r => {
+    const [y,m] = (r.month||'-').split('-');
+    const ml = m ? `${arMonths[parseInt(m)-1]} ${y}` : (r.month||'—');
+    const rem = (r.total||0) - (r.paidAmount||0);
+    msg += `• ${r.invNum} (${ml}): ${(r.total||0).toLocaleString('en')} — متبقي ${rem.toLocaleString('en')}\n`;
+  });
+  msg += `\n💰 *الملخص:*\n`;
+  msg += `إجمالي الفواتير: ${totalInvoiced.toLocaleString('en')} QAR\n`;
+  msg += `المدفوع: ${totalPaid.toLocaleString('en')} QAR\n`;
+  msg += `*الرصيد المستحق: ${balance.toLocaleString('en')} QAR*\n`;
+  const phone = getClientPhone(clientName);
+  window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+function openClientWhatsApp(clientName) {
+  const phone = getClientPhone(clientName);
+  if (!phone) { alert('رقم الجوال غير متوفر'); return; }
+  window.open('https://wa.me/' + phone, '_blank');
+}
+
+function openClientMap(clientName) {
+  const c = (clients_data||[]).find(x => x.name === clientName);
+  if (!c || !c.location) { alert('الموقع غير متوفر'); return; }
+  let url = c.location.trim();
+  // If it's coordinates like "25.2854,51.5310" or "25.2854, 51.5310"
+  if (/^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(url)) {
+    url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(url.replace(/\s/g,''));
+  } else if (!/^https?:\/\//.test(url)) {
+    url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(url);
+  }
+  window.open(url, '_blank');
 }
 
 // ── Init ──
 loadData();
 loadClients();
 renderAll();
+// Show initial cloud status
+const _cs = document.getElementById('cloud-status');
+if (_cs) { _cs.textContent = '⏳ جاري الاتصال...'; _cs.style.color = '#D4AC0D'; }
 initFirebase();
+// If Firebase doesn't connect within 6 seconds, show offline status
+setTimeout(() => { if (!window._fbReady) setCloudStatus(false, 'offline'); }, 6000);
 document.getElementById('f-date').value = TODAY;
 </script>
+<!-- Bulk End-of-Month Invoice Modal -->
+<div class="modal" id="bulk-modal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🗓 إصدار فواتير نهاية الشهر</div>
+
+    <div class="grid2">
+      <div class="field"><label>شهر الفاتورة</label><select id="bulk-month" onchange="renderBulkList()"></select></div>
+      <div class="field"><label>تاريخ الاستحقاق</label><input type="date" id="bulk-due"></div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:12px;color:var(--muted)" id="bulk-summary">0 عميل مختار</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="bulkSelectAll(true)">تحديد الكل</button>
+        <button class="btn btn-secondary btn-sm" onclick="bulkSelectAll(false)">إلغاء الكل</button>
+      </div>
+    </div>
+
+    <div id="bulk-client-list" style="max-height:50vh;overflow-y:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:14px"></div>
+
+    <div style="background:var(--gp);border-radius:10px;padding:10px 12px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gm);margin-bottom:4px">
+        <span>عدد الفواتير</span><span id="bulk-total-count" style="font-weight:900">0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;color:var(--gd);font-weight:900">
+        <span>إجمالي المبلغ</span><span id="bulk-total-amount">0 QAR</span>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="flex:1" onclick="generateBulkInvoices()">✅ إصدار الكل</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('bulk-modal').classList.remove('open')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Overdue Invoice Modal -->
+<div class="modal" id="overdue-modal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">➕ إضافة فاتورة قديمة</div>
+
+    <div class="field">
+      <label>العميل *</label>
+      <select id="of-client">
+        <option value="">اختر العميل...</option>
+      </select>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>رقم الفاتورة *</label><input type="text" id="of-invnum" placeholder="مثال: MAA-INV-003"></div>
+      <div class="field"><label>النوع</label>
+        <select id="of-type">
+          <option value="monthly">فاتورة شهرية</option>
+          <option value="single">فاتورة زيارة</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>شهر الفاتورة *</label><select id="of-month"></select></div>
+      <div class="field"><label>تاريخ الاستحقاق</label><input type="date" id="of-due"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>المبلغ الإجمالي (QAR) *</label><input type="number" id="of-total" placeholder="500" min="0"></div>
+      <div class="field"><label>المبلغ المدفوع (QAR)</label><input type="number" id="of-paid" placeholder="0" min="0"></div>
+    </div>
+    <div class="field">
+      <label>حالة الدفع</label>
+      <select id="of-status">
+        <option>غير مدفوع</option>
+        <option>مدفوع جزئياً</option>
+        <option>مدفوع</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="flex:1" onclick="saveManualOverdue()">✚ إضافة</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('overdue-modal').classList.remove('open')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Expense Modal -->
+<div class="modal" id="expense-modal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="expense-modal-title">➕ إضافة مصروف</div>
+    <input type="hidden" id="exp-id">
+    <div class="grid2">
+      <div class="field"><label>التاريخ *</label><input type="date" id="exp-date"></div>
+      <div class="field"><label>المبلغ (QAR) *</label><input type="number" id="exp-amount" placeholder="0" min="0" step="0.01"></div>
+    </div>
+    <div class="field">
+      <label>التصنيف *</label>
+      <select id="exp-category">
+        <option value="">اختر تصنيف...</option>
+        <option>بنزين ووقود</option>
+        <option>مواد زراعية</option>
+        <option>أدوات ومعدات</option>
+        <option>صيانة معدات</option>
+        <option>عمالة</option>
+        <option>رواتب</option>
+        <option>اتصالات وإنترنت</option>
+        <option>ضيافة وإقامة</option>
+        <option>رسوم وتراخيص</option>
+        <option>أخرى</option>
+      </select>
+    </div>
+    <div class="field"><label>طريقة الدفع</label>
+      <select id="exp-method">
+        <option>نقدي</option><option>تحويل بنكي</option><option>بطاقة</option><option>شيك</option>
+      </select>
+    </div>
+    <div class="field"><label>ملاحظة</label><textarea id="exp-note" placeholder="تفاصيل المصروف..." style="min-height:60px"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="flex:1" onclick="saveExpense()">✚ حفظ</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('expense-modal').classList.remove('open')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client Statement Modal -->
+<div class="modal" id="statement-modal">
+  <div class="modal-box" style="max-width:760px;margin:0 auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="statement-title">📊 كشف حساب</div>
+    <div id="statement-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="flex:1" onclick="printStatement()">🖨 طباعة</button>
+      <button class="btn btn-full" style="background:#25D366;color:#fff;border:none" onclick="shareStatementWhatsApp()">💬 واتساب</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('statement-modal').classList.remove('open')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
 <!-- Client Modal -->
 <div class="modal" id="client-modal">
   <div class="modal-box">
@@ -1465,7 +3103,14 @@ document.getElementById('f-date').value = TODAY;
       <div class="field"><label>المنطقة</label><input type="text" id="cf-area" list="areas-list" placeholder="الدحيل"></div>
       <div class="field"><label>الجوال</label><input type="tel" id="cf-phone" placeholder="+974 XXXX XXXX"></div>
     </div>
-    <div class="field"><label>مبلغ الباقة الشهرية (QAR)</label><input type="number" id="cf-monthly" placeholder="500" min="0"></div>
+    <div class="grid2">
+      <div class="field"><label>مبلغ الباقة الشهرية (QAR)</label><input type="number" id="cf-monthly" placeholder="500" min="0"></div>
+      <div class="field"><label>عدد الزيارات بالباقة</label><input type="number" id="cf-visits-per-month" placeholder="4" min="0" max="30" value="4"></div>
+    </div>
+    <div class="field">
+      <label>الموقع (رابط Google Maps أو إحداثيات)</label>
+      <input type="text" id="cf-location" placeholder="https://maps.google.com/... أو 25.2854,51.5310">
+    </div>
     <div class="field"><label>ملاحظات</label><textarea id="cf-notes" placeholder="أي ملاحظات..." style="min-height:60px"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-primary" style="flex:1" id="client-save-btn" onclick="saveClient()">✚ إضافة</button>
