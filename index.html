@@ -17,6 +17,8 @@
   --blue:#1A56DB; --bluel:#EBF5FF;
   --bg:#EEF2EE; --white:#fff; --gray:#F7F7F7;
   --border:#E5E7EB; --muted:#6B7280;
+  --purple:#7C3AED; --purplel:#F5F3FF;
+  --teal:#0D9488; --teall:#F0FDFA;
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 body { font-family:Arial,sans-serif; background:var(--bg); direction:rtl; min-height:100vh; }
@@ -214,6 +216,31 @@ textarea { min-height:72px; resize:vertical; }
 
     <button class="btn btn-primary btn-full" onclick="openAdd()">➕ إضافة زيارة جديدة</button>
 
+    <!-- Finance summary on dashboard -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header between" style="background:var(--gm)">
+        <h2>💰 ملخص مالي</h2>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="switchTab('finance')">التفاصيل ←</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:12px;gap:8px">
+        <div style="text-align:center">
+          <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">الإيرادات</div>
+          <div style="font-size:18px;font-weight:900;color:var(--gm)" id="dash-fin-revenue">0</div>
+          <div style="font-size:9px;color:var(--muted)">QAR</div>
+        </div>
+        <div style="text-align:center;border-right:1px solid #eee;border-left:1px solid #eee">
+          <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">المصاريف</div>
+          <div style="font-size:18px;font-weight:900;color:var(--red)" id="dash-fin-expenses">0</div>
+          <div style="font-size:9px;color:var(--muted)">QAR</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">صافي الربح</div>
+          <div style="font-size:18px;font-weight:900;color:var(--gm)" id="dash-fin-profit">0</div>
+          <div style="font-size:9px;color:var(--muted)">QAR</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Upcoming visits -->
     <div id="upcoming-card" class="card" style="display:none">
       <div class="card-header" style="background:var(--gm)">
@@ -324,12 +351,53 @@ textarea { min-height:72px; resize:vertical; }
         <button class="btn btn-full" style="background:#25D366;color:#fff;border:none" onclick="shareInvoiceWhatsApp()">💬 مشاركة عبر واتساب</button>
       </div>
     </div>
+
+    <!-- Invoice History -->
+    <div class="card" style="margin-top:4px">
+      <div class="card-header between" style="background:var(--gd)">
+        <h2>📁 سجل الفواتير</h2>
+        <span id="inv-history-count" style="background:var(--goldl);color:#8B6914;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+      </div>
+      <!-- Filters -->
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:8px">
+          <select id="inv-hist-client" onchange="renderInvoiceHistory()" style="flex:1;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
+            <option value="">كل العملاء</option>
+          </select>
+          <select id="inv-hist-status" onchange="renderInvoiceHistory()" style="flex:1;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
+            <option value="">كل الحالات</option>
+            <option>غير مدفوع</option>
+            <option>مدفوع جزئياً</option>
+            <option>مدفوع</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="inv-hist-month" onchange="renderInvoiceHistory()" style="flex:1;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
+            <option value="">كل الأشهر</option>
+          </select>
+          <select id="inv-hist-type" onchange="renderInvoiceHistory()" style="flex:1;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
+            <option value="">كل الأنواع</option>
+            <option value="monthly">📅 شهرية</option>
+            <option value="single">📄 زيارة</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="clearInvHistFilters()">مسح</button>
+        </div>
+        <!-- Summary bar -->
+        <div id="inv-hist-summary" style="display:none;background:var(--gp);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--gm);font-weight:700">إجمالي الفواتير المحددة</span>
+          <span style="font-size:14px;font-weight:900;color:var(--gd)" id="inv-hist-total">0 QAR</span>
+        </div>
+      </div>
+      <div id="inv-history-list">
+        <div class="empty"><div class="icon">🧾</div><p>لا توجد فواتير محفوظة بعد</p></div>
+      </div>
+    </div>
   </div>
 
-</div>
+</div><!-- /app -->
 
-<!-- Bottom Nav -->
-  <!-- CLIENTS TAB -->
+<!-- CLIENTS TAB - outside app div like original -->
+<div style="max-width:640px;margin:0 auto;padding:14px 12px 90px">
   <div id="tab-clients" class="tab">
     <button class="btn btn-primary btn-full" style="margin-bottom:14px;border-radius:12px;padding:14px;font-size:15px" onclick="openAddClient()">
       👤 إضافة عميل جديد
@@ -419,6 +487,7 @@ textarea { min-height:72px; resize:vertical; }
       </div>
       <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:10px">
         <button class="btn btn-primary btn-full" style="padding:14px;font-size:15px" onclick="printQuote()">🖨 طباعة / حفظ PDF</button>
+        <button class="btn btn-full" style="background:var(--gm);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer" onclick="saveQuoteOnly()">💾 حفظ بدون طباعة</button>
         <button class="btn btn-full" style="background:#25D366;color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer" onclick="shareQuoteWhatsApp()">💬 مشاركة عبر واتساب</button>
       </div>
     </div>
@@ -432,6 +501,91 @@ textarea { min-height:72px; resize:vertical; }
       <div id="quotes-list"></div>
     </div>
   </div>
+
+  <!-- FINANCE TAB -->
+  <div id="tab-finance" class="tab">
+
+    <!-- Month selector -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <select id="fin-month-filter" onchange="renderFinance()" style="flex:1;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;direction:rtl;background:#fff;outline:none;-webkit-appearance:none">
+        <option value="">كل الأشهر</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">➕ مصروف</button>
+    </div>
+
+    <!-- Financial KPIs -->
+    <div class="kpis" style="grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="kpi" style="background:var(--gp);border-color:var(--gl);padding:10px 12px">
+        <div class="kpi-label" style="font-size:9px">الإيرادات</div>
+        <div class="kpi-value" id="fin-kpi-revenue" style="color:var(--gm);font-size:16px">0</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
+      </div>
+      <div class="kpi" style="background:var(--redl);border-color:var(--red);padding:10px 12px">
+        <div class="kpi-label" style="font-size:9px">المصاريف</div>
+        <div class="kpi-value" id="fin-kpi-expenses" style="color:var(--red);font-size:16px">0</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
+      </div>
+      <div class="kpi" style="background:var(--bluel);border-color:var(--blue);padding:10px 12px">
+        <div class="kpi-label" style="font-size:9px">صافي الربح</div>
+        <div class="kpi-value" id="fin-kpi-profit" style="color:var(--blue);font-size:16px">0</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
+      </div>
+    </div>
+
+    <!-- P&L Summary card -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header" style="background:var(--gd)">
+        <h2>📊 ملخص الأرباح والخسائر</h2>
+      </div>
+      <div style="padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
+          <span style="font-size:13px;color:#555">💰 باقات شهرية</span>
+          <span style="font-size:14px;font-weight:700;color:var(--gm)" id="pl-packages">0 QAR</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
+          <span style="font-size:13px;color:#555">⚙ أعمال إضافية</span>
+          <span style="font-size:14px;font-weight:700;color:var(--or)" id="pl-extras">0 QAR</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
+          <span style="font-size:13px;color:#555">🌱 مواد ونباتات</span>
+          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-materials">— QAR</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
+          <span style="font-size:13px;color:#555">👷 رواتب وعمالة</span>
+          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-salaries">— QAR</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
+          <span style="font-size:13px;color:#555">⛽ وقود ومواصلات</span>
+          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-fuel">— QAR</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
+          <span style="font-size:13px;color:#555">🔧 معدات وأدوات</span>
+          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-equipment">— QAR</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
+          <span style="font-size:13px;color:#555">📦 أخرى</span>
+          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-other">— QAR</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-top:4px;border-top:2px solid var(--gd)">
+          <span style="font-size:14px;font-weight:900;color:var(--gd)">صافي الربح</span>
+          <span style="font-size:17px;font-weight:900" id="pl-net">0 QAR</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expenses list -->
+    <div class="card">
+      <div class="card-header between" style="background:var(--gd)">
+        <h2>📋 سجل المصاريف</h2>
+        <span id="fin-exp-count" style="background:var(--goldl);color:#8B6914;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+      </div>
+      <div id="fin-expenses-list">
+        <div class="empty"><div class="icon">💸</div><p>لا توجد مصاريف بعد</p></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tabs-wrapper -->
 
 <div class="bottom-nav">
   <div class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
@@ -453,6 +607,10 @@ textarea { min-height:72px; resize:vertical; }
   <div class="nav-item" id="nav-invoice" onclick="switchTab('invoice')">
     <div class="nav-icon">🧾</div>
     <div class="nav-label">الفواتير</div>
+  </div>
+  <div class="nav-item" id="nav-finance" onclick="switchTab('finance')">
+    <div class="nav-icon">💰</div>
+    <div class="nav-label">المالية</div>
   </div>
 </div>
 
@@ -620,6 +778,22 @@ function initFirebase() {
       try { localStorage.setItem('dt_nextid', String(nextId)); } catch {}
     }
   });
+  onValue(ref(db, 'expenses'), (snapshot) => {
+    const data = snapshot.val();
+    if (data && Array.isArray(data)) {
+      expenses = data;
+      try { localStorage.setItem('dt_expenses', JSON.stringify(expenses)); } catch {}
+      renderFinanceKPIs();
+      if (document.getElementById('tab-finance').classList.contains('active')) renderFinance();
+    }
+  });
+  onValue(ref(db, 'inv_history'), (snapshot) => {
+    const data = snapshot.val();
+    if (data && Array.isArray(data)) {
+      try { localStorage.setItem('dt_inv_history', JSON.stringify(data)); } catch {}
+      if (document.getElementById('tab-invoice').classList.contains('active')) renderInvoiceHistory();
+    }
+  });
 }
 
 function showSync() {
@@ -674,7 +848,7 @@ function showToast(msg) {
 
 // ── Tab switching ──
 function switchTab(tab) {
-  ['dashboard','log','clients','quote','invoice'].forEach(t => {
+  ['dashboard','log','clients','quote','invoice','finance'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===tab);
     document.getElementById('nav-'+t).classList.toggle('active', t===tab);
   });
@@ -682,6 +856,7 @@ function switchTab(tab) {
   if (tab === 'invoice') renderInvClients();
   if (tab === 'quote') renderQuotes();
   if (tab === 'clients') renderClients();
+  if (tab === 'finance') renderFinance();
 }
 
 // ── KPIs ──
@@ -948,6 +1123,159 @@ function renderInvClients() {
   const el = document.getElementById('inv-client');
   const cv = el.value;
   el.innerHTML = '<option value="">اختر العميل...</option>' + clients.map(c=>`<option${c===cv?' selected':''}>${c}</option>`).join('');
+  // Populate history client filter
+  const hc = document.getElementById('inv-hist-client');
+  if (hc) {
+    const hv = hc.value;
+    hc.innerHTML = '<option value="">كل العملاء</option>' + clients.map(c=>`<option${c===hv?' selected':''}>${c}</option>`).join('');
+  }
+  renderInvoiceHistory();
+}
+
+function renderInvoiceHistory() {
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+
+  // Populate month filter
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const monthSel = document.getElementById('inv-hist-month');
+  if (monthSel) {
+    const cur = monthSel.value;
+    const months = [...new Set(invHistory.map(r => r.date ? r.date.substring(0,7) : '').filter(Boolean))].sort().reverse();
+    let mopts = '<option value="">كل الأشهر</option>';
+    months.forEach(m => {
+      const [y, mo] = m.split('-');
+      mopts += `<option value="${m}"${m===cur?' selected':''}>${arMonths[parseInt(mo)-1]} ${y}</option>`;
+    });
+    monthSel.innerHTML = mopts;
+  }
+
+  const filterClient = document.getElementById('inv-hist-client')?.value || '';
+  const filterStatus = document.getElementById('inv-hist-status')?.value || '';
+  const filterMonth = document.getElementById('inv-hist-month')?.value || '';
+  const filterType = document.getElementById('inv-hist-type')?.value || '';
+
+  let filtered = invHistory.filter(r => {
+    if (filterClient && r.client !== filterClient) return false;
+    if (filterStatus && r.payStatus !== filterStatus) return false;
+    if (filterType && r.invType !== filterType) return false;
+    if (filterMonth && r.date && r.date.substring(0,7) !== filterMonth) return false;
+    return true;
+  });
+
+  // Summary bar
+  const totalAmt = filtered.reduce((s, r) => s + (r.total || 0), 0);
+  const summaryEl = document.getElementById('inv-hist-summary');
+  if (summaryEl) {
+    summaryEl.style.display = filtered.length ? 'flex' : 'none';
+    const te = document.getElementById('inv-hist-total');
+    if (te) te.textContent = totalAmt.toLocaleString('en') + ' QAR';
+  }
+
+  document.getElementById('inv-history-count').textContent = filtered.length;
+  const el = document.getElementById('inv-history-list');
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">🧾</div><p>لا توجد فواتير محفوظة بعد</p></div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map((r, i) => {
+    const payColor = r.payStatus==='مدفوع' ? 'var(--gm)' : r.payStatus==='مدفوع جزئياً' ? 'var(--gold)' : 'var(--red)';
+    const payBg = r.payStatus==='مدفوع' ? 'var(--gp)' : r.payStatus==='مدفوع جزئياً' ? 'var(--goldl)' : 'var(--redl)';
+    const typeLabel = r.invType === 'monthly' ? '📅 شهرية' : '📄 زيارة';
+    const arMonth = r.month ? (() => { const [y,m] = r.month.split('-'); return arMonths[parseInt(m)-1] + ' ' + y; })() : '';
+    return `<div class="visit-row ${i%2===0?'even':'odd'}">
+      <div class="visit-top">
+        <div style="flex:1;min-width:0">
+          <span class="visit-name">${r.client}</span>
+          <span style="background:var(--bluel);color:var(--blue);padding:1px 7px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px">${r.invNum}</span>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
+          <span style="background:${payBg};color:${payColor};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${r.payStatus}</span>
+          <button class="btn-icon" onclick="changeInvPayStatus(${r.id})" title="تغيير حالة الدفع" style="font-size:15px">💳</button>
+          <button class="btn-icon" onclick="reOpenInvoice(${r.id})" title="إعادة طباعة" style="font-size:15px">🖨</button>
+          <button class="btn-icon" style="color:#ddd;font-size:15px" onclick="deleteInvoiceRecord(${r.id})">🗑</button>
+        </div>
+      </div>
+      <div class="visit-meta" style="margin-bottom:4px">
+        <span style="background:var(--gray);color:var(--muted);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700">${typeLabel}</span>
+        ${arMonth ? `<span style="margin-right:6px;font-size:12px;color:var(--gm)">📅 ${arMonth}</span>` : ''}
+        <span style="margin-right:6px;font-size:11px;color:var(--muted)">${fmtDate(r.date)}</span>
+        ${r.due?`<span style="font-size:11px;color:var(--muted)">· استحقاق: ${fmtDate(r.due)}</span>`:''}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--gray);border-radius:8px;padding:6px 10px">
+        <div style="font-size:11px;color:var(--muted)">
+          ${r.invType==='monthly'
+            ? `باقة: <b>${(r.fee||0).toLocaleString('en')}</b> · إضافية: <b>${(r.ext||0).toLocaleString('en')}</b> QAR`
+            : `زيارة: <b>${(r.fee||0).toLocaleString('en')}</b> QAR`}
+        </div>
+        <div style="font-weight:900;color:var(--gd);font-size:15px">${(r.total||0).toLocaleString('en')} QAR</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function clearInvHistFilters() {
+  const ids = ['inv-hist-client','inv-hist-status','inv-hist-month','inv-hist-type'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderInvoiceHistory();
+}
+
+function changeInvPayStatus(id) {
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const rec = invHistory.find(r => r.id === id);
+  if (!rec) return;
+  const statuses = ['غير مدفوع', 'مدفوع جزئياً', 'مدفوع'];
+  const cur = statuses.indexOf(rec.payStatus);
+  rec.payStatus = statuses[(cur + 1) % 3];
+  localStorage.setItem('dt_inv_history', JSON.stringify(invHistory));
+  if (window._fbReady) {
+    const { db, ref, set } = window._fb;
+    set(ref(db, 'inv_history'), invHistory).catch(e => console.log(e));
+  }
+  renderInvoiceHistory();
+  showToast('✅ تم تحديث حالة الدفع: ' + rec.payStatus);
+}
+
+function reOpenInvoice(id) {
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const rec = invHistory.find(r => r.id === id);
+  if (!rec) return;
+  // Restore form fields
+  selectedVisits = rec.visitIds || [];
+  document.getElementById('inv-client').value = rec.client;
+  document.getElementById('inv-num').value = rec.invNum;
+  document.getElementById('inv-fee').value = rec.fee || 500;
+  document.getElementById('inv-due').value = rec.due || '';
+  document.getElementById('inv-pay-status').value = rec.payStatus;
+  setInvType(rec.invType || 'monthly');
+  if (rec.invType === 'monthly' && rec.month) {
+    const monthSel = document.getElementById('inv-month');
+    if (monthSel) { monthSel.innerHTML = buildInvMonthOptions(); monthSel.value = rec.month; }
+  }
+  renderInvVisits();
+  // Print
+  const html = buildInvoiceHTML(true);
+  const w = window.open('','_blank');
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => { w.print(); w.close(); }, 400);
+  showToast('🖨 إعادة طباعة الفاتورة');
+}
+
+function deleteInvoiceRecord(id) {
+  if (!confirm('حذف هذه الفاتورة من السجل؟')) return;
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  invHistory = invHistory.filter(r => r.id !== id);
+  localStorage.setItem('dt_inv_history', JSON.stringify(invHistory));
+  if (window._fbReady) {
+    const { db, ref, set } = window._fb;
+    set(ref(db, 'inv_history'), invHistory).catch(e => console.log(e));
+  }
+  renderInvoiceHistory();
+  showToast('🗑 تم حذف الفاتورة من السجل');
 }
 
 function buildInvMonthOptions() {
@@ -1263,10 +1591,11 @@ function doPrint() {
   setTimeout(() => { w.print(); w.close(); }, 400);
 }
 
-function saveInvoiceNum() {
+function saveInvoiceRecord(exportedAs) {
   const client = document.getElementById('inv-client').value;
   if (!client) return;
   try {
+    // Legacy counter (keep for backwards compat)
     const allInv = JSON.parse(localStorage.getItem('dt_invoices') || '{}');
     allInv[client] = (allInv[client] || 0) + 1;
     localStorage.setItem('dt_invoices', JSON.stringify(allInv));
@@ -1274,8 +1603,40 @@ function saveInvoiceNum() {
       const { db, ref, set } = window._fb;
       set(ref(db, 'invoices'), allInv).catch(e => console.log(e));
     }
-  } catch {}
+
+    // New: full invoice record
+    const invNum = document.getElementById('inv-num').value;
+    const fee = parseFloat(document.getElementById('inv-fee').value) || 0;
+    const due = document.getElementById('inv-due').value;
+    const payStatus = document.getElementById('inv-pay-status').value;
+    const month = document.getElementById('inv-month')?.value || '';
+    const selData = visits.filter(v => selectedVisits.includes(v.id));
+    const ext = selData.reduce((s,v) => s + (v.extraAmount||0), 0);
+    const total = invType === 'monthly' ? fee + ext : fee + (selData[0]?.extraAmount||0);
+
+    let invHistory = [];
+    try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+    // Avoid duplicate if same invNum already saved
+    if (!invHistory.find(r => r.invNum === invNum)) {
+      invHistory.unshift({
+        id: Date.now(),
+        invNum, client, invType, fee, ext, total,
+        due, payStatus, month,
+        date: TODAY,
+        visitIds: selectedVisits.slice(),
+        exportedAs: exportedAs || 'print'
+      });
+      localStorage.setItem('dt_inv_history', JSON.stringify(invHistory));
+      if (window._fbReady) {
+        const { db, ref, set } = window._fb;
+        set(ref(db, 'inv_history'), invHistory).catch(e => console.log(e));
+      }
+    }
+    renderInvoiceHistory();
+  } catch(e) { console.log(e); }
 }
+
+function saveInvoiceNum() { saveInvoiceRecord('print'); }
 
 function shareInvoiceWhatsApp() {
   const client = document.getElementById('inv-client').value;
@@ -1338,7 +1699,7 @@ function doExportHTML() {
   const html = buildInvoiceHTML(false);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));
-  saveInvoiceNum();
+  saveInvoiceRecord('export');
   markVisitsPaid();
   a.download = `فاتورة_${invNum}_${client}_${TODAY}.html`;
   a.click();
@@ -1666,6 +2027,7 @@ function newQuote() {
   document.getElementById('q-date').value=TODAY;
   document.getElementById('q-desc').value='';
   renderLaborRows(); renderPlantRows(); renderMaterialRows(); renderOtherRows(); updateQuoteSummary();
+  window._editQuoteId = null;
   document.getElementById('quote-form-card').style.display='block';
   document.getElementById('quote-form-card').scrollIntoView({behavior:'smooth'});
 }
@@ -1719,10 +2081,29 @@ function updateItem(type,idx,field,val){
   const arr = type==='labor'?laborItems:type==='plant'?plantItems:type==='material'?materialItems:otherItems;
   arr[idx][field] = field==='qty'||field==='price' ? parseFloat(val)||0 : val;
   if(field==='size') arr[idx].size = val;
-  if(type==='labor') renderLaborRows();
-  else if(type==='plant') renderPlantRows();
-  else if(type==='material') renderMaterialRows();
-  else renderOtherRows();
+  // Only re-render if qty or price changed (to update subtotal) — skip for text fields to avoid keyboard dismiss
+  if(field==='qty'||field==='price') {
+    // Update only the subtotal span without re-rendering the whole row
+    const rows = document.getElementById(type+'-rows');
+    if(rows) {
+      const spans = rows.querySelectorAll('span');
+      const subtotal = ((arr[idx].qty||0)*(arr[idx].price||0)).toLocaleString('en');
+      // Find the subtotal span for this row
+      const rowDivs = rows.children;
+      if(rowDivs[idx]) {
+        const span = rowDivs[idx].querySelector('span');
+        if(span) span.textContent = subtotal;
+      }
+    }
+    updateQuoteSummary();
+  }
+  // For select changes (unit, size) re-render is needed
+  if(field==='unit'||field==='size') {
+    if(type==='labor') renderLaborRows();
+    else if(type==='plant') renderPlantRows();
+    else if(type==='material') renderMaterialRows();
+    else renderOtherRows();
+  }
 }
 
 function calcSection(items){ return items.reduce((s,i)=>s+(i.qty||0)*(i.price||0),0); }
@@ -1735,6 +2116,42 @@ function updateQuoteSummary(){
   document.getElementById('qs-material').textContent=m.toLocaleString('en')+' QAR';
   document.getElementById('qs-other').textContent=o.toLocaleString('en')+' QAR';
   document.getElementById('qs-total').textContent=total.toLocaleString('en')+' QAR';
+}
+
+function saveQuoteOnly(){
+  const client = getQClient();
+  if(!client){showToast('⚠️ اختر العميل أو أدخل اسمه');return;}
+
+  // Save new client if needed
+  if(document.getElementById('q-client').value==='__new__' && client) {
+    if(!clients_data.find(c=>c.name===client)) {
+      clients_data.push({id:Date.now(),name:client,area:'',phone:'',monthly:0,visitsPerMonth:4,notes:''});
+      saveClients(); updateClientSelects();
+    }
+  }
+
+  const date = document.getElementById('q-date').value;
+  const desc = document.getElementById('q-desc').value;
+  const l=calcSection(laborItems),p=calcSection(plantItems),m=calcSection(materialItems),o=calcSection(otherItems);
+  const total=l+p+m+o;
+
+  // Save plant names to registry
+  plantItems.forEach(pl => { if(pl.desc) addPlantToRegistry(pl.desc); });
+
+  if (window._editQuoteId) {
+    quotes = quotes.map(q => q.id===window._editQuoteId
+      ? {...q, client, date, desc, labor:laborItems, plant:plantItems, material:materialItems, other:otherItems, total}
+      : q);
+    window._editQuoteId = null;
+    showToast('✅ تم تحديث الكوتيشن!');
+  } else {
+    const qNum='QT-'+String(quotes.length+1).padStart(3,'0');
+    quotes.unshift({id:Date.now(),qNum,client,date,desc,labor:laborItems,plant:plantItems,material:materialItems,other:otherItems,total});
+    showToast('✅ تم حفظ الكوتيشن!');
+  }
+  saveQuotes();
+  renderQuotes();
+  document.getElementById('quote-form-card').style.display='none';
 }
 
 function printQuote(){
@@ -1765,69 +2182,144 @@ function printQuote(){
   const sectionHeader=(label,color)=>`<tr><td colspan="5" style="padding:8px 12px;background:${color};color:white;font-weight:700;font-size:12px">${label}</td></tr>`;
 
   const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>كوتيشن ${qNum}</title>
-  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;direction:rtl;background:#f0f4f0;padding:20px}
-  .page{max-width:680px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1)}
-  .print-btn{display:block;width:180px;margin:16px auto;padding:11px;background:#1B4332;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial;text-align:center}
-  @media print{body{background:white;padding:0}.page{box-shadow:none;border-radius:0}.print-btn{display:none}@page{margin:12mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
-  </head><body>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,sans-serif;direction:rtl;background:#f0f4f0;padding:20px}
+    .page{max-width:700px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1)}
+    .print-btn{display:block;width:180px;margin:16px auto;padding:11px;background:#1B4332;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial;text-align:center}
+    table{width:100%;border-collapse:collapse}
+    th{padding:10px 14px;font-size:11px;font-weight:700;color:white;background:#1B4332;text-align:right}
+    th.center{text-align:center}
+    td{padding:9px 14px;font-size:12px;border-bottom:1px solid #f0f0f0;vertical-align:top}
+    td.center{text-align:center}
+    .section-hdr td{padding:8px 14px;font-weight:700;font-size:12px;color:white}
+    @media print{body{background:white;padding:0}.page{box-shadow:none;border-radius:0}.print-btn{display:none}@page{margin:12mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body>
   <button class="print-btn" onclick="window.print()">🖨 طباعة / PDF</button>
   <div class="page">
-    <div style="background:#1B4332;padding:20px 26px;display:flex;justify-content:space-between;align-items:flex-start">
-      <div><div style="color:white;font-size:20px;font-weight:900">🌳 Dr.Tree</div>
-      <div style="color:#52B788;font-size:10px;letter-spacing:2px;margin-top:3px">GARDEN &amp; TREE SERVICES · QATAR</div>
-      <div style="color:#aaa;font-size:10px;margin-top:5px">+974 XXXX XXXX | info@drtree.qa</div></div>
-      <div style="background:#D4AC0D;color:#1B4332;padding:10px 16px;border-radius:8px;text-align:center">
-        <div style="font-size:9px;font-weight:700">عرض سعر</div>
-        <div style="font-size:18px;font-weight:900">${qNum}</div>
-        <div style="font-size:9px;color:#555">${fmtDate(date)}</div>
+
+    <!-- Header: Logo LEFT, Badge RIGHT -->
+    <div style="background:#1B4332;padding:22px 28px;display:flex;flex-direction:row-reverse;justify-content:space-between;align-items:flex-start">
+      <div style="text-align:left">
+        <div style="color:white;font-size:22px;font-weight:900">🌳 Dr.Tree</div>
+        <div style="color:#52B788;font-size:10px;letter-spacing:2px;margin-top:3px">GARDEN &amp; TREE SERVICES · QATAR</div>
+        <div style="color:#aaa;font-size:10px;margin-top:5px">+974 XXXX XXXX | info@drtree.qa</div>
+      </div>
+      <div style="background:#D4AC0D;color:#1B4332;padding:12px 20px;border-radius:10px;text-align:center">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">عرض سعر</div>
+        <div style="font-size:20px;font-weight:900">${qNum}</div>
+        <div style="font-size:9px;color:#5a4200;margin-top:3px">${fmtDate(date)}</div>
       </div>
     </div>
+
+    <!-- Accent bar -->
     <div style="height:4px;background:linear-gradient(to left,#52B788,#D4AC0D,#52B788)"></div>
-    <div style="display:flex;border-bottom:2px solid #D8F3DC">
-      <div style="flex:1;padding:14px 20px;border-left:1px solid #eee">
-        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">مقدم إلى</div>
-        <div style="font-size:15px;font-weight:700;color:#1B4332">${client||'—'}</div>
+
+    <!-- Client info -->
+    <div style="display:flex;border-bottom:2px solid #D8F3DC;background:#f8faf8">
+      <div style="flex:1.5;padding:16px 22px;border-left:1px solid #e8ede8">
+        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px">مقدم إلى</div>
+        <div style="font-size:17px;font-weight:700;color:#1B4332">${client||'—'}</div>
       </div>
-      <div style="flex:1;padding:14px 20px">
-        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">وصف المشروع</div>
-        <div style="font-size:12px;color:#555">${desc||'—'}</div>
+      <div style="flex:1;padding:16px 22px;border-left:1px solid #e8ede8">
+        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px">تاريخ العرض</div>
+        <div style="font-size:13px;font-weight:600;color:#333">${fmtDate(date)}</div>
+      </div>
+      <div style="flex:1;padding:16px 22px">
+        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px">صالح لمدة</div>
+        <div style="font-size:13px;font-weight:600;color:#1B4332">30 يوماً</div>
       </div>
     </div>
-    <table style="width:100%;border-collapse:collapse">
-      <thead><tr>
-        <th style="${th}right;width:35%">البند</th>
-        <th style="${th}center;width:10%">الكمية</th>
-        <th style="${th}center;width:12%">الوحدة</th>
-        <th style="${th}center;width:10%">سعر الوحدة</th>
-        <th style="${th}center;width:13%">الإجمالي</th>
-      </tr></thead>
+
+    <!-- Description -->
+    ${desc?`<div style="padding:12px 22px;background:#fffef5;border-bottom:1px solid #f0f0f0;font-size:12px;color:#555">📋 ${desc}</div>`:''}
+
+    <!-- Table -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width:35%">البند</th>
+          <th class="center" style="width:8%">الكمية</th>
+          <th class="center" style="width:12%">الوحدة</th>
+          <th class="center" style="width:12%">سعر الوحدة</th>
+          <th class="center" style="width:13%">الإجمالي</th>
+          <th style="width:20%">ملاحظات</th>
+        </tr>
+      </thead>
       <tbody>
-        ${laborItems.length?sectionHeader('👷 العمالة','#1A56DB')+laborItems.map((item,i)=>tableRow(item,i,false)).join(''):''}
-        ${plantItems.length?sectionHeader('🌳 النباتات','#3B6D11')+plantItems.map((item,i)=>tableRow(item,i,true)).join(''):''} 
-        ${materialItems.length?sectionHeader('🪨 المواد والمستلزمات','#2D6A4F')+materialItems.map((item,i)=>tableRow(item,i,false)).join(''):''}
-        ${otherItems.length?sectionHeader('⚙ أجور أخرى','#E07B39')+otherItems.map((item,i)=>tableRow(item,i,false)).join(''):''} 
+        ${laborItems.length?`<tr class="section-hdr"><td colspan="6" style="background:#1A56DB;color:white;padding:8px 14px;font-weight:700;font-size:12px">👷 العمالة</td></tr>`+laborItems.map((item,i)=>`<tr style="background:${i%2===0?'#fff':'#f7f7f7'}">
+          <td>${item.desc||'—'}</td>
+          <td class="center">${item.qty}</td>
+          <td class="center">${item.unit}</td>
+          <td class="center">${(item.price||0).toLocaleString('en')} QAR</td>
+          <td class="center" style="font-weight:700;color:#1B4332">${((item.qty||0)*(item.price||0)).toLocaleString('en')} QAR</td>
+          <td style="color:#888;font-size:11px">${item.note||''}</td>
+        </tr>`).join(''):''}
+        ${plantItems.length?`<tr class="section-hdr"><td colspan="6" style="background:#3B6D11;color:white;padding:8px 14px;font-weight:700;font-size:12px">🌳 النباتات</td></tr>`+plantItems.map((item,i)=>`<tr style="background:${i%2===0?'#fff':'#f7f7f7'}">
+          <td>${item.desc||'—'}</td>
+          <td class="center">${item.qty}</td>
+          <td class="center">${item.unit}${item.size?' / '+item.size:''}</td>
+          <td class="center">${(item.price||0).toLocaleString('en')} QAR</td>
+          <td class="center" style="font-weight:700;color:#1B4332">${((item.qty||0)*(item.price||0)).toLocaleString('en')} QAR</td>
+          <td style="color:#888;font-size:11px">${item.note||''}</td>
+        </tr>`).join(''):''}
+        ${materialItems.length?`<tr class="section-hdr"><td colspan="6" style="background:#2D6A4F;color:white;padding:8px 14px;font-weight:700;font-size:12px">🪨 المواد والمستلزمات</td></tr>`+materialItems.map((item,i)=>`<tr style="background:${i%2===0?'#fff':'#f7f7f7'}">
+          <td>${item.desc||'—'}</td>
+          <td class="center">${item.qty}</td>
+          <td class="center">${item.unit}</td>
+          <td class="center">${(item.price||0).toLocaleString('en')} QAR</td>
+          <td class="center" style="font-weight:700;color:#1B4332">${((item.qty||0)*(item.price||0)).toLocaleString('en')} QAR</td>
+          <td style="color:#888;font-size:11px">${item.note||''}</td>
+        </tr>`).join(''):''}
+        ${otherItems.length?`<tr class="section-hdr"><td colspan="6" style="background:#E07B39;color:white;padding:8px 14px;font-weight:700;font-size:12px">⚙ أجور أخرى</td></tr>`+otherItems.map((item,i)=>`<tr style="background:${i%2===0?'#fff':'#f7f7f7'}">
+          <td>${item.desc||'—'}</td>
+          <td class="center">${item.qty}</td>
+          <td class="center">${item.unit}</td>
+          <td class="center">${(item.price||0).toLocaleString('en')} QAR</td>
+          <td class="center" style="font-weight:700;color:#1B4332">${((item.qty||0)*(item.price||0)).toLocaleString('en')} QAR</td>
+          <td style="color:#888;font-size:11px">${item.note||''}</td>
+        </tr>`).join(''):''}
       </tbody>
     </table>
-    <div style="padding:16px 26px">
-      <table style="border-collapse:collapse;min-width:280px">
-        ${l>0?`<tr><td style="padding:6px 14px;color:#555;font-weight:600;font-size:12px">👷 العمالة</td><td style="padding:6px 14px;font-weight:700;font-size:12px;color:#1A56DB">${l.toLocaleString('en')} QAR</td></tr>`:''}
-        ${p>0?`<tr><td style="padding:6px 14px;color:#555;font-weight:600;font-size:12px">🌳 النباتات</td><td style="padding:6px 14px;font-weight:700;font-size:12px;color:#3B6D11">${p.toLocaleString('en')} QAR</td></tr>`:''}
-        ${m>0?`<tr><td style="padding:6px 14px;color:#555;font-weight:600;font-size:12px">🪨 المواد</td><td style="padding:6px 14px;font-weight:700;font-size:12px;color:#2D6A4F">${m.toLocaleString('en')} QAR</td></tr>`:''}
-        ${o>0?`<tr><td style="padding:6px 14px;color:#555;font-weight:600;font-size:12px">⚙ أجور أخرى</td><td style="padding:6px 14px;font-weight:700;font-size:12px;color:#E07B39">${o.toLocaleString('en')} QAR</td></tr>`:''}
-        <tr><td colspan="2" style="padding:4px"><hr style="border:1px solid #eee"></td></tr>
-        <tr style="background:#1B4332"><td style="padding:11px 14px;color:white;font-size:13px;font-weight:900">💰 إجمالي عرض السعر</td><td style="padding:11px 14px;color:#D4AC0D;font-size:16px;font-weight:900">${total.toLocaleString('en')} QAR</td></tr>
+
+    <!-- Totals -->
+    <div style="padding:18px 28px;background:#fafafa;border-top:1px solid #eee;display:flex;justify-content:flex-end">
+      <table style="width:auto;min-width:280px;border-collapse:collapse">
+        ${l>0?`<tr><td style="padding:6px 16px 6px 0;color:#555;font-size:12px;font-weight:600">👷 العمالة</td><td style="padding:6px 0;font-weight:700;font-size:12px;color:#1A56DB">${l.toLocaleString('en')} QAR</td></tr>`:''}
+        ${p>0?`<tr><td style="padding:6px 16px 6px 0;color:#555;font-size:12px;font-weight:600">🌳 النباتات</td><td style="padding:6px 0;font-weight:700;font-size:12px;color:#3B6D11">${p.toLocaleString('en')} QAR</td></tr>`:''}
+        ${m>0?`<tr><td style="padding:6px 16px 6px 0;color:#555;font-size:12px;font-weight:600">🪨 المواد</td><td style="padding:6px 0;font-weight:700;font-size:12px;color:#2D6A4F">${m.toLocaleString('en')} QAR</td></tr>`:''}
+        ${o>0?`<tr><td style="padding:6px 16px 6px 0;color:#555;font-size:12px;font-weight:600">⚙ أجور أخرى</td><td style="padding:6px 0;font-weight:700;font-size:12px;color:#E07B39">${o.toLocaleString('en')} QAR</td></tr>`:''}
+        <tr><td colspan="2" style="padding:6px 0"><hr style="border:1px solid #ddd"></td></tr>
+        <tr style="background:#1B4332;border-radius:8px">
+          <td style="padding:12px 16px;color:white;font-size:13px;font-weight:900;text-align:right">💰 إجمالي عرض السعر</td>
+          <td style="padding:12px 16px;color:#D4AC0D;font-size:16px;font-weight:900;text-align:left">${total.toLocaleString('en')} QAR</td>
+        </tr>
       </table>
     </div>
-    <div style="margin:0 26px 14px;padding:9px 14px;background:#FFF9E6;border:1px solid #D4AC0D;border-radius:6px;font-size:10px;color:#8B6914;font-weight:600;text-align:center">
-      صادر بتاريخ ${fmtDate(date)} | هذا العرض ساري لمدة 30 يوماً
+
+    <!-- Footer note -->
+    <div style="margin:0 28px 14px;padding:10px 16px;background:#FFF9E6;border:1px solid #D4AC0D;border-radius:6px;font-size:10px;color:#8B6914;font-weight:600;text-align:right">
+      صادر بتاريخ ${fmtDate(date)} &nbsp;|&nbsp; هذا العرض ساري لمدة 30 يوماً
     </div>
-    <div style="background:#1B4332;color:#52B788;text-align:center;padding:11px;font-size:10px">Dr.Tree | +974 XXXX XXXX | info@drtree.qa</div>
+    <div style="background:#1B4332;color:#52B788;text-align:left;padding:13px 28px;font-size:10px">
+      Dr.Tree &nbsp;|&nbsp; +974 XXXX XXXX &nbsp;|&nbsp; info@drtree.qa
+    </div>
   </div></body></html>`;
 
   // Save quote
   // Save plant names to registry
   plantItems.forEach(p => { if(p.desc) addPlantToRegistry(p.desc); });
-  quotes.unshift({id:Date.now(),qNum,client,date,desc,labor:laborItems,plant:plantItems,material:materialItems,other:otherItems,total});
+
+  if (window._editQuoteId) {
+    // Update existing quote
+    quotes = quotes.map(q => q.id===window._editQuoteId
+      ? {...q, client, date, desc, labor:laborItems, plant:plantItems, material:materialItems, other:otherItems, total}
+      : q);
+    window._editQuoteId = null;
+    showToast('✅ تم تحديث الكوتيشن!');
+  } else {
+    quotes.unshift({id:Date.now(),qNum,client,date,desc,labor:laborItems,plant:plantItems,material:materialItems,other:otherItems,total});
+  }
   saveQuotes();
   renderQuotes();
 
@@ -1865,6 +2357,7 @@ function renderQuotes(){
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <span style="background:var(--goldl);color:var(--gold);padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700">${q.total.toLocaleString('en')} QAR</span>
+          <button class="btn-icon" style="color:var(--gm)" onclick="editQuote(${q.id})">✏️</button>
           <button class="btn-icon" style="color:#ddd" onclick="deleteQuote(${q.id})">🗑</button>
         </div>
       </div>
@@ -1878,21 +2371,265 @@ function deleteQuote(id){
   saveQuotes();renderQuotes();
 }
 
+function editQuote(id){
+  const q = quotes.find(x=>x.id===id);
+  if(!q) return;
+
+  // Load data into form
+  laborItems = q.labor ? q.labor.map(i=>({...i})) : [];
+  plantItems = q.plant ? q.plant.map(i=>({...i})) : [];
+  materialItems = q.material ? q.material.map(i=>({...i})) : [];
+  otherItems = q.other ? q.other.map(i=>({...i})) : [];
+
+  document.getElementById('q-client').innerHTML='<option value="">اختر العميل...</option>'+getClients().map(c=>`<option${c===q.client?' selected':''}>${c}</option>`).join('')+'<option value="__new__">+ إضافة عميل جديد...</option>';
+  document.getElementById('q-new-client').style.display='none';
+  document.getElementById('q-date').value=q.date||TODAY;
+  document.getElementById('q-desc').value=q.desc||'';
+
+  renderLaborRows(); renderPlantRows(); renderMaterialRows(); renderOtherRows(); updateQuoteSummary();
+
+  // Mark as editing
+  window._editQuoteId = id;
+  window._editQuoteId = null;
+  document.getElementById('quote-form-card').style.display='block';
+  document.getElementById('quote-form-card').scrollIntoView({behavior:'smooth'});
+}
+
+// ── FINANCE ──
+let expenses = [];
+
+function loadExpenses() {
+  try { expenses = JSON.parse(localStorage.getItem('dt_expenses') || '[]'); } catch { expenses = []; }
+}
+
+function saveExpenses() {
+  try { localStorage.setItem('dt_expenses', JSON.stringify(expenses)); } catch {}
+  if (window._fbReady) {
+    const { db, ref, set } = window._fb;
+    set(ref(db, 'expenses'), expenses).catch(e => console.log('Firebase expense save error:', e));
+  }
+}
+
+const EXP_CATS = {
+  'مواد ونباتات': { icon: '🌱', color: '#2D6A4F' },
+  'رواتب وعمالة': { icon: '👷', color: '#C0392B' },
+  'وقود ومواصلات': { icon: '⛽', color: '#E07B39' },
+  'معدات وأدوات': { icon: '🔧', color: '#1A56DB' },
+  'أخرى': { icon: '📦', color: '#6B7280' }
+};
+
+function getVisitMonth(v) {
+  if (!v.date) return '';
+  if (v.date.includes('-')) return v.date.substring(0, 7);
+  const parts = v.date.split('/');
+  if (parts.length === 3) return parts[2] + '-' + parts[1].padStart(2, '0');
+  return '';
+}
+
+function getExpMonth(e) {
+  if (!e.date) return '';
+  return e.date.substring(0, 7);
+}
+
+// Calculate revenue from visits for a month (or all)
+function calcRevenue(monthFilter) {
+  let packageRev = 0, extrasRev = 0;
+  visits.forEach(v => {
+    if (monthFilter && getVisitMonth(v) !== monthFilter) return;
+    // Package revenue: from clients_data monthly fee, counted per unique client per month
+    // Simpler: sum all paid extra amounts as extras revenue; package fees from clients
+    extrasRev += (v.extraAmount || 0);
+  });
+  // Package revenue: count unique clients per month × their monthly fee
+  if (monthFilter) {
+    const monthVisits = visits.filter(v => getVisitMonth(v) === monthFilter);
+    const uniqueClients = [...new Set(monthVisits.map(v => v.client))];
+    uniqueClients.forEach(clientName => {
+      const cd = clients_data.find(c => c.name === clientName);
+      packageRev += cd ? (parseFloat(cd.monthly) || 500) : 500;
+    });
+  } else {
+    // All-time: sum per client per month
+    const seen = new Set();
+    visits.forEach(v => {
+      const key = getVisitMonth(v) + '|' + v.client;
+      if (!seen.has(key)) {
+        seen.add(key);
+        const cd = clients_data.find(c => c.name === v.client);
+        packageRev += cd ? (parseFloat(cd.monthly) || 500) : 500;
+      }
+    });
+  }
+  return { packageRev, extrasRev, total: packageRev + extrasRev };
+}
+
+function calcExpensesByCategory(monthFilter) {
+  const cats = { 'مواد ونباتات': 0, 'رواتب وعمالة': 0, 'وقود ومواصلات': 0, 'معدات وأدوات': 0, 'أخرى': 0 };
+  expenses.forEach(e => {
+    if (monthFilter && getExpMonth(e) !== monthFilter) return;
+    const cat = e.category || 'أخرى';
+    cats[cat] = (cats[cat] || 0) + (e.amount || 0);
+  });
+  const total = Object.values(cats).reduce((a, b) => a + b, 0);
+  return { ...cats, total };
+}
+
+function populateFinMonths() {
+  const sel = document.getElementById('fin-month-filter');
+  if (!sel) return;
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const now = new Date();
+  let opts = '<option value="">كل الأشهر</option>';
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0');
+    const label = arMonths[d.getMonth()] + ' ' + d.getFullYear();
+    opts += `<option value="${val}">${label}</option>`;
+  }
+  const cur = sel.value;
+  sel.innerHTML = opts;
+  if (cur) sel.value = cur;
+}
+
+function renderFinanceKPIs() {
+  // Update dashboard financial KPI cards
+  const rev = calcRevenue('');
+  const exp = calcExpensesByCategory('');
+  const profit = rev.total - exp.total;
+  const el = document.getElementById('dash-fin-revenue');
+  if (el) el.textContent = rev.total.toLocaleString('en');
+  const el2 = document.getElementById('dash-fin-expenses');
+  if (el2) el2.textContent = exp.total.toLocaleString('en');
+  const el3 = document.getElementById('dash-fin-profit');
+  if (el3) { el3.textContent = profit.toLocaleString('en'); el3.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)'; }
+}
+
+function renderFinance() {
+  populateFinMonths();
+  const monthFilter = document.getElementById('fin-month-filter').value;
+  const rev = calcRevenue(monthFilter);
+  const exp = calcExpensesByCategory(monthFilter);
+  const profit = rev.total - exp.total;
+
+  // KPI cards
+  document.getElementById('fin-kpi-revenue').textContent = rev.total.toLocaleString('en');
+  document.getElementById('fin-kpi-expenses').textContent = exp.total.toLocaleString('en');
+  const profEl = document.getElementById('fin-kpi-profit');
+  profEl.textContent = profit.toLocaleString('en');
+  profEl.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)';
+
+  // P&L breakdown
+  document.getElementById('pl-packages').textContent = rev.packageRev.toLocaleString('en') + ' QAR';
+  document.getElementById('pl-extras').textContent = rev.extrasRev.toLocaleString('en') + ' QAR';
+  document.getElementById('pl-exp-materials').textContent = (exp['مواد ونباتات'] || 0).toLocaleString('en') + ' QAR';
+  document.getElementById('pl-exp-salaries').textContent = (exp['رواتب وعمالة'] || 0).toLocaleString('en') + ' QAR';
+  document.getElementById('pl-exp-fuel').textContent = (exp['وقود ومواصلات'] || 0).toLocaleString('en') + ' QAR';
+  document.getElementById('pl-exp-equipment').textContent = (exp['معدات وأدوات'] || 0).toLocaleString('en') + ' QAR';
+  document.getElementById('pl-exp-other').textContent = (exp['أخرى'] || 0).toLocaleString('en') + ' QAR';
+  const netEl = document.getElementById('pl-net');
+  netEl.textContent = profit.toLocaleString('en') + ' QAR';
+  netEl.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)';
+
+  // Expenses list
+  const filteredExp = expenses.filter(e => !monthFilter || getExpMonth(e) === monthFilter);
+  document.getElementById('fin-exp-count').textContent = filteredExp.length;
+  const listEl = document.getElementById('fin-expenses-list');
+  if (!filteredExp.length) {
+    listEl.innerHTML = '<div class="empty"><div class="icon">💸</div><p>لا توجد مصاريف بعد</p></div>';
+    return;
+  }
+  listEl.innerHTML = filteredExp.slice().reverse().map((e, i) => {
+    const cat = EXP_CATS[e.category] || EXP_CATS['أخرى'];
+    return `<div class="visit-row ${i % 2 === 0 ? 'even' : 'odd'}">
+      <div class="visit-top">
+        <div><span style="font-size:18px">${cat.icon}</span> <span class="visit-name" style="font-size:13px">${e.category}</span></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="background:var(--redl);color:var(--red);padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700">${(e.amount||0).toLocaleString('en')} QAR</span>
+          <button class="btn-icon" style="color:#ddd" onclick="deleteExpense(${e.id})">🗑</button>
+        </div>
+      </div>
+      <div class="visit-meta">${e.date ? fmtDate(e.date) : '—'}${e.note ? ' · ' + e.note : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function openExpenseModal() {
+  document.getElementById('exp-date').value = TODAY;
+  document.getElementById('exp-category').value = '';
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-note').value = '';
+  document.getElementById('expense-modal').classList.add('open');
+}
+
+function saveExpense() {
+  const category = document.getElementById('exp-category').value;
+  const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+  const date = document.getElementById('exp-date').value;
+  if (!category || !amount || !date) { showToast('⚠️ يرجى ملء الحقول المطلوبة'); return; }
+  const note = document.getElementById('exp-note').value.trim();
+  expenses.unshift({ id: Date.now(), category, amount, date, note });
+  saveExpenses();
+  document.getElementById('expense-modal').classList.remove('open');
+  renderFinance();
+  renderFinanceKPIs();
+  showToast('✅ تم تسجيل المصروف!');
+}
+
+function deleteExpense(id) {
+  if (!confirm('حذف هذا المصروف؟')) return;
+  expenses = expenses.filter(e => e.id !== id);
+  saveExpenses();
+  renderFinance();
+  renderFinanceKPIs();
+  showToast('🗑 تم الحذف');
+}
+
 // ── Render all ──
 function renderAll() {
   renderKPIs();
+  renderFinanceKPIs();
   renderRecent();
   renderUpcoming();
   updateClientSelects();
+  populateFinMonths();
 }
 
 // ── Init ──
 loadData();
 loadClients();
+loadExpenses();
 renderAll();
 initFirebase();
 document.getElementById('f-date').value = TODAY;
 </script>
+<!-- Expense Modal -->
+<div class="modal" id="expense-modal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">💸 إضافة مصروف</div>
+    <div class="field">
+      <label>نوع المصروف *</label>
+      <select id="exp-category" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
+        <option value="">اختر النوع...</option>
+        <option>مواد ونباتات</option>
+        <option>رواتب وعمالة</option>
+        <option>وقود ومواصلات</option>
+        <option>معدات وأدوات</option>
+        <option>أخرى</option>
+      </select>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>المبلغ (QAR) *</label><input type="number" id="exp-amount" placeholder="0" min="0"></div>
+      <div class="field"><label>التاريخ *</label><input type="date" id="exp-date"></div>
+    </div>
+    <div class="field"><label>ملاحظة</label><input type="text" id="exp-note" placeholder="مثال: شراء نخيل للعميل X"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="flex:1" onclick="saveExpense()">✚ تسجيل المصروف</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('expense-modal').classList.remove('open')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <!-- Client Modal -->
 <div class="modal" id="client-modal">
   <div class="modal-box">
