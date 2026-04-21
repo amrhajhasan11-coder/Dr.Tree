@@ -547,6 +547,10 @@ textarea { min-height:72px; resize:vertical; }
           <span style="font-size:14px;font-weight:700;color:var(--or)" id="pl-extras">0 QAR</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
+          <span style="font-size:13px;color:#555">🏗 مشاريع (كوتيشنات مقبولة/منجزة)</span>
+          <span style="font-size:14px;font-weight:700;color:var(--blue)" id="pl-projects">0 QAR</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
           <span style="font-size:13px;color:#555">🌱 مواد ونباتات</span>
           <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-materials">— QAR</span>
         </div>
@@ -2030,6 +2034,13 @@ function newQuote() {
   window._editQuoteId = null;
   document.getElementById('quote-form-card').style.display='block';
   document.getElementById('quote-form-card').scrollIntoView({behavior:'smooth'});
+  // Reset header and buttons to new-quote mode
+  const header = document.querySelector('#quote-form-card .card-header h2');
+  if (header) header.textContent = '📋 إعداد الكوتيشن';
+  const saveBtn = document.querySelector('#quote-form-card .btn-full:nth-child(1)');
+  if (saveBtn) saveBtn.textContent = '🖨 طباعة / حفظ PDF';
+  const saveSilentBtn = document.querySelector('#quote-form-card .btn-full:nth-child(2)');
+  if (saveSilentBtn) saveSilentBtn.textContent = '💾 حفظ بدون طباعة';
 }
 
 function makeRow(item,idx,type,bg) {
@@ -2146,15 +2157,16 @@ function saveQuoteOnly(){
     showToast('✅ تم تحديث الكوتيشن!');
   } else {
     const qNum='QT-'+String(quotes.length+1).padStart(3,'0');
-    quotes.unshift({id:Date.now(),qNum,client,date,desc,labor:laborItems,plant:plantItems,material:materialItems,other:otherItems,total});
+    quotes.unshift({id:Date.now(),qNum,client,date,desc,labor:laborItems,plant:plantItems,material:materialItems,other:otherItems,total,status:'معلّق'});
     showToast('✅ تم حفظ الكوتيشن!');
   }
   saveQuotes();
   renderQuotes();
   document.getElementById('quote-form-card').style.display='none';
+  // Reset form header
+  const header = document.querySelector('#quote-form-card .card-header h2');
+  if (header) header.textContent = '📋 إعداد الكوتيشن';
 }
-
-function printQuote(){
   const client=getQClient();
   if(!client){showToast('⚠️ اختر العميل أو أدخل اسمه');return;}
   // Save new client if needed
@@ -2167,7 +2179,15 @@ function printQuote(){
   const date=document.getElementById('q-date').value;
   const desc=document.getElementById('q-desc').value;
   const l=calcSection(laborItems),p=calcSection(plantItems),m=calcSection(materialItems),o=calcSection(otherItems),total=l+p+m+o;
-  const qNum='QT-'+String(quotes.length+1).padStart(3,'0');
+
+  // Determine qNum: reuse existing if editing, generate new if creating
+  let qNum;
+  if (window._editQuoteId) {
+    const existing = quotes.find(q => q.id === window._editQuoteId);
+    qNum = existing ? existing.qNum : 'QT-'+String(quotes.length+1).padStart(3,'0');
+  } else {
+    qNum = 'QT-'+String(quotes.length+1).padStart(3,'0');
+  }
 
   const tableRow=(item,i,isPlant)=>`<tr style="background:${i%2===0?'#fff':'#f7f7f7'}">
     <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:12px">${item.desc||'—'}${item.note?`<div style="font-size:10px;color:#999;margin-top:2px">${item.note}</div>`:''}</td>
@@ -2306,22 +2326,22 @@ function printQuote(){
     </div>
   </div></body></html>`;
 
-  // Save quote
-  // Save plant names to registry
+  // Save/update quote
   plantItems.forEach(p => { if(p.desc) addPlantToRegistry(p.desc); });
 
   if (window._editQuoteId) {
-    // Update existing quote
     quotes = quotes.map(q => q.id===window._editQuoteId
       ? {...q, client, date, desc, labor:laborItems, plant:plantItems, material:materialItems, other:otherItems, total}
       : q);
     window._editQuoteId = null;
     showToast('✅ تم تحديث الكوتيشن!');
   } else {
-    quotes.unshift({id:Date.now(),qNum,client,date,desc,labor:laborItems,plant:plantItems,material:materialItems,other:otherItems,total});
+    quotes.unshift({id:Date.now(),qNum,client,date,desc,labor:laborItems,plant:plantItems,material:materialItems,other:otherItems,total,status:'معلّق'});
   }
   saveQuotes();
   renderQuotes();
+  const header = document.querySelector('#quote-form-card .card-header h2');
+  if (header) header.textContent = '📋 إعداد الكوتيشن';
 
   const w=window.open('','_blank');
   w.document.write(html);w.document.close();w.focus();
@@ -2343,26 +2363,50 @@ function shareQuoteWhatsApp(){
   window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 }
 
+function quoteStatusStyle(s) {
+  if (s==='مقبول')  return {bg:'var(--gp)',   color:'var(--gm)',  icon:'✅'};
+  if (s==='منجز')   return {bg:'var(--bluel)', color:'var(--blue)',icon:'🏁'};
+  if (s==='مرفوض') return {bg:'var(--redl)',  color:'var(--red)', icon:'❌'};
+  return {bg:'var(--goldl)', color:'var(--gold)', icon:'⏳'};
+}
+const QUOTE_STATUSES = ['معلّق','مقبول','منجز','مرفوض'];
+
+function cycleQuoteStatus(id) {
+  const q = quotes.find(x=>x.id===id);
+  if (!q) return;
+  const cur = QUOTE_STATUSES.indexOf(q.status||'معلّق');
+  q.status = QUOTE_STATUSES[(cur+1) % QUOTE_STATUSES.length];
+  saveQuotes();
+  renderQuotes();
+  renderFinanceKPIs();
+  if (document.getElementById('tab-finance').classList.contains('active')) renderFinance();
+  showToast('📋 الحالة: ' + q.status);
+}
+
 function renderQuotes(){
   const el=document.getElementById('quotes-list');
   const count=document.getElementById('quotes-count');
   count.textContent=quotes.length+' كوتيشن';
   if(!quotes.length){el.innerHTML='<div class="empty"><div class="icon">📋</div><p>لا توجد كوتيشنات بعد</p></div>';return;}
-  el.innerHTML=quotes.map((q,i)=>`
+  el.innerHTML=quotes.map((q,i)=>{
+    const st = quoteStatusStyle(q.status||'معلّق');
+    return `
     <div style="padding:12px 16px;border-bottom:1px solid #F0F0F0;background:${i%2===0?'white':'var(--gray)'}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <div>
+        <div style="flex:1;min-width:0">
           <span style="font-weight:700;font-size:14px">${q.client||'—'}</span>
           <span style="color:var(--muted);font-size:12px;margin-right:8px">${q.qNum}</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="background:var(--goldl);color:var(--gold);padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700">${q.total.toLocaleString('en')} QAR</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+          <span style="background:var(--goldl);color:var(--gold);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${q.total.toLocaleString('en')} QAR</span>
+          <button title="تغيير الحالة" onclick="cycleQuoteStatus(${q.id})" style="background:${st.bg};color:${st.color};border:none;border-radius:14px;padding:2px 9px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">${st.icon} ${q.status||'معلّق'}</button>
           <button class="btn-icon" style="color:var(--gm)" onclick="editQuote(${q.id})">✏️</button>
           <button class="btn-icon" style="color:#ddd" onclick="deleteQuote(${q.id})">🗑</button>
         </div>
       </div>
       <div style="font-size:11px;color:var(--muted)">${fmtDate(q.date)}${q.desc?' — '+q.desc:''}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function deleteQuote(id){
@@ -2375,7 +2419,6 @@ function editQuote(id){
   const q = quotes.find(x=>x.id===id);
   if(!q) return;
 
-  // Load data into form
   laborItems = q.labor ? q.labor.map(i=>({...i})) : [];
   plantItems = q.plant ? q.plant.map(i=>({...i})) : [];
   materialItems = q.material ? q.material.map(i=>({...i})) : [];
@@ -2388,9 +2431,16 @@ function editQuote(id){
 
   renderLaborRows(); renderPlantRows(); renderMaterialRows(); renderOtherRows(); updateQuoteSummary();
 
-  // Mark as editing
   window._editQuoteId = id;
-  window._editQuoteId = null;
+
+  // Update form header and save button to reflect edit mode
+  const header = document.querySelector('#quote-form-card .card-header h2');
+  if (header) header.textContent = '✏️ تعديل الكوتيشن — ' + q.qNum;
+  const saveBtn = document.querySelector('#quote-form-card .btn-full:nth-child(1)');
+  if (saveBtn && saveBtn.textContent.includes('طباعة')) saveBtn.textContent = '🖨 حفظ وطباعة';
+  const saveSilentBtn = document.querySelector('#quote-form-card .btn-full:nth-child(2)');
+  if (saveSilentBtn && saveSilentBtn.textContent.includes('حفظ')) saveSilentBtn.textContent = '💾 حفظ التعديل';
+
   document.getElementById('quote-form-card').style.display='block';
   document.getElementById('quote-form-card').scrollIntoView({behavior:'smooth'});
 }
@@ -2424,6 +2474,12 @@ function getVisitMonth(v) {
   const parts = v.date.split('/');
   if (parts.length === 3) return parts[2] + '-' + parts[1].padStart(2, '0');
   return '';
+}
+
+function calcProjectRevenue(monthFilter) {
+  return quotes
+    .filter(q => (q.status==='مقبول' || q.status==='منجز') && (!monthFilter || (q.date||'').substring(0,7)===monthFilter))
+    .reduce((s,q) => s+(q.total||0), 0);
 }
 
 function getExpMonth(e) {
@@ -2492,12 +2548,13 @@ function populateFinMonths() {
 }
 
 function renderFinanceKPIs() {
-  // Update dashboard financial KPI cards
   const rev = calcRevenue('');
+  const projRev = calcProjectRevenue('');
   const exp = calcExpensesByCategory('');
-  const profit = rev.total - exp.total;
+  const totalRev = rev.total + projRev;
+  const profit = totalRev - exp.total;
   const el = document.getElementById('dash-fin-revenue');
-  if (el) el.textContent = rev.total.toLocaleString('en');
+  if (el) el.textContent = totalRev.toLocaleString('en');
   const el2 = document.getElementById('dash-fin-expenses');
   if (el2) el2.textContent = exp.total.toLocaleString('en');
   const el3 = document.getElementById('dash-fin-profit');
@@ -2508,11 +2565,13 @@ function renderFinance() {
   populateFinMonths();
   const monthFilter = document.getElementById('fin-month-filter').value;
   const rev = calcRevenue(monthFilter);
+  const projRev = calcProjectRevenue(monthFilter);
   const exp = calcExpensesByCategory(monthFilter);
-  const profit = rev.total - exp.total;
+  const totalRev = rev.total + projRev;
+  const profit = totalRev - exp.total;
 
   // KPI cards
-  document.getElementById('fin-kpi-revenue').textContent = rev.total.toLocaleString('en');
+  document.getElementById('fin-kpi-revenue').textContent = totalRev.toLocaleString('en');
   document.getElementById('fin-kpi-expenses').textContent = exp.total.toLocaleString('en');
   const profEl = document.getElementById('fin-kpi-profit');
   profEl.textContent = profit.toLocaleString('en');
@@ -2521,6 +2580,7 @@ function renderFinance() {
   // P&L breakdown
   document.getElementById('pl-packages').textContent = rev.packageRev.toLocaleString('en') + ' QAR';
   document.getElementById('pl-extras').textContent = rev.extrasRev.toLocaleString('en') + ' QAR';
+  document.getElementById('pl-projects').textContent = projRev.toLocaleString('en') + ' QAR';
   document.getElementById('pl-exp-materials').textContent = (exp['مواد ونباتات'] || 0).toLocaleString('en') + ' QAR';
   document.getElementById('pl-exp-salaries').textContent = (exp['رواتب وعمالة'] || 0).toLocaleString('en') + ' QAR';
   document.getElementById('pl-exp-fuel').textContent = (exp['وقود ومواصلات'] || 0).toLocaleString('en') + ' QAR';
