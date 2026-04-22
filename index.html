@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Dr.Tree">
 <meta name="theme-color" content="#1B4332">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
 <title>🌳 Dr.Tree</title>
 <style>
 :root {
@@ -21,8 +22,15 @@
   --teal:#0D9488; --teall:#F0FDFA;
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body { font-family:Arial,sans-serif; background:var(--bg); direction:rtl; min-height:100vh; }
-input,select,textarea,button { font-family:Arial,sans-serif; font-size:15px; }
+html, body { overscroll-behavior-y:none; }
+body {
+  font-family:Arial,sans-serif; background:var(--bg); direction:rtl;
+  min-height:100vh;       /* fallback */
+  min-height:100dvh;      /* dynamic viewport — stays correct when iOS address bar collapses */
+  -webkit-text-size-adjust:100%;
+}
+/* 16px min on inputs prevents iOS Safari from auto-zooming on focus */
+input,select,textarea,button { font-family:Arial,sans-serif; font-size:16px; }
 
 /* Layout */
 #app { max-width:640px; margin:0 auto; padding:14px 12px 90px; }
@@ -36,7 +44,7 @@ input,select,textarea,button { font-family:Arial,sans-serif; font-size:15px; }
 
 /* Bottom nav */
 .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border); display:flex; z-index:100; padding-bottom:env(safe-area-inset-bottom); }
-.nav-item { flex:1; padding:10px 4px 8px; text-align:center; cursor:pointer; border-top:3px solid transparent; }
+.nav-item { flex:1; padding:12px 4px 10px; text-align:center; cursor:pointer; border-top:3px solid transparent; min-height:56px; }
 .nav-item.active { background:var(--gp); border-top-color:var(--gm); }
 .nav-item .nav-icon { font-size:20px; }
 .nav-item .nav-label { font-size:10px; font-weight:700; color:var(--muted); margin-top:2px; }
@@ -58,17 +66,19 @@ input,select,textarea,button { font-family:Arial,sans-serif; font-size:15px; }
 .field { margin-bottom:12px; }
 .field label { display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.5px; }
 input, select, textarea {
-  width:100%; padding:11px 12px; border:1.5px solid var(--border); border-radius:8px;
-  font-size:15px; direction:rtl; background:#fafafa; outline:none; box-sizing:border-box;
+  width:100%; padding:12px 12px; border:1.5px solid var(--border); border-radius:8px;
+  font-size:16px; direction:rtl; background:#fafafa; outline:none; box-sizing:border-box;
   -webkit-appearance:none; appearance:none; color:#111;
+  min-height:44px;   /* touch-friendly on iPad */
 }
+input[type="number"], input[type="tel"] { direction:ltr; text-align:right; }
 input:focus, select:focus, textarea:focus { border-color:var(--gl); background:#fff; }
 input.error { border-color:var(--red); background:var(--redl); }
 textarea { min-height:72px; resize:vertical; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
 /* Buttons */
-.btn { border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; padding:12px 20px; display:inline-flex; align-items:center; gap:6px; }
+.btn { border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; padding:13px 20px; display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; }
 .btn-primary { background:var(--gd); color:#fff; width:100%; justify-content:center; }
 .btn-gold { background:var(--gold); color:var(--gd); width:100%; justify-content:center; }
 .btn-secondary { background:transparent; color:var(--muted); border:1.5px solid var(--border); }
@@ -94,7 +104,13 @@ textarea { min-height:72px; resize:vertical; }
 .visit-notes { font-size:11px; color:var(--blue); margin-bottom:3px; }
 .visit-extra { font-size:12px; color:var(--or); margin-top:4px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 .visit-actions { display:flex; gap:6px; align-items:center; }
-.btn-icon { background:none; border:none; font-size:16px; cursor:pointer; padding:2px 5px; }
+.btn-icon {
+  background:none; border:none; font-size:18px; cursor:pointer;
+  padding:8px 10px; min-width:40px; min-height:40px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:8px; transition:background .15s;
+}
+.btn-icon:active { background:rgba(0,0,0,.06); }
 .type-tag { background:var(--gp); color:var(--gm); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; }
 
 /* Badge */
@@ -121,7 +137,13 @@ textarea { min-height:72px; resize:vertical; }
 /* Modal */
 .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:flex-end; }
 .modal.open { display:flex; }
-.modal-box { background:#fff; border-radius:20px 20px 0 0; width:100%; max-height:92vh; overflow-y:auto; padding:20px 16px; padding-bottom:calc(20px + env(safe-area-inset-bottom)); }
+.modal-box {
+  background:#fff; border-radius:20px 20px 0 0; width:100%;
+  max-height:92vh; max-height:92dvh;    /* dvh avoids cutoff when iOS address bar shows */
+  overflow-y:auto; -webkit-overflow-scrolling:touch;  /* smooth scroll on iOS */
+  padding:20px 16px;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+}
 .modal-handle { width:40px; height:4px; background:#ddd; border-radius:4px; margin:0 auto 16px; }
 .modal-title { font-size:17px; font-weight:700; color:var(--gd); margin-bottom:16px; text-align:center; }
 .modal-footer { display:flex; gap:10px; margin-top:4px; }
@@ -323,7 +345,7 @@ textarea { min-height:72px; resize:vertical; }
         </div>
         <div class="grid2">
           <div class="field"><label>رقم الفاتورة</label><input type="text" id="inv-num" value="INV-001"></div>
-          <div class="field"><label id="inv-fee-label">الباقة الشهرية (QAR)</label><input type="number" id="inv-fee" value="500"></div>
+          <div class="field"><label id="inv-fee-label">الباقة الشهرية (QAR)</label><input type="number" inputmode="decimal" id="inv-fee" value="500"></div>
         </div>
         <div class="grid2">
           <div class="field"><label>تاريخ الاستحقاق</label><input type="date" id="inv-due"></div>
@@ -684,7 +706,7 @@ textarea { min-height:72px; resize:vertical; }
       <h3>⚙ الأعمال الإضافية</h3>
       <div class="field"><textarea id="f-extra" placeholder="وصف الأعمال الإضافية..." style="min-height:52px;background:#fff"></textarea></div>
       <div class="grid2">
-        <div class="field"><label>المبلغ (QAR)</label><input type="number" id="f-extra-amount" placeholder="0" min="0" style="background:#fff"></div>
+        <div class="field"><label>المبلغ (QAR)</label><input type="number" inputmode="decimal" id="f-extra-amount" placeholder="0" min="0" style="background:#fff"></div>
         <div class="field">
           <label>الحالة</label>
           <select id="f-extra-status" style="background:#fff">
@@ -708,7 +730,7 @@ textarea { min-height:72px; resize:vertical; }
       </div>
       <div class="field" id="paid-amount-field" style="display:none">
         <label>المبلغ المدفوع (QAR)</label>
-        <input type="number" id="f-paid-amount" placeholder="0" min="0" style="background:#fff">
+        <input type="number" inputmode="decimal" id="f-paid-amount" placeholder="0" min="0" style="background:#fff">
       </div>
     </div>
 
@@ -2919,7 +2941,7 @@ document.getElementById('f-date').value = TODAY;
       </select>
     </div>
     <div class="grid2">
-      <div class="field"><label>المبلغ (QAR) *</label><input type="number" id="exp-amount" placeholder="0" min="0"></div>
+      <div class="field"><label>المبلغ (QAR) *</label><input type="number" inputmode="decimal" id="exp-amount" placeholder="0" min="0"></div>
       <div class="field"><label>التاريخ *</label><input type="date" id="exp-date"></div>
     </div>
     <div class="field"><label>ملاحظة</label><input type="text" id="exp-note" placeholder="مثال: شراء نخيل للعميل X"></div>
@@ -2940,7 +2962,7 @@ document.getElementById('f-date').value = TODAY;
       <div class="field"><label>المنطقة</label><input type="text" id="cf-area" list="areas-list" placeholder="الدحيل"></div>
       <div class="field"><label>الجوال</label><input type="tel" id="cf-phone" placeholder="+974 XXXX XXXX"></div>
     </div>
-    <div class="field"><label>مبلغ الباقة الشهرية (QAR)</label><input type="number" id="cf-monthly" placeholder="500" min="0"></div>
+    <div class="field"><label>مبلغ الباقة الشهرية (QAR)</label><input type="number" inputmode="decimal" id="cf-monthly" placeholder="500" min="0"></div>
     <div class="field"><label>عدد الزيارات الشهرية</label>
       <select id="cf-visits-per-month" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
         <option value="4">4 زيارات</option>
