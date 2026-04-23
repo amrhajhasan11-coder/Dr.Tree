@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="Dr.Tree">
 <meta name="theme-color" content="#1B4332">
 <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
 <title>🌳 Dr.Tree</title>
 <style>
 :root {
@@ -192,12 +195,19 @@ textarea { min-height:72px; resize:vertical; }
 </head>
 <body>
 
+<!-- Offline banner -->
+<div id="offline-banner" style="display:none;background:#C0392B;color:#fff;text-align:center;padding:6px 12px;font-size:12px;font-weight:700;position:sticky;top:0;z-index:999">
+  📴 أنت غير متصل — البيانات تُحفظ محلياً وتُرفع عند عودة الإنترنت
+</div>
+
 <!-- Header -->
 <div class="header">
   <div class="header-logo">🌳 <span>Dr.Tree</span></div>
   <div class="header-badges">
     <span id="badge-overdue" class="badge-overdue" style="display:none">⚠️ <span id="overdue-count">0</span> متأخر</span>
     <span id="sync-badge" style="display:none;background:var(--blue);color:#fff;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600">🔄 مزامنة</span>
+    <button id="btn-install" onclick="pwaInstall()" title="تثبيت التطبيق" style="display:none;background:var(--gm);color:#fff;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;min-height:40px">⬇️ تثبيت</button>
+    <button id="btn-trash" onclick="openTrash()" title="سلة المهملات" style="position:relative;background:transparent;border:1.5px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center">🗑<span id="trash-count" style="display:none;position:absolute;top:-4px;right:-4px;background:#C0392B;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center">0</span></button>
     <span class="badge-saved">💾 محفوظ</span>
   </div>
 </div>
@@ -283,7 +293,7 @@ textarea { min-height:72px; resize:vertical; }
   <!-- LOG TAB -->
   <div id="tab-log" class="tab">
     <div class="card filters">
-      <input type="text" id="search-input" placeholder="🔍 بحث عن عميل أو عمل..." oninput="renderLog()">
+      <input type="text" id="search-input" placeholder="🔍 بحث عن عميل أو عمل..." oninput="renderLogDebounced()">
       <div class="grid2">
         <select id="filter-client" onchange="renderLog()">
           <option value="">كل العملاء</option>
@@ -424,6 +434,14 @@ textarea { min-height:72px; resize:vertical; }
     <button class="btn btn-primary btn-full" style="margin-bottom:14px;border-radius:12px;padding:14px;font-size:15px" onclick="openAddClient()">
       👤 إضافة عميل جديد
     </button>
+    <!-- Debts Summary Card -->
+    <div class="card" id="debts-card" style="display:none;margin-bottom:14px">
+      <div class="card-header" style="background:#C0392B">
+        <h2>💰 ديون العملاء</h2>
+        <span id="debts-total" style="margin-right:auto;background:#fff;color:#C0392B;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700"></span>
+      </div>
+      <div id="debts-body" style="padding:10px 14px"></div>
+    </div>
     <div class="card" id="clients-list-card">
       <div class="card-header" style="background:var(--gd)">
         <h2>👥 قائمة العملاء</h2>
@@ -768,91 +786,138 @@ function loadData() {
   renderAll();
 }
 
-function saveData() {
-  // Save to localStorage always (offline support)
-  try { localStorage.setItem('dt_visits', JSON.stringify(visits)); localStorage.setItem('dt_nextid', String(nextId)); } catch {}
-  // Save to Firebase if ready
-  if (window._fbReady) {
+// Track active Firebase listener unsubscribe fns + signatures to skip redundant re-renders
+let _fbUnsubs = [];
+const _lastSig = {};              // path → last-seen JSON signature
+const _pendingSaves = new Set();  // paths with in-flight writes (bypass echo detection)
+
+function _sig(x) { try { return JSON.stringify(x); } catch { return String(Math.random()); } }
+
+// Debounced Firebase writer: coalesces rapid successive writes to the same path
+const _saveTimers = {};
+function fbSave(path, value, opts) {
+  // Always save to localStorage immediately (offline safety)
+  try { localStorage.setItem('dt_' + path, JSON.stringify(value)); } catch {}
+  if (!window._fbReady) return;
+  // Mark pending so the echo from onValue doesn't trigger a redundant render
+  _pendingSaves.add(path);
+  _lastSig[path] = _sig(value);
+  clearTimeout(_saveTimers[path]);
+  _saveTimers[path] = setTimeout(() => {
     const { db, ref, set } = window._fb;
-    set(ref(db, 'visits'), visits).catch(e => console.log('Firebase save error:', e));
-    set(ref(db, 'nextId'), nextId).catch(e => console.log('Firebase save error:', e));
-  }
+    showSaveState('saving');
+    set(ref(db, path), value)
+      .then(() => { showSaveState('saved'); })
+      .catch(e => {
+        console.warn('Firebase save error:', path, e);
+        showSaveState('error');
+        showToast('⚠️ فشل الحفظ على السحابة — البيانات محفوظة محلياً');
+      })
+      .finally(() => _pendingSaves.delete(path));
+  }, opts && opts.immediate ? 0 : 250);
+}
+
+function saveData() {
+  fbSave('visits', visits);
+  fbSave('nextId', nextId);
+}
+
+// Show transient save state in the header badge
+function showSaveState(state) {
+  const badge = document.getElementById('sync-badge');
+  if (!badge) return;
+  badge.style.display = 'inline-block';
+  if (state === 'saving') { badge.textContent = '💾 حفظ...'; badge.style.background = '#2D6A4F'; }
+  else if (state === 'saved') { badge.textContent = '✅ محفوظ'; badge.style.background = '#2D6A4F'; setTimeout(() => badge.style.display='none', 1500); }
+  else if (state === 'error') { badge.textContent = '⚠️ خطأ'; badge.style.background = '#C0392B'; setTimeout(() => badge.style.display='none', 3000); }
 }
 
 function initFirebase() {
   if (!window._fbReady) {
-    window.addEventListener('fb-ready', () => initFirebase());
-    // Fallback: keep checking every 500ms
-    setTimeout(() => { if (!window._fbReady) return; initFirebase(); }, 2000);
+    // Attach once; never recursively re-attach (avoids event listener stacking)
+    window.addEventListener('fb-ready', initFirebase, { once: true });
     return;
   }
+  // If already initialized, tear down old listeners first (prevents memory leak / duplicate renders)
+  if (_fbUnsubs.length) {
+    _fbUnsubs.forEach(u => { try { u(); } catch {} });
+    _fbUnsubs = [];
+  }
   const { db, ref, onValue } = window._fb;
-  // Listen for realtime changes from Firebase
-  onValue(ref(db, 'visits'), (snapshot) => {
-    const data = snapshot.val();
+
+  // Helper: subscribe with echo-suppression + signature deduping
+  function listen(path, handler) {
+    const unsub = onValue(ref(db, path), (snapshot) => {
+      const data = snapshot.val();
+      // Skip if this snapshot is just the echo of our own write
+      if (_pendingSaves.has(path)) return;
+      const sig = _sig(data);
+      if (_lastSig[path] === sig) return;   // no actual change
+      _lastSig[path] = sig;
+      try { handler(data); } catch (e) { console.warn('listener error:', path, e); }
+    }, (err) => {
+      console.warn('Firebase listen error:', path, err);
+    });
+    _fbUnsubs.push(unsub);
+  }
+
+  listen('visits', (data) => {
     if (data && Array.isArray(data)) {
       visits = data;
-      // Update localStorage
       try { localStorage.setItem('dt_visits', JSON.stringify(visits)); } catch {}
       renderAll();
-      showSync();
+      showSaveState('saved');
     }
   });
-  onValue(ref(db, 'invoices'), (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      try { localStorage.setItem('dt_invoices', JSON.stringify(data)); } catch {}
-    }
+  listen('invoices', (data) => {
+    if (data) { try { localStorage.setItem('dt_invoices', JSON.stringify(data)); } catch {} }
   });
-  onValue(ref(db, 'quotes'), (snapshot) => {
-    const data = snapshot.val();
+  listen('quotes', (data) => {
     if (data && Array.isArray(data)) {
       quotes = data;
       try { localStorage.setItem('dt_quotes', JSON.stringify(quotes)); } catch {}
-      if (document.getElementById('tab-quote').classList.contains('active')) renderQuotes();
+      const tabQ = document.getElementById('tab-quote');
+      if (tabQ && tabQ.classList.contains('active')) renderQuotes();
     }
   });
-  onValue(ref(db, 'plants_list'), (snapshot) => {
-    const data = snapshot.val();
+  listen('plants_list', (data) => {
     if (data && Array.isArray(data)) {
       savedPlants = data;
       try { localStorage.setItem('dt_plants_list', JSON.stringify(savedPlants)); } catch {}
     }
   });
-  onValue(ref(db, 'clients'), (snapshot) => {
-    const data = snapshot.val();
+  listen('clients', (data) => {
     if (data) {
       clients_data = Array.isArray(data) ? data : Object.values(data);
       try { localStorage.setItem('dt_clients', JSON.stringify(clients_data)); } catch {}
       updateClientSelects();
-      if (document.getElementById('tab-clients').classList.contains('active')) renderClients();
+      const tabC = document.getElementById('tab-clients');
+      if (tabC && tabC.classList.contains('active')) renderClients();
     }
   });
-  onValue(ref(db, 'nextId'), (snapshot) => {
-    const data = snapshot.val();
+  listen('nextId', (data) => {
     if (data && data > nextId) {
       nextId = data;
       try { localStorage.setItem('dt_nextid', String(nextId)); } catch {}
     }
   });
-  onValue(ref(db, 'expenses'), (snapshot) => {
-    const data = snapshot.val();
+  listen('expenses', (data) => {
     if (data && Array.isArray(data)) {
       expenses = data;
       try { localStorage.setItem('dt_expenses', JSON.stringify(expenses)); } catch {}
       renderFinanceKPIs();
-      if (document.getElementById('tab-finance').classList.contains('active')) renderFinance();
+      const tabF = document.getElementById('tab-finance');
+      if (tabF && tabF.classList.contains('active')) renderFinance();
     }
   });
-  onValue(ref(db, 'inv_history'), (snapshot) => {
-    const data = snapshot.val();
+  listen('inv_history', (data) => {
     if (data && Array.isArray(data)) {
       try { localStorage.setItem('dt_inv_history', JSON.stringify(data)); } catch {}
-      if (document.getElementById('tab-invoice').classList.contains('active')) renderInvoiceHistory();
+      const tabI = document.getElementById('tab-invoice');
+      if (tabI && tabI.classList.contains('active')) renderInvoiceHistory();
     }
   });
-  onValue(ref(db, 'proj_expenses'), (snapshot) => {
-    const data = snapshot.val();
+  listen('proj_expenses', (data) => {
     if (data) {
       try { localStorage.setItem('dt_proj_expenses', JSON.stringify(data)); } catch {}
       renderQuotes();
@@ -860,14 +925,37 @@ function initFirebase() {
       renderFinanceKPIs();
     }
   });
+  listen('trash', (data) => {
+    if (data && Array.isArray(data)) {
+      trash = data;
+      try { localStorage.setItem('dt_trash', JSON.stringify(trash)); } catch {}
+      updateTrashBadge();
+      const tm = document.getElementById('trash-modal');
+      if (tm && tm.classList.contains('open')) renderTrash();
+    }
+  });
 }
 
-function showSync() {
-  const badge = document.getElementById('sync-badge');
-  if (badge) { badge.style.display = 'inline-block'; setTimeout(() => badge.style.display = 'none', 2000); }
-}
+// Tear down listeners when tab closes (defensive)
+window.addEventListener('beforeunload', () => {
+  _fbUnsubs.forEach(u => { try { u(); } catch {} });
+  _fbUnsubs = [];
+});
+
+// Legacy alias — older code paths may still call showSync()
+function showSync() { showSaveState('saved'); }
 
 // ── Helpers ──
+// Debounce: delay repeated invocations so heavy renders don't fire on every keystroke
+function debounce(fn, wait) {
+  let t;
+  return function(...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+// Debounced search — called from the search-input oninput handler
+const renderLogDebounced = debounce(() => { try { renderLog(); } catch(e) { console.warn(e); } }, 150);
 // Escape HTML to prevent XSS via user-entered fields (client name, notes, work, extra, etc.)
 function escapeHtml(s) {
   if (s === null || s === undefined) return '';
@@ -940,6 +1028,534 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// ── Custom confirm modal (replaces native confirm()) ──
+let _confirmResolver = null;
+function confirmAction(title, msg, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    _confirmResolver = resolve;
+    document.getElementById('confirm-title').textContent = title || 'تأكيد';
+    document.getElementById('confirm-msg').textContent = msg || 'هل أنت متأكد؟';
+    const okBtn = document.getElementById('confirm-ok-btn');
+    okBtn.textContent = opts.confirmLabel || 'حذف';
+    okBtn.style.background = opts.danger === false ? 'var(--gm)' : '#C0392B';
+    document.getElementById('confirm-modal').classList.add('open');
+  });
+}
+function _resolveConfirm(val) {
+  document.getElementById('confirm-modal').classList.remove('open');
+  if (_confirmResolver) { _confirmResolver(val); _confirmResolver = null; }
+}
+
+// ── Trash / Soft Delete ──
+const TRASH_TTL_DAYS = 30;
+let trash = [];
+try { trash = JSON.parse(localStorage.getItem('dt_trash') || '[]'); } catch {}
+
+function moveToTrash(type, data, meta) {
+  const entry = {
+    id: 'trash_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    type,                    // 'visit'|'invoice'|'client'|'quote'|'expense'|'proj_expense'
+    data: JSON.parse(JSON.stringify(data)),
+    meta: meta || {},
+    deletedAt: Date.now()
+  };
+  trash.unshift(entry);
+  _persistTrash();
+  updateTrashBadge();
+  return entry.id;
+}
+
+function _persistTrash() {
+  try { localStorage.setItem('dt_trash', JSON.stringify(trash)); } catch {}
+  fbSave('trash', trash);
+}
+
+function cleanupOldTrash() {
+  const cutoff = Date.now() - TRASH_TTL_DAYS * 24 * 60 * 60 * 1000;
+  const before = trash.length;
+  trash = trash.filter(t => (t.deletedAt || 0) > cutoff);
+  if (trash.length !== before) _persistTrash();
+  updateTrashBadge();
+}
+
+function updateTrashBadge() {
+  const el = document.getElementById('trash-count');
+  if (!el) return;
+  if (!trash.length) { el.style.display = 'none'; return; }
+  el.style.display = 'inline-block';
+  el.textContent = trash.length;
+}
+
+function openTrash() {
+  cleanupOldTrash();
+  renderTrash();
+  document.getElementById('trash-modal').classList.add('open');
+}
+
+const _typeLabels = {
+  visit: '📋 زيارة',
+  invoice: '🧾 فاتورة',
+  client: '👤 عميل',
+  quote: '💰 كوتيشن',
+  expense: '💸 مصروف',
+  proj_expense: '🏗 مصروف مشروع'
+};
+
+function _trashItemSummary(t) {
+  const d = t.data || {};
+  switch (t.type) {
+    case 'visit':        return `${escapeHtml(d.client || '—')} · ${escapeHtml(d.work || d.type || '')}`;
+    case 'invoice':      return `${escapeHtml(d.invNum || '')} · ${escapeHtml(d.client || '')} · ${d.total || 0} QAR`;
+    case 'client':       return `${escapeHtml(d.name || '—')} · ${escapeHtml(d.area || '')}`;
+    case 'quote':        return `${escapeHtml(d.client || '—')} · ${escapeHtml(d.title || '')}`;
+    case 'expense':      return `${escapeHtml(d.category || '')} · ${d.amount || 0} QAR · ${escapeHtml(d.note || '')}`;
+    case 'proj_expense': return `${escapeHtml(d.category || '')} · ${d.amount || 0} QAR`;
+    default:             return '';
+  }
+}
+
+function renderTrash() {
+  const host = document.getElementById('trash-list');
+  if (!host) return;
+  if (!trash.length) {
+    host.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px 10px">السلة فارغة</div>';
+    return;
+  }
+  const now = Date.now();
+  host.innerHTML = trash.map(t => {
+    const ageDays = Math.floor((now - (t.deletedAt || 0)) / 86400000);
+    const left = Math.max(0, TRASH_TTL_DAYS - ageDays);
+    return `
+      <div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fafafa">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:700;color:var(--gd)">${_typeLabels[t.type] || t.type}</span>
+          <span style="font-size:10px;color:var(--muted)">يتبقّى ${left} يوم</span>
+        </div>
+        <div style="font-size:13px;color:#333;margin-bottom:8px">${_trashItemSummary(t)}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary" style="flex:1;padding:7px;font-size:12px;min-height:36px" onclick="restoreFromTrash('${t.id}')">↩️ استرجاع</button>
+          <button class="btn" style="flex:1;padding:7px;font-size:12px;min-height:36px;background:#C0392B;color:#fff" onclick="permanentlyDelete('${t.id}')">🗑 حذف نهائي</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function restoreFromTrash(trashId) {
+  const entry = trash.find(t => t.id === trashId);
+  if (!entry) return;
+  try {
+    switch (entry.type) {
+      case 'visit':
+        if (!visits.some(v => v.id === entry.data.id)) {
+          visits.unshift(entry.data);
+          saveData();
+          renderAll();
+        }
+        break;
+      case 'invoice': {
+        let invHistory = [];
+        try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+        if (!invHistory.some(r => r.id === entry.data.id)) {
+          invHistory.unshift(entry.data);
+          fbSave('inv_history', invHistory);
+        }
+        renderInvoiceHistory && renderInvoiceHistory();
+        break;
+      }
+      case 'client':
+        if (!clients_data.some(c => c.id === entry.data.id)) {
+          clients_data.push(entry.data);
+          saveClients();
+          renderClients();
+          updateClientSelects();
+        }
+        break;
+      case 'quote':
+        if (!quotes.some(q => q.id === entry.data.id)) {
+          quotes.unshift(entry.data);
+          saveQuotes();
+          renderQuotes();
+        }
+        break;
+      case 'expense':
+        if (!expenses.some(e => e.id === entry.data.id)) {
+          expenses.unshift(entry.data);
+          saveExpenses();
+          renderFinance && renderFinance();
+          renderFinanceKPIs && renderFinanceKPIs();
+        }
+        break;
+      case 'proj_expense': {
+        const qid = entry.meta.quoteId;
+        if (qid) {
+          const exps = getProjExpenses(qid);
+          exps.push(entry.data);
+          saveProjExpenses(qid, exps);
+          renderQuotes && renderQuotes();
+        }
+        break;
+      }
+    }
+  } catch (e) {
+    console.warn('restore error:', e);
+    showToast('⚠️ تعذّر الاسترجاع');
+    return;
+  }
+  // Remove from trash
+  trash = trash.filter(t => t.id !== trashId);
+  _persistTrash();
+  updateTrashBadge();
+  renderTrash();
+  showToast('✅ تم الاسترجاع');
+}
+
+function permanentlyDelete(trashId) {
+  confirmAction('حذف نهائي', 'هذا الإجراء لا يمكن التراجع عنه. متأكد؟', { confirmLabel: 'حذف نهائي' }).then(ok => {
+    if (!ok) return;
+    trash = trash.filter(t => t.id !== trashId);
+    _persistTrash();
+    updateTrashBadge();
+    renderTrash();
+    showToast('🗑 تم الحذف النهائي');
+  });
+}
+
+// ── WhatsApp sharing ──
+// Cleans a phone to international format without '+' (needed for wa.me URLs).
+// If it starts with 974, 971, 966 etc. leave alone. Local Qatar numbers get 974 prefix.
+function waClean(phone) {
+  if (!phone) return '';
+  let p = String(phone).replace(/[^0-9]/g, '');
+  if (!p) return '';
+  if (p.startsWith('00')) p = p.slice(2);
+  // Qatar local numbers: 8 digits starting with 3/5/6/7 → prefix 974
+  if (p.length === 8 && /^[3567]/.test(p)) p = '974' + p;
+  return p;
+}
+
+function waOpen(phone, text) {
+  const ph = waClean(phone);
+  if (!ph) { showToast('⚠️ لا يوجد رقم جوال للعميل'); return; }
+  const url = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(text);
+  // Use new tab, iPad will intercept and open WhatsApp if installed
+  window.open(url, '_blank');
+}
+
+function _findClientPhone(name) {
+  const c = clients_data.find(x => x.name === name);
+  return c && c.phone ? c.phone : '';
+}
+
+function waShareInvoice(invoiceId) {
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const r = invHistory.find(x => x.id === invoiceId);
+  if (!r) return;
+  const phone = _findClientPhone(r.client);
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  let monthStr = '';
+  if (r.month) { const [y, m] = r.month.split('-'); monthStr = arMonths[parseInt(m) - 1] + ' ' + y; }
+  const lines = [
+    `🌳 Dr.Tree — خدمات الحدائق والأشجار`,
+    ``,
+    `السلام عليكم ${r.client}،`,
+    `تفضّل فاتورة ${r.invType === 'monthly' ? 'الاشتراك الشهري' : 'الزيارة'}${monthStr ? ' لشهر ' + monthStr : ''}:`,
+    ``,
+    `📄 رقم الفاتورة: ${r.invNum || '—'}`,
+    `📅 التاريخ: ${fmtDate(r.date)}`,
+  ];
+  if (r.invType === 'monthly') {
+    lines.push(`💰 قيمة الباقة: ${(r.fee || 0).toLocaleString('en')} QAR`);
+    if (r.ext) lines.push(`⚙ أعمال إضافية: ${(r.ext || 0).toLocaleString('en')} QAR`);
+  } else {
+    lines.push(`💰 قيمة الزيارة: ${(r.fee || 0).toLocaleString('en')} QAR`);
+  }
+  lines.push(`━━━━━━━━━━━━`);
+  lines.push(`💵 الإجمالي: ${(r.total || 0).toLocaleString('en')} QAR`);
+  if (r.due) lines.push(`📆 تاريخ الاستحقاق: ${fmtDate(r.due)}`);
+  lines.push('');
+  lines.push('شكراً لثقتك 🌳');
+  waOpen(phone, lines.join('\n'));
+}
+
+// Generic: render given HTML into a hidden iframe, rasterize with html2canvas, return jsPDF blob
+async function _htmlToPdfBlob(html, opts) {
+  opts = opts || {};
+  const width = opts.width || 800;
+  const scale = opts.scale || 2;
+  const selector = opts.selector || '.page';
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText = `position:fixed;left:-10000px;top:0;width:${width}px;height:1200px;border:0;visibility:hidden`;
+  document.body.appendChild(iframe);
+
+  await new Promise((resolve) => {
+    iframe.onload = resolve;
+    iframe.srcdoc = html;
+  });
+  await new Promise(r => setTimeout(r, 300)); // layout/fonts settle
+
+  const target = iframe.contentDocument.querySelector(selector) || iframe.contentDocument.body;
+
+  let canvas;
+  try {
+    canvas = await html2canvas(target, {
+      scale,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: width
+    });
+  } finally {
+    document.body.removeChild(iframe);
+  }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const imgW = pageW;
+  const imgH = (canvas.height * imgW) / canvas.width;
+  const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+  if (imgH <= pageH) {
+    pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH, undefined, 'FAST');
+  } else {
+    let remaining = imgH, y = 0;
+    while (remaining > 0) {
+      pdf.addImage(imgData, 'JPEG', 0, y, imgW, imgH, undefined, 'FAST');
+      remaining -= pageH;
+      if (remaining > 0) { pdf.addPage(); y -= pageH; }
+    }
+  }
+  return pdf.output('blob');
+}
+
+// Generic share-a-PDF-via-WhatsApp helper (uses Web Share API with file fallback)
+async function _sharePdfFileOnWhatsApp(blob, fileName, phone, shareText, textOnlyFallback) {
+  const file = new File([blob], fileName, { type: 'application/pdf' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: fileName, text: shareText });
+      showToast('✅ تمت المشاركة');
+      return true;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return false;
+      console.warn('navigator.share failed:', e);
+    }
+  }
+  // Fallback: download + open WhatsApp with text
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fileName;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showToast('📎 تم تنزيل PDF — أرفقه يدوياً في واتساب');
+  setTimeout(() => {
+    waOpen(phone, (textOnlyFallback || shareText) + '\n\n(الملف محفوظ كـ PDF في جهازك — يرجى إرفاقه بالرسالة)');
+  }, 800);
+  return true;
+}
+
+// Render invoice HTML into a hidden iframe, then rasterize with html2canvas → jsPDF blob
+async function _renderInvoicePdfBlob(rec) {
+  // Populate form fields so buildInvoiceHTML() reads the right values (same pattern as reOpenInvoice)
+  selectedVisits = rec.visitIds ? rec.visitIds.slice() : [];
+  document.getElementById('inv-client').value = rec.client;
+  document.getElementById('inv-num').value = rec.invNum;
+  document.getElementById('inv-fee').value = rec.fee || 500;
+  document.getElementById('inv-due').value = rec.due || '';
+  document.getElementById('inv-pay-status').value = rec.payStatus;
+  setInvType(rec.invType || 'monthly');
+  if (rec.invType === 'monthly' && rec.month) {
+    const monthSel = document.getElementById('inv-month');
+    if (monthSel) { monthSel.innerHTML = buildInvMonthOptions(); monthSel.value = rec.month; }
+  }
+  renderInvVisits();
+
+  const html = buildInvoiceHTML(true);
+  return _htmlToPdfBlob(html);
+}
+
+async function waShareInvoicePDF(invoiceId) {
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const rec = invHistory.find(x => x.id === invoiceId);
+  if (!rec) return;
+  const phone = _findClientPhone(rec.client);
+
+  showToast('📎 جاري إنشاء PDF...');
+  let blob;
+  try {
+    blob = await _renderInvoicePdfBlob(rec);
+  } catch (e) {
+    console.warn('PDF generation failed:', e);
+    showToast('⚠️ فشل إنشاء PDF — سيتم إرسال النص');
+    return waShareInvoice(invoiceId);
+  }
+
+  const fileName = `فاتورة_${(rec.invNum || 'invoice').replace(/[^\w\u0600-\u06FF-]/g, '_')}.pdf`;
+
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  let monthStr = '';
+  if (rec.month) { const [y, m] = rec.month.split('-'); monthStr = arMonths[parseInt(m) - 1] + ' ' + y; }
+  const shareText = [
+    `🌳 Dr.Tree`,
+    `فاتورة ${rec.invType === 'monthly' ? 'اشتراك شهري' : 'زيارة'}${monthStr ? ' — ' + monthStr : ''}`,
+    `المبلغ: ${(rec.total || 0).toLocaleString('en')} QAR`,
+    rec.due ? `الاستحقاق: ${fmtDate(rec.due)}` : '',
+    `شكراً لثقتك 🌳`
+  ].filter(Boolean).join('\n');
+
+  return _sharePdfFileOnWhatsApp(blob, fileName, phone, shareText);
+}
+
+// Build the visit report HTML (standalone — no window.open) for either print or PDF rendering
+function buildVisitReportHTML(v) {
+  const GOLD='#D4AC0D',GOLDL='#FFF9E6',OR='#E07B39',RED='#C0392B',BLUE='#1A56DB',BLUEL='#EBF5FF';
+  const payColor = v.payStatus==='مدفوع' ? GM : v.payStatus==='مدفوع جزئياً' ? GOLD : RED;
+  const payBg    = v.payStatus==='مدفوع' ? GP   : v.payStatus==='مدفوع جزئياً' ? GOLDL : '#FADBD8';
+  return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+  <title>تقرير زيارة — ${escapeHtml(v.client)}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,sans-serif;direction:rtl;background:#f0f4f0;padding:20px}
+    .page{max-width:640px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1)}
+    .print-btn{display:block;width:180px;margin:16px auto;padding:11px;background:${GD};color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial;text-align:center}
+    @media print{body{background:white;padding:0}.page{box-shadow:none;border-radius:0}.print-btn{display:none}@page{margin:12mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body>
+  <button class="print-btn" onclick="window.print()">🖨 طباعة / PDF</button>
+  <div class="page">
+    <!-- Header -->
+    <div style="background:${GD};padding:20px 24px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="color:white;font-size:19px;font-weight:900">🌳 Dr.Tree</div>
+        <div style="color:${GL};font-size:10px;letter-spacing:2px;margin-top:2px">GARDEN &amp; TREE SERVICES · QATAR</div>
+      </div>
+      <div style="background:${GOLD};color:${GD};padding:8px 14px;border-radius:8px;text-align:center">
+        <div style="font-size:9px;font-weight:700">تقرير زيارة</div>
+        <div style="font-size:15px;font-weight:900">#${v.id}</div>
+        <div style="font-size:9px;color:#555">${new Date().toLocaleDateString('ar-QA')}</div>
+      </div>
+    </div>
+    <div style="height:4px;background:linear-gradient(to left,${GL},${GOLD},${GL})"></div>
+    <!-- Client Info -->
+    <div style="display:flex;border-bottom:2px solid ${GP}">
+      <div style="flex:1;padding:14px 20px;border-left:1px solid #eee">
+        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">العميل</div>
+        <div style="font-size:16px;font-weight:700;color:${GD}">${escapeHtml(v.client)}</div>
+        <div style="font-size:12px;color:#888;margin-top:2px">${escapeHtml(v.area||'')}</div>
+      </div>
+      <div style="flex:1;padding:14px 20px;border-left:1px solid #eee">
+        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">تاريخ الزيارة</div>
+        <div style="font-size:14px;font-weight:700;color:#333">${fmtDate(v.date)}</div>
+      </div>
+      <div style="flex:1;padding:14px 20px">
+        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">نوع العمل</div>
+        <div style="display:inline-block;background:${GP};color:${GM};padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${escapeHtml(v.type||'—')}</div>
+      </div>
+    </div>
+    <!-- Work Done -->
+    <div style="background:${GM};padding:9px 20px;font-size:12px;font-weight:700;color:white">الأعمال المنجزة</div>
+    <div style="padding:16px 20px;border-bottom:1px solid #eee">
+      <div style="font-size:13px;color:#333;line-height:1.7">${escapeHtml(v.work||'—')}</div>
+      ${v.notes ? `<div style="margin-top:10px;padding:10px 14px;background:#EBF5FF;border-radius:8px;font-size:12px;color:${BLUE}">📝 ${escapeHtml(v.notes)}</div>` : ''}
+    </div>
+    <!-- Extra Work -->
+    ${v.extra ? `
+    <div style="background:${OR};padding:9px 20px;font-size:12px;font-weight:700;color:white">الأعمال الإضافية</div>
+    <div style="padding:16px 20px;border-bottom:1px solid #eee;background:#FEF0E7">
+      <div style="font-size:13px;color:#333;margin-bottom:8px">${escapeHtml(v.extra)}</div>
+      ${v.extraAmount>0 ? `<div style="font-size:15px;font-weight:700;color:${OR}">${v.extraAmount.toLocaleString('en')} QAR</div>` : ''}
+      ${v.extraStatus ? `<div style="display:inline-block;margin-top:6px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${GP};color:${GM}">${escapeHtml(v.extraStatus)}</div>` : ''}
+    </div>` : ''}
+    <!-- Payment -->
+    <div style="background:${BLUE};padding:9px 20px;font-size:12px;font-weight:700;color:white">حالة الدفع</div>
+    <div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div style="display:inline-block;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700;background:${payBg};color:${payColor}">${escapeHtml(v.payStatus||'غير مدفوع')}</div>
+      ${v.dueDate ? `<div style="font-size:12px;color:#666">تاريخ الاستحقاق: <b style="color:${RED}">${fmtDate(v.dueDate)}</b></div>` : ''}
+      ${v.paidAmount>0 ? `<div style="font-size:12px;color:#666">المبلغ المدفوع: <b style="color:${GM}">${v.paidAmount.toLocaleString('en')} QAR</b></div>` : ''}
+    </div>
+    <!-- Next Visit -->
+    ${v.nextDate ? `
+    <div style="background:#2D6A4F;padding:9px 20px;font-size:12px;font-weight:700;color:white">الموعد القادم</div>
+    <div style="padding:16px 20px;border-bottom:1px solid #eee;background:${GP}">
+      <div style="font-size:14px;font-weight:700;color:${GD}">${fmtDate(v.nextDate)}</div>
+      ${v.nextNote ? `<div style="font-size:12px;color:#555;margin-top:4px">${escapeHtml(v.nextNote)}</div>` : ''}
+    </div>` : ''}
+    <!-- Footer -->
+    <div style="background:${GD};color:${GL};text-align:center;padding:11px;font-size:10px">
+      Dr.Tree | +974 XXXX XXXX | info@drtree.qa
+    </div>
+  </div>
+  </body></html>`;
+}
+
+// Share visit report as a PDF via WhatsApp (Web Share API + download fallback)
+async function shareReportPDF(id) {
+  const v = visits.find(x => x.id === id);
+  if (!v) return;
+  const phone = _findClientPhone(v.client);
+
+  showToast('📎 جاري إنشاء PDF...');
+  let blob;
+  try {
+    const html = buildVisitReportHTML(v);
+    blob = await _htmlToPdfBlob(html);
+  } catch (e) {
+    console.warn('Report PDF generation failed:', e);
+    showToast('⚠️ فشل إنشاء PDF — سيتم إرسال النص');
+    return shareReportWhatsApp(id);
+  }
+
+  const safeName = `${v.client || 'client'}_${v.date || ''}`.replace(/[^\w\u0600-\u06FF-]/g, '_');
+  const fileName = `تقرير_زيارة_${safeName}.pdf`;
+
+  const shareLines = [
+    `🌳 Dr.Tree — تقرير زيارة`,
+    `العميل: ${v.client || ''}${v.area ? ' — ' + v.area : ''}`,
+    `التاريخ: ${fmtDate(v.date)}`,
+    `نوع العمل: ${v.type || '—'}`
+  ];
+  if (v.work)  shareLines.push(`الأعمال: ${v.work}`);
+  if (v.extra) shareLines.push(`إضافي: ${v.extra}${v.extraAmount ? ' — ' + v.extraAmount.toLocaleString('en') + ' QAR' : ''}`);
+  if (v.nextDate) shareLines.push(`الموعد القادم: ${fmtDate(v.nextDate)}`);
+  shareLines.push('', 'شكراً لثقتكم 🌿');
+  const shareText = shareLines.join('\n');
+
+  return _sharePdfFileOnWhatsApp(blob, fileName, phone, shareText);
+}
+
+function waRemindDebt(clientName, amount) {
+  const phone = _findClientPhone(clientName);
+  const txt = [
+    `🌳 Dr.Tree`,
+    ``,
+    `السلام عليكم ${clientName}،`,
+    `هذا تذكير ودّي بوجود مستحقات معلّقة:`,
+    ``,
+    `💰 المبلغ: ${Number(amount).toLocaleString('en')} QAR`,
+    ``,
+    `يرجى تسوية المبلغ في أقرب وقت ممكن.`,
+    `شكراً لتعاونكم 🌷`
+  ].join('\n');
+  waOpen(phone, txt);
+}
+
+function emptyTrashConfirm() {
+  if (!trash.length) { showToast('السلة فارغة'); return; }
+  confirmAction('تفريغ السلة', `سيتم حذف ${trash.length} عنصراً نهائياً. متأكد؟`, { confirmLabel: 'نعم، فرّغ' }).then(ok => {
+    if (!ok) return;
+    trash = [];
+    _persistTrash();
+    updateTrashBadge();
+    renderTrash();
+    showToast('🔥 تم تفريغ السلة');
+  });
+}
+
 // ── Tab switching ──
 function switchTab(tab) {
   ['dashboard','log','clients','quote','invoice','finance'].forEach(t => {
@@ -981,7 +1597,7 @@ function visitRowHTML(v, i, showEdit=true) {
       <div class="visit-actions">
         ${badge(v.payStatus||'غير مدفوع', true)}
         <button class="btn-icon" style="color:var(--gm)" onclick="printVisitReport(${v.id})">📋</button>
-        <button class="btn-icon" style="color:#25D366" onclick="shareReportWhatsApp(${v.id})">💬</button>
+        <button class="btn-icon" onclick="shareReportPDF(${v.id})" title="مشاركة PDF عبر واتساب" style="font-size:15px;background:#25D366;color:#fff">📎</button>
         ${showEdit ? `<button class="btn-icon" onclick="openEdit(${v.id})">✏️</button>` : ''}
         <button class="btn-icon" style="color:#ddd" onclick="delVisit(${v.id})">🗑</button>
       </div>
@@ -1185,10 +1801,15 @@ function saveVisit() {
 }
 
 function delVisit(id) {
-  if (!confirm('حذف هذه الزيارة؟')) return;
-  visits = visits.filter(v => v.id !== id);
-  saveData(); renderAll();
-  showToast('🗑 تم الحذف');
+  const v = visits.find(x => x.id === id);
+  if (!v) return;
+  confirmAction('حذف الزيارة', `سيتم نقل زيارة «${v.client || '—'}» إلى سلة المهملات (يمكن الاسترجاع خلال ٣٠ يوماً).`).then(ok => {
+    if (!ok) return;
+    moveToTrash('visit', v);
+    visits = visits.filter(x => x.id !== id);
+    saveData(); renderAll();
+    showToast('🗑 نُقلت للسلة');
+  });
 }
 
 // ── Export CSV ──
@@ -1288,6 +1909,7 @@ function renderInvoiceHistory() {
         <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
           <span style="background:${payBg};color:${payColor};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">${escapeHtml(r.payStatus)}</span>
           <button class="btn-icon" onclick="changeInvPayStatus(${r.id})" title="تغيير حالة الدفع" style="font-size:15px">💳</button>
+          <button class="btn-icon" onclick="waShareInvoicePDF(${r.id})" title="مشاركة PDF عبر واتساب" style="font-size:15px;background:#25D366;color:#fff">📎</button>
           <button class="btn-icon" onclick="reOpenInvoice(${r.id})" title="إعادة طباعة" style="font-size:15px">🖨</button>
           <button class="btn-icon" style="color:#ddd;font-size:15px" onclick="deleteInvoiceRecord(${r.id})">🗑</button>
         </div>
@@ -1324,11 +1946,7 @@ function changeInvPayStatus(id) {
   const statuses = ['غير مدفوع', 'مدفوع جزئياً', 'مدفوع'];
   const cur = statuses.indexOf(rec.payStatus);
   rec.payStatus = statuses[(cur + 1) % 3];
-  localStorage.setItem('dt_inv_history', JSON.stringify(invHistory));
-  if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    set(ref(db, 'inv_history'), invHistory).catch(e => console.log(e));
-  }
+  fbSave('inv_history', invHistory);
   renderInvoiceHistory();
   showToast('✅ تم تحديث حالة الدفع: ' + rec.payStatus);
 }
@@ -1360,17 +1978,18 @@ function reOpenInvoice(id) {
 }
 
 function deleteInvoiceRecord(id) {
-  if (!confirm('حذف هذه الفاتورة من السجل؟')) return;
   let invHistory = [];
   try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
-  invHistory = invHistory.filter(r => r.id !== id);
-  localStorage.setItem('dt_inv_history', JSON.stringify(invHistory));
-  if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    set(ref(db, 'inv_history'), invHistory).catch(e => console.log(e));
-  }
-  renderInvoiceHistory();
-  showToast('🗑 تم حذف الفاتورة من السجل');
+  const rec = invHistory.find(r => r.id === id);
+  if (!rec) return;
+  confirmAction('حذف الفاتورة', `سيتم نقل فاتورة «${rec.invNum || rec.client || ''}» إلى السلة.`).then(ok => {
+    if (!ok) return;
+    moveToTrash('invoice', rec);
+    invHistory = invHistory.filter(r => r.id !== id);
+    fbSave('inv_history', invHistory);
+    renderInvoiceHistory();
+    showToast('🗑 نُقلت للسلة');
+  });
 }
 
 function buildInvMonthOptions() {
@@ -1693,11 +2312,7 @@ function saveInvoiceRecord(exportedAs) {
     // Legacy counter (keep for backwards compat)
     const allInv = JSON.parse(localStorage.getItem('dt_invoices') || '{}');
     allInv[client] = (allInv[client] || 0) + 1;
-    localStorage.setItem('dt_invoices', JSON.stringify(allInv));
-    if (window._fbReady) {
-      const { db, ref, set } = window._fb;
-      set(ref(db, 'invoices'), allInv).catch(e => console.log(e));
-    }
+    fbSave('invoices', allInv);
 
     // New: full invoice record
     const invNum = document.getElementById('inv-num').value;
@@ -1721,11 +2336,7 @@ function saveInvoiceRecord(exportedAs) {
         visitIds: selectedVisits.slice(),
         exportedAs: exportedAs || 'print'
       });
-      localStorage.setItem('dt_inv_history', JSON.stringify(invHistory));
-      if (window._fbReady) {
-        const { db, ref, set } = window._fb;
-        set(ref(db, 'inv_history'), invHistory).catch(e => console.log(e));
-      }
+      fbSave('inv_history', invHistory);
     }
     renderInvoiceHistory();
   } catch(e) { console.log(e); }
@@ -1837,93 +2448,7 @@ function renderUpcoming() {
 function printVisitReport(id) {
   const v = visits.find(x => x.id === id);
   if (!v) return;
-  const GOLD='#D4AC0D',GOLDL='#FFF9E6',OR='#E07B39',RED='#C0392B',BLUE='#1A56DB',BLUEL='#EBF5FF';
-
-  const payColor = v.payStatus==='مدفوع' ? GM : v.payStatus==='مدفوع جزئياً' ? GOLD : RED;
-  const payBg    = v.payStatus==='مدفوع' ? GP   : v.payStatus==='مدفوع جزئياً' ? GOLDL : '#FADBD8';
-
-  const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
-  <title>تقرير زيارة — ${escapeHtml(v.client)}</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:Arial,sans-serif;direction:rtl;background:#f0f4f0;padding:20px}
-    .page{max-width:640px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1)}
-    .print-btn{display:block;width:180px;margin:16px auto;padding:11px;background:${GD};color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial;text-align:center}
-    @media print{body{background:white;padding:0}.page{box-shadow:none;border-radius:0}.print-btn{display:none}@page{margin:12mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-  </style></head><body>
-  <button class="print-btn" onclick="window.print()">🖨 طباعة / PDF</button>
-  <div class="page">
-
-    <!-- Header -->
-    <div style="background:${GD};padding:20px 24px;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div style="color:white;font-size:19px;font-weight:900">🌳 Dr.Tree</div>
-        <div style="color:${GL};font-size:10px;letter-spacing:2px;margin-top:2px">GARDEN &amp; TREE SERVICES · QATAR</div>
-      </div>
-      <div style="background:${GOLD};color:${GD};padding:8px 14px;border-radius:8px;text-align:center">
-        <div style="font-size:9px;font-weight:700">تقرير زيارة</div>
-        <div style="font-size:15px;font-weight:900">#${v.id}</div>
-        <div style="font-size:9px;color:#555">${new Date().toLocaleDateString('ar-QA')}</div>
-      </div>
-    </div>
-    <div style="height:4px;background:linear-gradient(to left,${GL},${GOLD},${GL})"></div>
-
-    <!-- Client Info -->
-    <div style="display:flex;border-bottom:2px solid ${GP}">
-      <div style="flex:1;padding:14px 20px;border-left:1px solid #eee">
-        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">العميل</div>
-        <div style="font-size:16px;font-weight:700;color:${GD}">${escapeHtml(v.client)}</div>
-        <div style="font-size:12px;color:#888;margin-top:2px">${escapeHtml(v.area||'')}</div>
-      </div>
-      <div style="flex:1;padding:14px 20px;border-left:1px solid #eee">
-        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">تاريخ الزيارة</div>
-        <div style="font-size:14px;font-weight:700;color:#333">${fmtDate(v.date)}</div>
-      </div>
-      <div style="flex:1;padding:14px 20px">
-        <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">نوع العمل</div>
-        <div style="display:inline-block;background:${GP};color:${GM};padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${escapeHtml(v.type||'—')}</div>
-      </div>
-    </div>
-
-    <!-- Work Done -->
-    <div style="background:${GM};padding:9px 20px;font-size:12px;font-weight:700;color:white">الأعمال المنجزة</div>
-    <div style="padding:16px 20px;border-bottom:1px solid #eee">
-      <div style="font-size:13px;color:#333;line-height:1.7">${escapeHtml(v.work||'—')}</div>
-      ${v.notes ? `<div style="margin-top:10px;padding:10px 14px;background:#EBF5FF;border-radius:8px;font-size:12px;color:${BLUE}">📝 ${escapeHtml(v.notes)}</div>` : ''}
-    </div>
-
-    <!-- Extra Work -->
-    ${v.extra ? `
-    <div style="background:${OR};padding:9px 20px;font-size:12px;font-weight:700;color:white">الأعمال الإضافية</div>
-    <div style="padding:16px 20px;border-bottom:1px solid #eee;background:#FEF0E7">
-      <div style="font-size:13px;color:#333;margin-bottom:8px">${escapeHtml(v.extra)}</div>
-      ${v.extraAmount>0 ? `<div style="font-size:15px;font-weight:700;color:${OR}">${v.extraAmount.toLocaleString('en')} QAR</div>` : ''}
-      ${v.extraStatus ? `<div style="display:inline-block;margin-top:6px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${GP};color:${GM}">${escapeHtml(v.extraStatus)}</div>` : ''}
-    </div>` : ''}
-
-    <!-- Payment -->
-    <div style="background:${BLUE};padding:9px 20px;font-size:12px;font-weight:700;color:white">حالة الدفع</div>
-    <div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
-      <div style="display:inline-block;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700;background:${payBg};color:${payColor}">${escapeHtml(v.payStatus||'غير مدفوع')}</div>
-      ${v.dueDate ? `<div style="font-size:12px;color:#666">تاريخ الاستحقاق: <b style="color:${RED}">${fmtDate(v.dueDate)}</b></div>` : ''}
-      ${v.paidAmount>0 ? `<div style="font-size:12px;color:#666">المبلغ المدفوع: <b style="color:${GM}">${v.paidAmount.toLocaleString('en')} QAR</b></div>` : ''}
-    </div>
-
-    <!-- Next Visit -->
-    ${v.nextDate ? `
-    <div style="background:#2D6A4F;padding:9px 20px;font-size:12px;font-weight:700;color:white">الموعد القادم</div>
-    <div style="padding:16px 20px;border-bottom:1px solid #eee;background:${GP}">
-      <div style="font-size:14px;font-weight:700;color:${GD}">${fmtDate(v.nextDate)}</div>
-      ${v.nextNote ? `<div style="font-size:12px;color:#555;margin-top:4px">${escapeHtml(v.nextNote)}</div>` : ''}
-    </div>` : ''}
-
-    <!-- Footer -->
-    <div style="background:${GD};color:${GL};text-align:center;padding:11px;font-size:10px">
-      Dr.Tree | +974 XXXX XXXX | info@drtree.qa
-    </div>
-  </div>
-  </body></html>`;
-
+  const html = buildVisitReportHTML(v);
   const w = window.open('','_blank');
   w.document.write(html); w.document.close(); w.focus();
   setTimeout(() => { w.print(); w.close(); }, 400);
@@ -1935,14 +2460,7 @@ function loadClients() {
   try { clients_data = JSON.parse(localStorage.getItem('dt_clients') || '[]'); } catch { clients_data = []; }
 }
 function saveClients() {
-  try { localStorage.setItem('dt_clients', JSON.stringify(clients_data)); } catch {}
-  if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    // Convert to object to avoid Firebase empty array issues
-    const clientsObj = {};
-    clients_data.forEach((c,i) => { clientsObj['c'+i] = c; });
-    set(ref(db, 'clients'), clients_data.length ? clients_data : null).catch(e => console.log(e));
-  }
+  fbSave('clients', clients_data.length ? clients_data : null);
 }
 
 function openAddClient() {
@@ -2000,11 +2518,73 @@ function saveClient() {
 }
 
 function delClient(id) {
-  if (!confirm('حذف هذا العميل؟')) return;
-  clients_data = clients_data.filter(c => c.id !== id);
-  saveClients();
-  renderClients();
-  showToast('🗑 تم الحذف');
+  const c = clients_data.find(x => x.id === id);
+  if (!c) return;
+  confirmAction('حذف العميل', `سيتم نقل «${c.name || '—'}» إلى السلة. ملاحظة: زيارات العميل وفواتيره لن تُحذف.`).then(ok => {
+    if (!ok) return;
+    moveToTrash('client', c);
+    clients_data = clients_data.filter(x => x.id !== id);
+    saveClients();
+    renderClients();
+    showToast('🗑 نُقل للسلة');
+  });
+}
+
+// ── Debt calculation ──
+// Returns a map: { [clientName]: { debt, invoices: [...unpaid/partial records], overdueCount, oldestDue } }
+function computeDebts() {
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const map = {};
+  const todayISO = todayLocal();
+  invHistory.forEach(r => {
+    if (!r || !r.client) return;
+    if (r.payStatus === 'مدفوع') return;
+    // partial = half owed, unpaid = full owed (conservative approximation)
+    const owed = r.payStatus === 'مدفوع جزئياً'
+      ? Math.round((r.total || 0) / 2)
+      : (r.total || 0);
+    if (owed <= 0) return;
+    const key = r.client;
+    if (!map[key]) map[key] = { debt: 0, invoices: [], overdueCount: 0, oldestDue: null };
+    map[key].debt += owed;
+    map[key].invoices.push({ ...r, owed });
+    // Overdue: due date exists and is before today
+    const due = r.due || r.dueDate;
+    if (due && due < todayISO) {
+      map[key].overdueCount++;
+      if (!map[key].oldestDue || due < map[key].oldestDue) map[key].oldestDue = due;
+    }
+  });
+  return map;
+}
+
+function renderDebtsSummary(debts) {
+  const card = document.getElementById('debts-card');
+  const body = document.getElementById('debts-body');
+  const totalBadge = document.getElementById('debts-total');
+  if (!card || !body) return;
+  const entries = Object.entries(debts).filter(([, v]) => v.debt > 0);
+  if (!entries.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  entries.sort((a, b) => b[1].debt - a[1].debt);
+  const totalDebt = entries.reduce((s, [, v]) => s + v.debt, 0);
+  if (totalBadge) totalBadge.textContent = totalDebt.toLocaleString('en') + ' QAR';
+  body.innerHTML = entries.slice(0, 10).map(([name, v]) => {
+    const overdueTag = v.overdueCount
+      ? `<span style="background:#C0392B;color:#fff;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;margin-right:6px">⚠️ ${v.overdueCount} متأخر</span>` : '';
+    const phone = (clients_data.find(c => c.name === name) || {}).phone || '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid #f2f2f2">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px">${escapeHtml(name)} ${overdueTag}</div>
+        <div style="font-size:11px;color:var(--muted)">${v.invoices.length} فاتورة${v.oldestDue ? ' · أقدم استحقاق ' + fmtDate(v.oldestDue) : ''}</div>
+      </div>
+      <div style="text-align:left;min-width:90px">
+        <div style="font-weight:900;font-size:14px;color:#C0392B">${v.debt.toLocaleString('en')} QAR</div>
+        ${phone ? `<button class="btn-icon" style="margin-top:3px;padding:3px 6px;min-height:28px;font-size:10px;background:#25D366;color:#fff" onclick="waRemindDebt('${escapeHtml(name).replace(/'/g,"\\'")}', ${v.debt})">📱 تذكير</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderClients() {
@@ -2018,6 +2598,8 @@ function renderClients() {
       clients_data.push({ id: Date.now() + Math.random(), name, area: lastVisit?.area || '', phone: '', notes: '' });
     }
   });
+  const debts = computeDebts();
+  renderDebtsSummary(debts);
 
   const el = document.getElementById('clients-list-body');
   const count = document.getElementById('clients-count');
@@ -2032,6 +2614,10 @@ function renderClients() {
     const cVisits = visits.filter(v => v.client === c.name);
     const lastVisit = cVisits[0];
     const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    const dinfo = debts[c.name];
+    const debtBadge = (dinfo && dinfo.debt > 0)
+      ? `<span style="background:#C0392B;color:#fff;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-right:4px">💰 دين ${dinfo.debt.toLocaleString('en')} QAR${dinfo.overdueCount ? ' ⚠️' : ''}</span>`
+      : '';
     return `<div style="padding:14px 16px;border-bottom:1px solid #F0F0F0;background:${bg}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div>
@@ -2040,6 +2626,7 @@ function renderClients() {
             ${c.area ? '📍 '+escapeHtml(c.area) : ''}
             ${c.phone ? ' &nbsp;<span dir="ltr">📞 '+escapeHtml(c.phone)+'</span>' : ''}
           ${c.monthly ? `<span style="background:var(--goldl);color:var(--gold);padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-right:4px">💰 ${c.monthly.toLocaleString('en')} QAR/شهر</span>` : ''}
+          ${debtBadge}
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center">
@@ -2073,11 +2660,7 @@ let laborItems = [], plantItems = [], materialItems = [], otherItems = [];
 let savedPlants = JSON.parse(localStorage.getItem('dt_plants_list')||'[]');
 
 function savePlantsList() {
-  try { localStorage.setItem('dt_plants_list', JSON.stringify(savedPlants)); } catch {}
-  if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    set(ref(db, 'plants_list'), savedPlants.length ? savedPlants : null).catch(e=>console.log(e));
-  }
+  fbSave('plants_list', savedPlants.length ? savedPlants : null);
 }
 
 function addPlantToRegistry(name) {
@@ -2088,11 +2671,7 @@ function addPlantToRegistry(name) {
 }
 
 function saveQuotes() {
-  localStorage.setItem('dt_quotes', JSON.stringify(quotes));
-  if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    set(ref(db, 'quotes'), quotes).catch(e=>console.log(e));
-  }
+  fbSave('quotes', quotes);
 }
 
 function onQClientChange(val) {
@@ -2515,9 +3094,15 @@ function renderQuotes(){
 }
 
 function deleteQuote(id){
-  if(!confirm('حذف هذا الكوتيشن؟'))return;
-  quotes=quotes.filter(q=>q.id!==id);
-  saveQuotes();renderQuotes();
+  const q = quotes.find(x => x.id === id);
+  if (!q) return;
+  confirmAction('حذف الكوتيشن', `سيتم نقل كوتيشن «${q.client || q.title || ''}» إلى السلة.`).then(ok => {
+    if (!ok) return;
+    moveToTrash('quote', q);
+    quotes = quotes.filter(x => x.id !== id);
+    saveQuotes(); renderQuotes();
+    showToast('🗑 نُقل للسلة');
+  });
 }
 
 function editQuote(id){
@@ -2558,11 +3143,7 @@ function loadExpenses() {
 }
 
 function saveExpenses() {
-  try { localStorage.setItem('dt_expenses', JSON.stringify(expenses)); } catch {}
-  if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    set(ref(db, 'expenses'), expenses).catch(e => console.log('Firebase expense save error:', e));
-  }
+  fbSave('expenses', expenses);
 }
 
 const EXP_CATS = {
@@ -2742,12 +3323,17 @@ function saveExpense() {
 }
 
 function deleteExpense(id) {
-  if (!confirm('حذف هذا المصروف؟')) return;
-  expenses = expenses.filter(e => e.id !== id);
-  saveExpenses();
-  renderFinance();
-  renderFinanceKPIs();
-  showToast('🗑 تم الحذف');
+  const e = expenses.find(x => x.id === id);
+  if (!e) return;
+  confirmAction('حذف المصروف', `سيتم نقل المصروف «${e.category || ''} ${e.amount || 0} QAR» إلى السلة.`).then(ok => {
+    if (!ok) return;
+    moveToTrash('expense', e);
+    expenses = expenses.filter(x => x.id !== id);
+    saveExpenses();
+    renderFinance();
+    renderFinanceKPIs();
+    showToast('🗑 نُقل للسلة');
+  });
 }
 
 // ── Project Finance ──
@@ -2764,11 +3350,7 @@ function saveProjExpenses(quoteId, exps) {
   try {
     const all = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}');
     all[quoteId] = exps;
-    localStorage.setItem('dt_proj_expenses', JSON.stringify(all));
-    if (window._fbReady) {
-      const { db, ref, set } = window._fb;
-      set(ref(db, 'proj_expenses'), all).catch(e => console.log(e));
-    }
+    fbSave('proj_expenses', all);
   } catch(e) { console.log(e); }
 }
 
@@ -2838,13 +3420,20 @@ function saveProjExpense() {
 
 function deleteProjExpense(quoteId, idx) {
   const exps = getProjExpenses(quoteId);
-  exps.splice(idx, 1);
-  saveProjExpenses(quoteId, exps);
-  renderProjExpModal(quoteId);
-  renderQuotes();
-  renderProjFinanceSummary();
-  renderFinanceKPIs();
-  if (document.getElementById('tab-finance').classList.contains('active')) renderFinance();
+  const item = exps[idx];
+  if (!item) return;
+  confirmAction('حذف مصروف المشروع', `سيتم نقل «${item.category || ''} ${item.amount || 0} QAR» إلى السلة.`).then(ok => {
+    if (!ok) return;
+    moveToTrash('proj_expense', item, { quoteId });
+    exps.splice(idx, 1);
+    saveProjExpenses(quoteId, exps);
+    renderProjExpModal(quoteId);
+    renderQuotes();
+    renderProjFinanceSummary();
+    renderFinanceKPIs();
+    if (document.getElementById('tab-finance').classList.contains('active')) renderFinance();
+    showToast('🗑 نُقل للسلة');
+  });
 }
 
 function renderProjFinanceSummary() {
@@ -2916,12 +3505,84 @@ function renderAll() {
   renderProjFinanceSummary();
 }
 
+// ── PWA: service worker registration + install prompt + offline indicator ──
+let _pwaInstallEvent = null;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      // Check for updates periodically
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version cached — show a subtle toast
+            showToast('🔄 تحديث جديد جاهز — أعد فتح التطبيق لتفعيله');
+          }
+        });
+      });
+    }).catch((e) => console.warn('SW registration failed:', e));
+  });
+}
+
+// Install prompt (Android/Chromium). iOS Safari users use "Add to Home Screen" manually.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _pwaInstallEvent = e;
+  const btn = document.getElementById('btn-install');
+  if (btn) btn.style.display = 'inline-block';
+});
+
+window.addEventListener('appinstalled', () => {
+  _pwaInstallEvent = null;
+  const btn = document.getElementById('btn-install');
+  if (btn) btn.style.display = 'none';
+  showToast('✅ تم تثبيت التطبيق');
+});
+
+function pwaInstall() {
+  if (!_pwaInstallEvent) {
+    // Fallback for iOS Safari: instruct user
+    showToast('اضغط مشاركة ⇪ ثم "أضف إلى الشاشة الرئيسية"');
+    return;
+  }
+  _pwaInstallEvent.prompt();
+  _pwaInstallEvent.userChoice.then(() => {
+    _pwaInstallEvent = null;
+    const btn = document.getElementById('btn-install');
+    if (btn) btn.style.display = 'none';
+  });
+}
+
+// Offline / online indicator
+function updateOnlineStatus() {
+  const banner = document.getElementById('offline-banner');
+  if (!banner) return;
+  if (navigator.onLine) {
+    banner.style.display = 'none';
+  } else {
+    banner.style.display = 'block';
+  }
+}
+window.addEventListener('online', () => {
+  updateOnlineStatus();
+  showToast('🌐 عاد الإنترنت — يتم رفع البيانات...');
+});
+window.addEventListener('offline', () => {
+  updateOnlineStatus();
+  showToast('📴 لا يوجد إنترنت — البيانات تُحفظ محلياً');
+});
+updateOnlineStatus();
+
 // ── Init ──
 loadData();
 loadClients();
 loadExpenses();
 renderAll();
 initFirebase();
+cleanupOldTrash();
+updateTrashBadge();
 document.getElementById('f-date').value = TODAY;
 </script>
 <!-- Expense Modal -->
@@ -3011,6 +3672,33 @@ document.getElementById('f-date').value = TODAY;
     </div>
     <div class="modal-footer" style="margin-top:12px">
       <button class="btn btn-secondary" style="width:100%" onclick="document.getElementById('proj-exp-modal').classList.remove('open')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal (replaces native confirm()) -->
+<div class="modal" id="confirm-modal" style="z-index:1000">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="confirm-title" style="text-align:center">تأكيد</div>
+    <p id="confirm-msg" style="text-align:center;color:var(--muted);margin:8px 0 16px;line-height:1.6">هل أنت متأكد؟</p>
+    <div class="modal-footer" style="gap:10px">
+      <button class="btn btn-secondary" style="flex:1" onclick="_resolveConfirm(false)">إلغاء</button>
+      <button class="btn" id="confirm-ok-btn" style="flex:1;background:#C0392B;color:#fff" onclick="_resolveConfirm(true)">حذف</button>
+    </div>
+  </div>
+</div>
+
+<!-- Trash Modal -->
+<div class="modal" id="trash-modal">
+  <div class="modal-box" style="max-width:560px;max-height:92dvh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🗑 سلة المهملات</div>
+    <p style="color:var(--muted);font-size:12px;margin:0 0 10px">العناصر المحذوفة تُحفظ هنا ٣٠ يوماً ثم تُزال تلقائياً.</p>
+    <div id="trash-list" style="max-height:60dvh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+    <div class="modal-footer" style="gap:8px;margin-top:12px">
+      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('trash-modal').classList.remove('open')">إغلاق</button>
+      <button class="btn" id="trash-empty-btn" style="background:#C0392B;color:#fff" onclick="emptyTrashConfirm()">🔥 تفريغ السلة</button>
     </div>
   </div>
 </div>
