@@ -567,142 +567,108 @@ textarea { min-height:72px; resize:vertical; }
       <div id="proj-finance-list"></div>
     </div>
 
-    <!-- ─── Company Financial Reports ─── -->
-    <div style="margin-top:18px;padding:10px 4px;border-top:3px solid var(--gm)">
-      <h2 style="color:var(--gm);font-size:16px;margin:0 0 10px 0">📑 التقارير المالية</h2>
 
-      <!-- Period selector -->
-      <div class="card" style="padding:10px;margin-bottom:14px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <select id="fr-period" onchange="renderFinReports()" style="font-size:12px;padding:9px;font-weight:700">
-            <option value="this-month">هذا الشهر</option>
-            <option value="last-month">الشهر الماضي</option>
-            <option value="this-quarter">هذا الربع</option>
-            <option value="last-quarter">الربع الماضي</option>
-            <option value="ytd">منذ بداية السنة</option>
-            <option value="last-year">السنة الماضية</option>
-            <option value="all" selected>كل الفترات</option>
-            <option value="custom">فترة مخصصة...</option>
-          </select>
-          <div id="fr-period-label" style="font-size:11px;color:var(--muted);align-self:center;text-align:center"></div>
-        </div>
-        <div id="fr-custom" style="display:none;grid-template-columns:1fr 1fr;gap:8px">
-          <input type="date" id="fr-from" onchange="renderFinReports()" style="font-size:12px;padding:8px">
-          <input type="date" id="fr-to" onchange="renderFinReports()" style="font-size:12px;padding:8px">
-        </div>
-      </div>
-
-      <!-- P&L Statement -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header" style="background:var(--gd)">
-          <h2>💰 قائمة الأرباح والخسائر (P&L)</h2>
-        </div>
-        <div id="fr-pnl" style="padding:0"></div>
-      </div>
-
-      <!-- Cash Flow -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header" style="background:var(--blue)">
-          <h2>💸 التدفق النقدي</h2>
-        </div>
-        <div id="fr-cashflow" style="padding:0"></div>
-      </div>
-
-      <!-- Aging Report -->
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header between" style="background:var(--red)">
-          <h2>⏱ تقادم المستحقات (Aging)</h2>
-          <span id="fr-aging-total" style="background:#fff;color:var(--red);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0 QAR</span>
-        </div>
-        <div id="fr-aging" style="padding:0"></div>
-      </div>
-    </div>
-  </div>
 
   <!-- FINANCE TAB -->
   <div id="tab-finance" class="tab">
 
-    <!-- Month selector -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-      <select id="fin-month-filter" onchange="renderFinance()" style="flex:1;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;direction:rtl;background:#fff;outline:none;-webkit-appearance:none">
-        <option value="">كل الأشهر</option>
-      </select>
-      <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">➕ مصروف</button>
-    </div>
-
-    <!-- Financial KPIs -->
-    <div class="kpis" style="grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-      <div class="kpi" style="background:var(--gp);border-color:var(--gl);padding:10px 12px">
-        <div class="kpi-label" style="font-size:9px">الإيرادات</div>
-        <div class="kpi-value" id="fin-kpi-revenue" style="color:var(--gm);font-size:16px">0</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
+    <!-- Period selector + Add expense -->
+    <div class="card" style="padding:10px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-bottom:8px">
+        <select id="fr-period" onchange="renderFinance()" style="font-size:13px;padding:10px;font-weight:700">
+          <option value="this-month" selected>هذا الشهر</option>
+          <option value="last-month">الشهر الماضي</option>
+          <option value="this-quarter">هذا الربع</option>
+          <option value="last-quarter">الربع الماضي</option>
+          <option value="ytd">منذ بداية السنة</option>
+          <option value="last-year">السنة الماضية</option>
+          <option value="all">كل الفترات</option>
+          <option value="custom">فترة مخصصة...</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="openExpenseModal()" style="white-space:nowrap;padding:9px 14px">➕ مصروف</button>
       </div>
-      <div class="kpi" style="background:var(--redl);border-color:var(--red);padding:10px 12px">
-        <div class="kpi-label" style="font-size:9px">المصاريف</div>
-        <div class="kpi-value" id="fin-kpi-expenses" style="color:var(--red);font-size:16px">0</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
-      </div>
-      <div class="kpi" style="background:var(--bluel);border-color:var(--blue);padding:10px 12px">
-        <div class="kpi-label" style="font-size:9px">صافي الربح</div>
-        <div class="kpi-value" id="fin-kpi-profit" style="color:var(--blue);font-size:16px">0</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
+      <div id="fr-period-label" style="font-size:11px;color:var(--muted);text-align:center"></div>
+      <div id="fr-custom" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <input type="date" id="fr-from" onchange="renderFinance()" style="font-size:12px;padding:8px">
+        <input type="date" id="fr-to" onchange="renderFinance()" style="font-size:12px;padding:8px">
       </div>
     </div>
 
-    <!-- P&L Summary card -->
+    <!-- KPI cards -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#D8F3DC,#fff)">
+        <div style="font-size:10px;color:var(--muted)">إجمالي الإيرادات</div>
+        <div id="kpi-revenue-period" style="font-size:18px;font-weight:900;color:#1B4332;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#FADBD8,#fff)">
+        <div style="font-size:10px;color:var(--muted)">إجمالي المصاريف</div>
+        <div id="kpi-expenses-period" style="font-size:18px;font-weight:900;color:#7B0F0F;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#E8F0EA,#fff)">
+        <div style="font-size:10px;color:var(--muted)">صافي الربح</div>
+        <div id="kpi-net-profit" style="font-size:18px;font-weight:900;color:#1B4332;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#E3F2FD,#fff)">
+        <div style="font-size:10px;color:var(--muted)">صافي التدفق النقدي</div>
+        <div id="kpi-cash-flow" style="font-size:18px;font-weight:900;color:#1A56DB;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#FFF9E6,#fff)">
+        <div style="font-size:10px;color:var(--muted)">مستحقات على العملاء</div>
+        <div id="kpi-ar-total" style="font-size:18px;font-weight:900;color:#D4AC0D;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#FFE5CC,#fff)">
+        <div style="font-size:10px;color:var(--muted)">هامش الربح</div>
+        <div id="kpi-margin" style="font-size:18px;font-weight:900;color:var(--or);margin-top:3px">0%</div>
+      </div>
+    </div>
+
+    <!-- P&L Statement -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-header" style="background:var(--gd)">
-        <h2>📊 ملخص الأرباح والخسائر</h2>
+        <h2>💰 قائمة الأرباح والخسائر (P&L)</h2>
       </div>
-      <div style="padding:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">💰 باقات شهرية</span>
-          <span style="font-size:14px;font-weight:700;color:var(--gm)" id="pl-packages">0 QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">⚙ أعمال إضافية</span>
-          <span style="font-size:14px;font-weight:700;color:var(--or)" id="pl-extras">0 QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">🏗 صافي ربح المشاريع</span>
-          <span style="font-size:14px;font-weight:700;color:var(--blue)" id="pl-projects">0 QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">🌱 مواد ونباتات</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-materials">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">👷 رواتب وعمالة</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-salaries">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">⛽ وقود ومواصلات</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-fuel">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">🔧 معدات وأدوات</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-equipment">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">📦 أخرى</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-other">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-top:4px;border-top:2px solid var(--gd)">
-          <span style="font-size:14px;font-weight:900;color:var(--gd)">صافي الربح</span>
-          <span style="font-size:17px;font-weight:900" id="pl-net">0 QAR</span>
-        </div>
-      </div>
+      <div id="fr-pnl"></div>
     </div>
 
-    <!-- Expenses list -->
-    <div class="card">
-      <div class="card-header between" style="background:var(--gd)">
-        <h2>📋 سجل المصاريف</h2>
-        <span id="fin-exp-count" style="background:var(--goldl);color:#8B6914;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+    <!-- Cash Flow -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header" style="background:var(--blue)">
+        <h2>💸 التدفق النقدي</h2>
       </div>
-      <div id="fin-expenses-list">
-        <div class="empty"><div class="icon">💸</div><p>لا توجد مصاريف بعد</p></div>
+      <div id="fr-cashflow"></div>
+    </div>
+
+    <!-- A/R Aging -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header between" style="background:var(--red)">
+        <h2>⏱ تقادم المستحقات</h2>
+        <span id="fr-aging-total" style="background:#fff;color:var(--red);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0 QAR</span>
       </div>
+      <div id="fr-aging"></div>
+    </div>
+
+    <!-- Chart of Accounts (account balances) -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header" style="background:var(--or)">
+        <h2>🗂 شجرة الحسابات</h2>
+      </div>
+      <div id="fr-accounts"></div>
+    </div>
+
+    <!-- Transactions Log -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header between" style="background:var(--gm)">
+        <h2>📋 سجل الحركات</h2>
+        <span id="fr-tx-count" style="background:#fff;color:var(--gm);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+      </div>
+      <div style="padding:10px 14px;background:#fafafa;border-bottom:1px solid #eee">
+        <select id="fr-tx-type" onchange="renderFinance()" style="width:100%;font-size:12px;padding:8px;background:#fff">
+          <option value="">كل الحركات</option>
+          <option value="income">إيرادات فقط</option>
+          <option value="expense">مصاريف فقط</option>
+        </select>
+      </div>
+      <div id="fr-tx-list"></div>
     </div>
   </div>
 
@@ -3296,68 +3262,210 @@ function populateFinMonths() {
   if (cur) sel.value = cur;
 }
 
-function renderFinanceKPIs() {
-  const rev = calcRevenue('');
-  const projRev = calcProjectRevenue('');
-  const exp = calcExpensesByCategory('');
-  const totalRev = rev.total + projRev;
-  const profit = totalRev - exp.total;
-  const el = document.getElementById('dash-fin-revenue');
-  if (el) el.textContent = totalRev.toLocaleString('en');
-  const el2 = document.getElementById('dash-fin-expenses');
-  if (el2) el2.textContent = exp.total.toLocaleString('en');
-  const el3 = document.getElementById('dash-fin-profit');
-  if (el3) { el3.textContent = profit.toLocaleString('en'); el3.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)'; }
+function renderFinanceKPIs(){
+  // Kept for backward-compat; the dashboard KPIs (kpi-revenue/etc.) are still updated by their original code paths.
+  // The finance-tab KPIs are computed inside renderFinance.
 }
 
-function renderFinance() {
-  populateFinMonths();
-  const monthFilter = document.getElementById('fin-month-filter').value;
-  const rev = calcRevenue(monthFilter);
-  const projRev = calcProjectRevenue(monthFilter);
-  const exp = calcExpensesByCategory(monthFilter);
-  const totalRev = rev.total + projRev;
-  const profit = totalRev - exp.total;
+function renderFinance(){
+  const range = frPeriodRange();
+  const labelEl = document.getElementById('fr-period-label');
+  if (labelEl) labelEl.textContent = range.label;
+  const kpis = computeFinanceKPIs(range);
+  // Update KPI cards
+  const setText = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  setText('kpi-revenue-period',  fmtQAR(kpis.revenue));
+  setText('kpi-expenses-period', fmtQAR(kpis.totalExp));
+  const npEl = document.getElementById('kpi-net-profit');
+  if (npEl){ npEl.textContent = fmtQAR(kpis.netProfit); npEl.style.color = kpis.netProfit>=0?'#1B4332':'#7B0F0F'; }
+  const cfEl = document.getElementById('kpi-cash-flow');
+  if (cfEl){ cfEl.textContent = fmtQAR(kpis.cashFlow); cfEl.style.color = kpis.cashFlow>=0?'#1A56DB':'#7B0F0F'; }
+  setText('kpi-ar-total', fmtQAR(kpis.arTotal));
+  const margEl = document.getElementById('kpi-margin');
+  if (margEl){ margEl.textContent = kpis.margin.toFixed(1) + '%'; margEl.style.color = kpis.margin>=30?'#1B4332':(kpis.margin>=10?'var(--or)':'var(--red)'); }
 
-  // KPI cards
-  document.getElementById('fin-kpi-revenue').textContent = totalRev.toLocaleString('en');
-  document.getElementById('fin-kpi-expenses').textContent = exp.total.toLocaleString('en');
-  const profEl = document.getElementById('fin-kpi-profit');
-  profEl.textContent = profit.toLocaleString('en');
-  profEl.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)';
+  renderFrPnL(range);
+  renderFrCashFlow(range);
+  renderFrAging();
+  renderFrAccounts(range);
+  renderFrTransactions(range);
+}
 
-  // P&L breakdown
-  document.getElementById('pl-packages').textContent = rev.packageRev.toLocaleString('en') + ' QAR';
-  document.getElementById('pl-extras').textContent = rev.extrasRev.toLocaleString('en') + ' QAR';
-  document.getElementById('pl-projects').textContent = projRev.toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-materials').textContent = (exp['مواد ونباتات'] || 0).toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-salaries').textContent = (exp['رواتب وعمالة'] || 0).toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-fuel').textContent = (exp['وقود ومواصلات'] || 0).toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-equipment').textContent = (exp['معدات وأدوات'] || 0).toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-other').textContent = (exp['أخرى'] || 0).toLocaleString('en') + ' QAR';
-  const netEl = document.getElementById('pl-net');
-  netEl.textContent = profit.toLocaleString('en') + ' QAR';
-  netEl.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)';
+function computeFinanceKPIs(range){
+  // Revenue
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const revInvoices = invHistory.filter(r => frInRange(r.date, range)).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+  const revQuotes = quotes.filter(q => (q.status==='منجز' || q.status==='مقبول') && frInRange(q.date, range)).reduce((s,q) => s + (parseFloat(q.total)||0), 0);
+  const revenue = revInvoices + revQuotes;
+  // Expenses
+  const expsInPeriod = expenses.filter(e => frInRange(e.date, range));
+  let opex = 0, cogsGen = 0;
+  expsInPeriod.forEach(e => {
+    const cat = e.category || 'أخرى';
+    const amt = parseFloat(e.amount)||0;
+    if (FR_COGS_CATS.includes(cat)) cogsGen += amt; else opex += amt;
+  });
+  // Direct from quote items (isExpense)
+  let directQuote = 0;
+  quotes.filter(q => frInRange(q.date, range)).forEach(q => {
+    ['labor','plant','material','other'].forEach(sec => {
+      (q[sec]||[]).forEach(it => {
+        if (it.isExpense) directQuote += (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+      });
+    });
+  });
+  // Manual proj_expenses
+  let projExp = {};
+  try { projExp = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}'); } catch {}
+  let directProj = 0;
+  Object.values(projExp).forEach(arr => (arr||[]).forEach(e => {
+    if (frInRange(e.date, range)) directProj += parseFloat(e.amount)||0;
+  }));
+  const totalExp = opex + cogsGen + directQuote + directProj;
+  const netProfit = revenue - totalExp;
+  const margin = revenue > 0 ? (netProfit/revenue)*100 : 0;
+  // Cash flow
+  let inInv = 0;
+  invHistory.filter(r => frInRange(r.date, range)).forEach(r => {
+    if (r.payStatus === 'مدفوع') inInv += parseFloat(r.total)||0;
+    else if (r.payStatus === 'مدفوع جزئياً') inInv += parseFloat(r.paidAmount)||0;
+  });
+  let inVisits = 0;
+  visits.forEach(v => {
+    if (!frInRange(v.date, range)) return;
+    if (v.payStatus === 'مدفوع' || v.payStatus === 'مدفوع جزئياً') inVisits += parseFloat(v.paidAmount)||0;
+  });
+  let outProjItems = 0;
+  quotes.filter(q => frInRange(q.date, range)).forEach(q => {
+    ['labor','plant','material','other'].forEach(sec => {
+      (q[sec]||[]).forEach(it => {
+        if (it.isExpense && it.paid) outProjItems += (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+      });
+    });
+  });
+  const cashIn = inInv + inVisits;
+  const cashOut = (opex + cogsGen) + outProjItems + directProj;
+  const cashFlow = cashIn - cashOut;
+  // A/R
+  let arTotal = 0;
+  invHistory.forEach(r => {
+    if (r.payStatus === 'مدفوع') return;
+    const tot = parseFloat(r.total)||0;
+    const paid = r.payStatus==='مدفوع جزئياً' ? (parseFloat(r.paidAmount)||0) : 0;
+    arTotal += Math.max(0, tot - paid);
+  });
+  visits.forEach(v => {
+    if (v.payStatus === 'مدفوع') return;
+    const tot = parseFloat(v.extraAmount)||0;
+    if (tot <= 0) return;
+    const paid = parseFloat(v.paidAmount)||0;
+    arTotal += Math.max(0, tot - paid);
+  });
+  return {revenue, totalExp, netProfit, margin, cashFlow, arTotal};
+}
 
-  // Expenses list
-  const filteredExp = expenses.filter(e => !monthFilter || getExpMonth(e) === monthFilter);
-  document.getElementById('fin-exp-count').textContent = filteredExp.length;
-  const listEl = document.getElementById('fin-expenses-list');
-  if (!filteredExp.length) {
-    listEl.innerHTML = '<div class="empty"><div class="icon">💸</div><p>لا توجد مصاريف بعد</p></div>';
+function renderFrAccounts(range){
+  const el = document.getElementById('fr-accounts');
+  if (!el) return;
+  // Build account categories with balances
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const revInvoices = invHistory.filter(r => frInRange(r.date, range)).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+  const revQuotes = quotes.filter(q => (q.status==='منجز' || q.status==='مقبول') && frInRange(q.date, range)).reduce((s,q) => s + (parseFloat(q.total)||0), 0);
+  const expsInPeriod = expenses.filter(e => frInRange(e.date, range));
+  const expByCat = {};
+  expsInPeriod.forEach(e => {
+    const c = e.category || 'أخرى';
+    expByCat[c] = (expByCat[c]||0) + (parseFloat(e.amount)||0);
+  });
+  // Direct from quote items (isExpense) by section
+  const directBySection = {labor:0, plant:0, material:0, other:0};
+  quotes.filter(q => frInRange(q.date, range)).forEach(q => {
+    ['labor','plant','material','other'].forEach(sec => {
+      (q[sec]||[]).forEach(it => {
+        if (it.isExpense) directBySection[sec] += (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+      });
+    });
+  });
+  function row(code, name, amt, isCredit){
+    const color = isCredit ? '#1B4332' : '#7B0F0F';
+    return `<div style="display:grid;grid-template-columns:60px 1fr auto;gap:8px;padding:7px 14px;border-bottom:1px solid #f0f0f0;font-size:13px">
+      <span style="color:var(--muted);font-family:monospace">${code}</span>
+      <span>${name}</span>
+      <span style="font-weight:700;color:${color};font-variant-numeric:tabular-nums">${fmtQAR(amt)}</span>
+    </div>`;
+  }
+  let html = '';
+  html += '<div style="background:#E8F5E9;padding:8px 14px;font-weight:700;color:#1B4332;font-size:12px">حسابات الإيرادات (4xxx)</div>';
+  html += row('4100', 'إيرادات الزيارات والباقات', revInvoices, true);
+  html += row('4200', 'إيرادات المشاريع', revQuotes, true);
+  html += '<div style="background:#FADBD8;padding:8px 14px;font-weight:700;color:#7B0F0F;font-size:12px">حسابات التكاليف المباشرة (5xxx)</div>';
+  html += row('5100', 'تكلفة عمالة - مشاريع', directBySection.labor, false);
+  html += row('5200', 'تكلفة نباتات - مشاريع', directBySection.plant, false);
+  html += row('5300', 'تكلفة مواد - مشاريع', directBySection.material, false);
+  html += row('5400', 'تكاليف أخرى - مشاريع', directBySection.other, false);
+  html += '<div style="background:#FFF9E6;padding:8px 14px;font-weight:700;color:#7c6710;font-size:12px">حسابات المصاريف التشغيلية (6xxx)</div>';
+  let code = 6100;
+  Object.keys(expByCat).sort().forEach(cat => {
+    html += row(String(code), cat, expByCat[cat], false);
+    code += 100;
+  });
+  if (Object.keys(expByCat).length === 0){
+    html += '<div style="padding:10px 14px;color:var(--muted);font-size:12px">— لا حركات —</div>';
+  }
+  el.innerHTML = html;
+}
+
+function renderFrTransactions(range){
+  const list = document.getElementById('fr-tx-list');
+  const countEl = document.getElementById('fr-tx-count');
+  if (!list) return;
+  const filter = document.getElementById('fr-tx-type')?.value || '';
+  const txs = [];
+  // Income: invoices
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  invHistory.filter(r => frInRange(r.date, range)).forEach(r => {
+    txs.push({date: r.date, type: 'income', account: '4100 إيرادات الزيارات', desc: r.invNum + ' · ' + (r.client||''), amount: parseFloat(r.total)||0, status: r.payStatus||'غير مدفوع'});
+  });
+  // Income: quotes
+  quotes.filter(q => (q.status==='منجز'||q.status==='مقبول') && frInRange(q.date, range)).forEach(q => {
+    txs.push({date: q.date, type: 'income', account: '4200 إيرادات المشاريع', desc: (q.qNum||'') + ' · ' + (q.client||''), amount: parseFloat(q.total)||0, status: q.status});
+  });
+  // Expenses
+  expenses.filter(e => frInRange(e.date, range)).forEach(e => {
+    txs.push({date: e.date, type: 'expense', account: e.category || 'أخرى', desc: e.note || '—', amount: parseFloat(e.amount)||0, status: 'مدفوع'});
+  });
+  // Manual proj_expenses
+  let projExp = {};
+  try { projExp = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}'); } catch {}
+  Object.entries(projExp).forEach(([qid, arr]) => {
+    const q = quotes.find(x => String(x.id) === String(qid));
+    (arr||[]).forEach(e => {
+      if (!frInRange(e.date, range)) return;
+      txs.push({date: e.date, type: 'expense', account: (e.category||'مصاريف مشاريع'), desc: (q?q.qNum:'') + ' · ' + (e.note||'—'), amount: parseFloat(e.amount)||0, status: 'مدفوع'});
+    });
+  });
+  let rows = txs;
+  if (filter === 'income') rows = rows.filter(t => t.type === 'income');
+  if (filter === 'expense') rows = rows.filter(t => t.type === 'expense');
+  rows.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (countEl) countEl.textContent = rows.length;
+  if (!rows.length){
+    list.innerHTML = '<div class="empty" style="padding:20px"><div class="icon">📋</div><p>لا حركات مالية في هذه الفترة</p></div>';
     return;
   }
-  listEl.innerHTML = filteredExp.slice().reverse().map((e, i) => {
-    const cat = EXP_CATS[e.category] || EXP_CATS['أخرى'];
-    return `<div class="visit-row ${i % 2 === 0 ? 'even' : 'odd'}">
-      <div class="visit-top">
-        <div><span style="font-size:18px">${cat.icon}</span> <span class="visit-name" style="font-size:13px">${escapeHtml(e.category)}</span></div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <span style="background:var(--redl);color:var(--red);padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700">${(e.amount||0).toLocaleString('en')} QAR</span>
-          <button class="btn-icon" style="color:#ddd" onclick="deleteExpense(${e.id})">🗑</button>
-        </div>
+  list.innerHTML = rows.map((t,i) => {
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    const isInc = t.type === 'income';
+    return `<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;background:${bg};display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center">
+      <span style="font-size:18px">${isInc?'⬇':'⬆'}</span>
+      <div style="min-width:0">
+        <div style="font-size:12px;font-weight:700">${escapeHtml(t.desc)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${fmtDate(t.date)} · ${escapeHtml(t.account)} · <span style="color:${t.status==='مدفوع'?'#2D6A4F':'var(--red)'}">${escapeHtml(t.status)}</span></div>
       </div>
-      <div class="visit-meta">${e.date ? fmtDate(e.date) : '—'}${e.note ? ' · ' + escapeHtml(e.note) : ''}</div>
+      <div style="font-weight:900;color:${isInc?'#1B4332':'#7B0F0F'};font-variant-numeric:tabular-nums">${isInc?'+':'−'}${fmtQAR(t.amount)}</div>
     </div>`;
   }).join('');
 }
