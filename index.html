@@ -331,6 +331,54 @@ textarea { min-height:72px; resize:vertical; }
 
   <!-- INVOICE TAB -->
   <div id="tab-invoice" class="tab">
+    <!-- Bulk Invoice Generator -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header between" style="background:var(--blue)">
+        <h2>📑 توليد فواتير جماعي</h2>
+        <span style="font-size:10px;color:rgba(255,255,255,.7)">عملاء الباقات الشهرية</span>
+      </div>
+      <div style="padding:14px">
+        <div class="grid2">
+          <div class="field">
+            <label>شهر الفاتورة *</label>
+            <select id="bulk-month" onchange="renderBulkInvoiceList()" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
+              <option value="">اختر الشهر...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>تاريخ الاستحقاق</label>
+            <input type="date" id="bulk-due">
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="bulkSelectAll(true)">✓ تحديد الكل</button>
+          <button class="btn btn-secondary btn-sm" onclick="bulkSelectAll(false)">✗ مسح التحديد</button>
+          <span id="bulk-count-badge" style="margin-right:auto;font-size:11px;color:var(--muted);font-weight:700">— عميل محدد</span>
+        </div>
+
+        <div id="bulk-invoice-list" style="border:1px solid var(--border);border-radius:10px;max-height:50vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
+          <div class="empty" style="padding:18px"><div class="icon">📅</div><p>اختر الشهر لعرض العملاء</p></div>
+        </div>
+
+        <div id="bulk-summary" style="display:none;background:var(--gp);border-radius:8px;padding:10px 14px;margin-top:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;color:var(--gm);font-weight:700">إجمالي الفواتير</span>
+            <span style="font-size:14px;font-weight:900;color:var(--gd)" id="bulk-total">0 QAR</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;color:var(--muted)">عدد العملاء المحددين</span>
+            <span style="font-size:12px;font-weight:700" id="bulk-selected-count">0</span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="generateBulkInvoices()" style="margin-top:10px;background:var(--blue)">
+          🚀 توليد الفواتير وإرسالها واتساب
+        </button>
+        <div id="bulk-result-area" style="margin-top:10px"></div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header" style="background:var(--gm)">
         <h2>🧾 إعداد الفاتورة</h2>
@@ -1887,6 +1935,11 @@ function renderInvClients() {
     hc.innerHTML = '<option value="">كل العملاء</option>' + clients.map(c=>`<option value="${escapeHtml(c)}"${c===hv?' selected':''}>${escapeHtml(c)}</option>`).join('');
   }
   renderInvoiceHistory();
+  // Refresh bulk-invoice section
+  if (typeof populateBulkMonthOptions === 'function') {
+    populateBulkMonthOptions();
+    renderBulkInvoiceList();
+  }
 }
 
 function renderInvoiceHistory() {
@@ -2384,6 +2437,324 @@ function saveInvoiceRecord(exportedAs) {
 }
 
 function saveInvoiceNum() { saveInvoiceRecord('print'); }
+
+// ══════════════════════════════════════════════════════════
+// Bulk invoice generation (all package clients in one batch)
+// ══════════════════════════════════════════════════════════
+let _bulkSelected = new Set();   // client names selected for bulk
+
+function getMonthKey(dateStr){
+  if (!dateStr) return '';
+  if (dateStr.includes('-')) return dateStr.substring(0,7);
+  if (dateStr.includes('/')){ const p=dateStr.split('/'); return p[2]+'-'+p[1].padStart(2,'0'); }
+  return '';
+}
+function fmtMonthLabel(ym){
+  if (!ym) return '';
+  const [y,m] = ym.split('-');
+  const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  return (months[parseInt(m,10)-1]||m) + ' ' + y;
+}
+
+function populateBulkMonthOptions(){
+  const sel = document.getElementById('bulk-month');
+  if (!sel) return;
+  const cur = sel.value;
+  // last 12 months (current + 11 previous)
+  const now = new Date();
+  const opts = [];
+  for (let i=0; i<12; i++){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const ym = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    opts.push(`<option value="${ym}"${ym===cur?' selected':''}>${fmtMonthLabel(ym)}</option>`);
+  }
+  sel.innerHTML = '<option value="">اختر الشهر...</option>' + opts.join('');
+  // Default-select current month if nothing selected
+  if (!cur) {
+    const cm = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+    sel.value = cm;
+  }
+}
+
+function getPackageClients(){
+  return clients_data.filter(c => c && c.name && parseFloat(c.monthly||0) > 0);
+}
+
+function bulkSelectAll(state){
+  const ym = document.getElementById('bulk-month').value;
+  if (!ym) return;
+  const pkgClients = getPackageClients();
+  if (state) pkgClients.forEach(c => _bulkSelected.add(c.name));
+  else       _bulkSelected.clear();
+  renderBulkInvoiceList();
+}
+
+function toggleBulkClient(name){
+  if (_bulkSelected.has(name)) _bulkSelected.delete(name);
+  else _bulkSelected.add(name);
+  updateBulkSummary();
+  // Just update the row's visual instead of full re-render
+  const row = document.querySelector(`[data-bulk-row="${CSS.escape(name)}"]`);
+  if (row) row.classList.toggle('selected', _bulkSelected.has(name));
+  const cb = document.querySelector(`[data-bulk-cb="${CSS.escape(name)}"]`);
+  if (cb) cb.checked = _bulkSelected.has(name);
+}
+
+function renderBulkInvoiceList(){
+  const ym = document.getElementById('bulk-month').value;
+  const listEl = document.getElementById('bulk-invoice-list');
+  document.getElementById('bulk-result-area').innerHTML = '';
+  if (!ym) {
+    listEl.innerHTML = '<div class="empty" style="padding:18px"><div class="icon">📅</div><p>اختر الشهر لعرض العملاء</p></div>';
+    document.getElementById('bulk-summary').style.display = 'none';
+    return;
+  }
+  const pkgClients = getPackageClients();
+  if (!pkgClients.length){
+    listEl.innerHTML = '<div class="empty" style="padding:18px"><div class="icon">👥</div><p>لا يوجد عملاء بباقات شهرية</p></div>';
+    document.getElementById('bulk-summary').style.display = 'none';
+    return;
+  }
+
+  // Pre-select all by default if nothing selected yet
+  if (_bulkSelected.size === 0){
+    pkgClients.forEach(c => _bulkSelected.add(c.name));
+  }
+  // Drop selections that are no longer package clients
+  Array.from(_bulkSelected).forEach(n => { if (!pkgClients.some(c=>c.name===n)) _bulkSelected.delete(n); });
+
+  // Already-invoiced clients for this month (avoid duplicate)
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const alreadyInvoiced = new Set(
+    invHistory.filter(r => r.invType === 'monthly' && r.month === ym).map(r => r.client)
+  );
+
+  listEl.innerHTML = pkgClients.map((c,i) => {
+    const monthly = parseFloat(c.monthly)||0;
+    const expected = parseInt(c.visitsPerMonth||0,10);
+    const cVisits = visits.filter(v => v.client === c.name && getMonthKey(v.date) === ym);
+    const visitCount = cVisits.length;
+    const ext = cVisits.reduce((s,v) => s + (parseFloat(v.extraAmount)||0), 0);
+    const total = monthly + ext;
+    const isInvoiced = alreadyInvoiced.has(c.name);
+    const isSelected = _bulkSelected.has(c.name) && !isInvoiced;
+    const visitStatus = expected > 0
+      ? (visitCount >= expected ? `<span style="color:#2D6A4F;font-weight:700">✓ ${visitCount}/${expected}</span>`
+        : visitCount > 0 ? `<span style="color:#D4AC0D;font-weight:700">⚠ ${visitCount}/${expected}</span>`
+                         : `<span style="color:#C0392B;font-weight:700">✗ ${visitCount}/${expected}</span>`)
+      : `<span style="color:var(--muted)">${visitCount} زيارة</span>`;
+    return `
+      <div data-bulk-row="${escapeHtml(c.name)}" class="bulk-row ${isSelected?'selected':''}" style="padding:10px 12px;border-bottom:1px solid #f0f0f0;background:${isInvoiced?'#F0F0F0':(isSelected?'#E8F5E9':(i%2===0?'#fff':'var(--gray)'))};display:flex;align-items:center;gap:8px">
+        <input type="checkbox" data-bulk-cb="${escapeHtml(c.name)}" ${isSelected?'checked':''} ${isInvoiced?'disabled':''} onchange="toggleBulkClient('${(c.name||'').replace(/'/g,"\\'")}')" style="width:18px;height:18px;cursor:pointer;accent-color:var(--blue);flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-weight:700;font-size:13px;color:var(--gd)">${escapeHtml(c.name)}</span>
+            ${isInvoiced ? '<span style="background:var(--gp);color:var(--gm);padding:1px 7px;border-radius:10px;font-size:9px;font-weight:700">✓ مفوتر مسبقاً</span>' : ''}
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">
+            💰 ${monthly.toLocaleString('en')} QAR${ext>0?' + إضافي '+ext.toLocaleString('en'):''}
+            <span style="margin-right:8px">📋 ${visitStatus}</span>
+          </div>
+        </div>
+        <div style="text-align:left">
+          <div style="font-size:13px;font-weight:900;color:var(--gd)">${total.toLocaleString('en')}</div>
+          <button onclick="openQuickVisitModal('${(c.name||'').replace(/'/g,"\\'")}')" style="background:var(--bluel);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;margin-top:2px">⚡ + زيارة</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  updateBulkSummary();
+}
+
+function updateBulkSummary(){
+  const ym = document.getElementById('bulk-month').value;
+  if (!ym) { document.getElementById('bulk-summary').style.display = 'none'; return; }
+  const pkgClients = getPackageClients();
+  let total=0, count=0;
+  pkgClients.forEach(c=>{
+    if (!_bulkSelected.has(c.name)) return;
+    const monthly = parseFloat(c.monthly)||0;
+    const cVisits = visits.filter(v => v.client === c.name && getMonthKey(v.date) === ym);
+    const ext = cVisits.reduce((s,v)=> s + (parseFloat(v.extraAmount)||0), 0);
+    total += monthly + ext;
+    count += 1;
+  });
+  document.getElementById('bulk-summary').style.display = 'block';
+  document.getElementById('bulk-total').textContent = total.toLocaleString('en') + ' QAR';
+  document.getElementById('bulk-selected-count').textContent = count;
+  const badge = document.getElementById('bulk-count-badge');
+  if (badge) badge.textContent = count + ' عميل محدد';
+}
+
+// Build a single-client invoice record (without UI dependency) and save it
+function buildBulkInvoiceFor(clientName, ym, dueDate){
+  const c = clients_data.find(x => x.name === clientName);
+  if (!c) return null;
+  const monthly = parseFloat(c.monthly)||0;
+  const cVisits = visits.filter(v => v.client === clientName && getMonthKey(v.date) === ym);
+  const ext = cVisits.reduce((s,v)=> s + (parseFloat(v.extraAmount)||0), 0);
+  const total = monthly + ext;
+
+  // Generate invoice number — same scheme as onInvClientChange
+  let allInv = {};
+  try { allInv = JSON.parse(localStorage.getItem('dt_invoices') || '{}'); } catch {}
+  const arToEn = {'ا':'A','أ':'A','إ':'A','آ':'A','ب':'B','ت':'T','ث':'TH','ج':'J','ح':'H','خ':'KH','د':'D','ذ':'Z','ر':'R','ز':'Z','س':'S','ش':'SH','ص':'S','ض':'D','ط':'T','ظ':'Z','ع':'A','غ':'GH','ف':'F','ق':'Q','ك':'K','ل':'L','م':'M','ن':'N','ه':'H','و':'W','ي':'Y','ى':'Y','ة':'H','ء':'A'};
+  const code = clientName.split(' ').map(w => arToEn[w[0]] || (w[0]||'').toUpperCase()).join('').substring(0,3).toUpperCase();
+  const nextNum = String((allInv[clientName]||0) + 1).padStart(3,'0');
+  const invNum = `${code}-INV-${nextNum}`;
+
+  return {
+    id: Date.now() + Math.floor(Math.random()*1000),
+    invNum, client: clientName, invType: 'monthly',
+    fee: monthly, ext, total,
+    due: dueDate || '', payStatus: 'غير مدفوع', month: ym,
+    date: TODAY,
+    visitIds: cVisits.map(v=>v.id),
+    exportedAs: 'bulk'
+  };
+}
+
+function buildBulkWhatsAppMsg(rec){
+  const v = visits.filter(x => (rec.visitIds||[]).includes(x.id));
+  let msg = `🌳 *Dr.Tree — فاتورة خدمات*\n\n`;
+  msg += `رقم الفاتورة: *${rec.invNum}*\n`;
+  msg += `العميل: *${rec.client}*\n`;
+  msg += `الشهر: ${fmtMonthLabel(rec.month)}\n`;
+  msg += `التاريخ: ${new Date().toLocaleDateString('ar-QA')}\n\n`;
+  if (v.length){
+    msg += `📋 *الزيارات:*\n`;
+    v.forEach((vv,i) => {
+      msg += `• زيارة ${i+1} — ${fmtDate(vv.date)} (${vv.type||'—'})\n`;
+      if (vv.extra && vv.extraAmount > 0) msg += `  ⚙ ${vv.extra}: ${(vv.extraAmount||0).toLocaleString('en')} QAR\n`;
+    });
+    msg += `\n`;
+  }
+  msg += `• الباقة الشهرية: ${(rec.fee||0).toLocaleString('en')} QAR\n`;
+  if (rec.ext > 0) msg += `• الأعمال الإضافية: ${(rec.ext||0).toLocaleString('en')} QAR\n`;
+  msg += `\n💰 *الإجمالي: ${(rec.total||0).toLocaleString('en')} QAR*\n`;
+  if (rec.due) msg += `📅 تاريخ الاستحقاق: ${rec.due}\n`;
+  msg += `\nشكراً لثقتكم 🌿`;
+  return msg;
+}
+
+function generateBulkInvoices(){
+  const ym = document.getElementById('bulk-month').value;
+  if (!ym) { showToast('⚠️ اختر الشهر أولاً'); return; }
+  const dueDate = document.getElementById('bulk-due').value || '';
+  const targets = Array.from(_bulkSelected);
+  if (!targets.length) { showToast('⚠️ اختر عميلاً واحداً على الأقل'); return; }
+
+  // Don't duplicate already-invoiced ones
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const alreadyInvoiced = new Set(invHistory.filter(r => r.invType==='monthly' && r.month===ym).map(r => r.client));
+  const toGenerate = targets.filter(n => !alreadyInvoiced.has(n));
+
+  if (!toGenerate.length){
+    showToast('ℹ️ كل العملاء المحددين مفوترين مسبقاً لهذا الشهر');
+    return;
+  }
+
+  const created = [];
+  // Persist invoice counter atomically per client
+  let allInv = {};
+  try { allInv = JSON.parse(localStorage.getItem('dt_invoices') || '{}'); } catch {}
+
+  toGenerate.forEach(name => {
+    const rec = buildBulkInvoiceFor(name, ym, dueDate);
+    if (!rec) return;
+    invHistory.unshift(rec);
+    allInv[name] = (allInv[name]||0) + 1;
+    created.push(rec);
+  });
+
+  fbSave('inv_history', invHistory);
+  fbSave('invoices', allInv);
+  try { localStorage.setItem('dt_inv_history', JSON.stringify(invHistory)); } catch {}
+  try { localStorage.setItem('dt_invoices', JSON.stringify(allInv)); } catch {}
+  renderInvoiceHistory();
+
+  // Render result area with WhatsApp share buttons
+  const resEl = document.getElementById('bulk-result-area');
+  resEl.innerHTML = `
+    <div style="background:var(--gp);border:1.5px solid var(--gl);border-radius:10px;padding:12px;margin-top:6px">
+      <div style="font-weight:900;color:var(--gm);font-size:13px;margin-bottom:8px">✅ تم توليد ${created.length} فاتورة — اضغط لإرسال كل واحدة</div>
+      ${created.map(rec => {
+        const c = clients_data.find(x => x.name === rec.client);
+        const phone = (c && c.phone) ? c.phone.replace(/[^0-9+]/g,'') : '';
+        const msg = buildBulkWhatsAppMsg(rec);
+        const url = phone
+          ? `https://wa.me/${phone.replace(/^\+/,'')}?text=${encodeURIComponent(msg)}`
+          : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+        return `
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #d8e8d8">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:12px;color:var(--gd)">${escapeHtml(rec.client)}</div>
+              <div style="font-size:10px;color:var(--muted)">${escapeHtml(rec.invNum)} · ${(rec.total||0).toLocaleString('en')} QAR${phone?' · 📞 '+escapeHtml(phone):' · ⚠ بدون رقم'}</div>
+            </div>
+            <a href="${url}" target="_blank" rel="noopener" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;text-decoration:none;display:inline-block">💬 واتساب</a>
+          </div>`;
+      }).join('')}
+      <button class="btn btn-secondary btn-full" onclick="document.getElementById('bulk-result-area').innerHTML=''" style="margin-top:8px">إغلاق</button>
+    </div>`;
+
+  // Refresh list to mark them as invoiced now
+  _bulkSelected.clear();
+  renderBulkInvoiceList();
+  showToast('🎉 تم توليد ' + created.length + ' فاتورة');
+}
+
+// ── Quick visit add (used inline from bulk list) ──
+let _qvClient = null;
+function openQuickVisitModal(clientName){
+  _qvClient = clientName;
+  const ym = document.getElementById('bulk-month').value;
+  const today = TODAY;
+  // Default date: 15th of selected month, or today if month not picked
+  let defaultDate = today;
+  if (ym) defaultDate = ym + '-15';
+  document.getElementById('qv-title').textContent = '⚡ زيارة سريعة — ' + clientName;
+  document.getElementById('qv-date').value = defaultDate;
+  document.getElementById('qv-type').value = '';
+  document.getElementById('qv-work').value = '';
+  document.getElementById('qv-extra').value = '';
+  document.getElementById('qv-extra-amount').value = '';
+  document.getElementById('quick-visit-modal').classList.add('open');
+}
+
+function saveQuickVisit(){
+  const client = _qvClient;
+  if (!client) return;
+  const date = document.getElementById('qv-date').value;
+  const type = document.getElementById('qv-type').value;
+  if (!date || !type) { showToast('⚠️ التاريخ والنوع مطلوبان'); return; }
+  const work = document.getElementById('qv-work').value.trim();
+  const extra = document.getElementById('qv-extra').value.trim();
+  const extraAmount = parseFloat(document.getElementById('qv-extra-amount').value)||0;
+  const c = clients_data.find(x => x.name === client);
+  const visit = {
+    id: nextId++,
+    client, area: c?c.area||'':'',
+    date, type, work, notes:'',
+    extra, extraAmount,
+    extraStatus: extraAmount>0 ? 'غير مكتمل' : '',
+    payStatus: 'غير مدفوع',
+    dueDate: '',
+    paidAmount: 0,
+    nextDate: '', nextNote: ''
+  };
+  visits.unshift(visit);
+  fbSave('visits', visits);
+  fbSave('nextId', nextId);
+  try { localStorage.setItem('dt_visits', JSON.stringify(visits)); } catch {}
+  document.getElementById('quick-visit-modal').classList.remove('open');
+  renderBulkInvoiceList();
+  if (typeof renderRecent === 'function') renderRecent();
+  if (typeof renderKPIs === 'function') renderKPIs();
+  if (typeof renderLog === 'function') renderLog();
+  showToast('✅ تم إضافة الزيارة');
+}
 
 function shareInvoiceWhatsApp() {
   const client = document.getElementById('inv-client').value;
@@ -4336,6 +4707,39 @@ document.getElementById('f-date').value = TODAY;
     <div class="modal-footer" style="gap:8px;margin-top:8px">
       <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('paystatus-modal').classList.remove('open')">إلغاء</button>
       <button class="btn btn-primary" style="flex:1" onclick="saveItemPayStatus()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Visit Add Modal (used from bulk invoice list) -->
+<div class="modal" id="quick-visit-modal" style="z-index:1100">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="qv-title">⚡ إضافة زيارة سريعة</div>
+    <div class="grid2">
+      <div class="field"><label>التاريخ *</label><input type="date" id="qv-date"></div>
+      <div class="field">
+        <label>نوع الزيارة *</label>
+        <select id="qv-type" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
+          <option value="">اختر...</option>
+          <option>تنسيق</option>
+          <option>تقليم</option>
+          <option>سماد</option>
+          <option>رش</option>
+          <option>زراعة</option>
+          <option>صيانة</option>
+          <option>أخرى</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>وصف الأعمال</label><textarea id="qv-work" placeholder="مثال: تقليم الأشجار وقص العشب" style="min-height:50px"></textarea></div>
+    <div class="grid2">
+      <div class="field"><label>عمل إضافي (اختياري)</label><input type="text" id="qv-extra" placeholder="مثال: زراعة شجرة"></div>
+      <div class="field"><label>مبلغ الإضافي (QAR)</label><input type="number" inputmode="decimal" id="qv-extra-amount" min="0"></div>
+    </div>
+    <div class="modal-footer" style="gap:8px;margin-top:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('quick-visit-modal').classList.remove('open')">إلغاء</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveQuickVisit()">💾 حفظ</button>
     </div>
   </div>
 </div>
