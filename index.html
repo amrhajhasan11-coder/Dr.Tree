@@ -331,54 +331,6 @@ textarea { min-height:72px; resize:vertical; }
 
   <!-- INVOICE TAB -->
   <div id="tab-invoice" class="tab">
-    <!-- Bulk Invoice Generator -->
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-header between" style="background:var(--blue)">
-        <h2>📑 توليد فواتير جماعي</h2>
-        <span style="font-size:10px;color:rgba(255,255,255,.7)">عملاء الباقات الشهرية</span>
-      </div>
-      <div style="padding:14px">
-        <div class="grid2">
-          <div class="field">
-            <label>شهر الفاتورة *</label>
-            <select id="bulk-month" onchange="renderBulkInvoiceList()" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
-              <option value="">اختر الشهر...</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>تاريخ الاستحقاق</label>
-            <input type="date" id="bulk-due">
-          </div>
-        </div>
-
-        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-secondary btn-sm" onclick="bulkSelectAll(true)">✓ تحديد الكل</button>
-          <button class="btn btn-secondary btn-sm" onclick="bulkSelectAll(false)">✗ مسح التحديد</button>
-          <span id="bulk-count-badge" style="margin-right:auto;font-size:11px;color:var(--muted);font-weight:700">— عميل محدد</span>
-        </div>
-
-        <div id="bulk-invoice-list" style="border:1px solid var(--border);border-radius:10px;max-height:50vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
-          <div class="empty" style="padding:18px"><div class="icon">📅</div><p>اختر الشهر لعرض العملاء</p></div>
-        </div>
-
-        <div id="bulk-summary" style="display:none;background:var(--gp);border-radius:8px;padding:10px 14px;margin-top:10px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-size:12px;color:var(--gm);font-weight:700">إجمالي الفواتير</span>
-            <span style="font-size:14px;font-weight:900;color:var(--gd)" id="bulk-total">0 QAR</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:11px;color:var(--muted)">عدد العملاء المحددين</span>
-            <span style="font-size:12px;font-weight:700" id="bulk-selected-count">0</span>
-          </div>
-        </div>
-
-        <button class="btn btn-primary btn-full" onclick="generateBulkInvoices()" style="margin-top:10px;background:var(--blue)">
-          🚀 توليد الفواتير وإرسالها واتساب
-        </button>
-        <div id="bulk-result-area" style="margin-top:10px"></div>
-      </div>
-    </div>
-
     <div class="card">
       <div class="card-header" style="background:var(--gm)">
         <h2>🧾 إعداد الفاتورة</h2>
@@ -614,121 +566,109 @@ textarea { min-height:72px; resize:vertical; }
       </div>
       <div id="proj-finance-list"></div>
     </div>
-  </div>
+
+
 
   <!-- FINANCE TAB -->
   <div id="tab-finance" class="tab">
 
-    <!-- Project Financial Details (per accepted/done project) -->
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-header between" style="background:var(--blue)">
-        <h2>🏗 مالية المشاريع — تفصيلي</h2>
-        <span style="font-size:10px;color:rgba(255,255,255,.7)">دفعات + مصاريف</span>
+    <!-- Period selector + Add expense -->
+    <div class="card" style="padding:10px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-bottom:8px">
+        <select id="fr-period" onchange="renderFinance()" style="font-size:13px;padding:10px;font-weight:700">
+          <option value="this-month">هذا الشهر</option>
+          <option value="last-month">الشهر الماضي</option>
+          <option value="this-quarter">هذا الربع</option>
+          <option value="last-quarter">الربع الماضي</option>
+          <option value="ytd">منذ بداية السنة</option>
+          <option value="last-year">السنة الماضية</option>
+          <option value="all" selected>كل الفترات</option>
+          <option value="custom">فترة مخصصة...</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="openExpenseModal()" style="white-space:nowrap;padding:9px 14px">➕ مصروف</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:10px;gap:6px;border-bottom:1px solid var(--border);background:var(--gp)">
-        <div style="text-align:center">
-          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-bottom:2px">مستحق</div>
-          <div style="font-size:14px;font-weight:900;color:var(--blue)" id="pfd-due">0</div>
-        </div>
-        <div style="text-align:center;border-right:1px solid #eee">
-          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-bottom:2px">مُحصّل</div>
-          <div style="font-size:14px;font-weight:900;color:var(--gm)" id="pfd-collected">0</div>
-        </div>
-        <div style="text-align:center;border-right:1px solid #eee">
-          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-bottom:2px">مدفوع للموردين</div>
-          <div style="font-size:14px;font-weight:900;color:var(--red)" id="pfd-vendor-paid">0</div>
-        </div>
-        <div style="text-align:center;border-right:1px solid #eee">
-          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-bottom:2px">متبقي عليك</div>
-          <div style="font-size:14px;font-weight:900;color:var(--or)" id="pfd-vendor-due">0</div>
-        </div>
-      </div>
-      <div id="proj-finance-detailed-list">
-        <div class="empty"><div class="icon">🏗</div><p>لا توجد مشاريع نشطة</p></div>
+      <div id="fr-period-label" style="font-size:11px;color:var(--muted);text-align:center"></div>
+      <div id="fr-custom" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <input type="date" id="fr-from" onchange="renderFinance()" style="font-size:12px;padding:8px">
+        <input type="date" id="fr-to" onchange="renderFinance()" style="font-size:12px;padding:8px">
       </div>
     </div>
 
-    <!-- Month selector -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-      <select id="fin-month-filter" onchange="renderFinance()" style="flex:1;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;direction:rtl;background:#fff;outline:none;-webkit-appearance:none">
-        <option value="">كل الأشهر</option>
-      </select>
-      <button class="btn btn-primary btn-sm" onclick="openExpenseModal()">➕ مصروف</button>
+    <!-- KPI cards -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#D8F3DC,#fff)">
+        <div style="font-size:10px;color:var(--muted)">إجمالي الإيرادات</div>
+        <div id="kpi-revenue-period" style="font-size:18px;font-weight:900;color:#1B4332;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#FADBD8,#fff)">
+        <div style="font-size:10px;color:var(--muted)">إجمالي المصاريف</div>
+        <div id="kpi-expenses-period" style="font-size:18px;font-weight:900;color:#7B0F0F;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#E8F0EA,#fff)">
+        <div style="font-size:10px;color:var(--muted)">صافي الربح</div>
+        <div id="kpi-net-profit" style="font-size:18px;font-weight:900;color:#1B4332;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#E3F2FD,#fff)">
+        <div style="font-size:10px;color:var(--muted)">صافي التدفق النقدي</div>
+        <div id="kpi-cash-flow" style="font-size:18px;font-weight:900;color:#1A56DB;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#FFF9E6,#fff)">
+        <div style="font-size:10px;color:var(--muted)">مستحقات على العملاء</div>
+        <div id="kpi-ar-total" style="font-size:18px;font-weight:900;color:#D4AC0D;margin-top:3px">0 QAR</div>
+      </div>
+      <div class="card" style="padding:10px;background:linear-gradient(135deg,#FFE5CC,#fff)">
+        <div style="font-size:10px;color:var(--muted)">هامش الربح</div>
+        <div id="kpi-margin" style="font-size:18px;font-weight:900;color:var(--or);margin-top:3px">0%</div>
+      </div>
     </div>
 
-    <!-- Financial KPIs -->
-    <div class="kpis" style="grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-      <div class="kpi" style="background:var(--gp);border-color:var(--gl);padding:10px 12px">
-        <div class="kpi-label" style="font-size:9px">الإيرادات</div>
-        <div class="kpi-value" id="fin-kpi-revenue" style="color:var(--gm);font-size:16px">0</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
-      </div>
-      <div class="kpi" style="background:var(--redl);border-color:var(--red);padding:10px 12px">
-        <div class="kpi-label" style="font-size:9px">المصاريف</div>
-        <div class="kpi-value" id="fin-kpi-expenses" style="color:var(--red);font-size:16px">0</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
-      </div>
-      <div class="kpi" style="background:var(--bluel);border-color:var(--blue);padding:10px 12px">
-        <div class="kpi-label" style="font-size:9px">صافي الربح</div>
-        <div class="kpi-value" id="fin-kpi-profit" style="color:var(--blue);font-size:16px">0</div>
-        <div style="font-size:9px;color:var(--muted);margin-top:2px">QAR</div>
-      </div>
-    </div>
-
-    <!-- P&L Summary card -->
+    <!-- P&L Statement -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-header" style="background:var(--gd)">
-        <h2>📊 ملخص الأرباح والخسائر</h2>
+        <h2>💰 قائمة الأرباح والخسائر (P&L)</h2>
       </div>
-      <div style="padding:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">💰 باقات شهرية</span>
-          <span style="font-size:14px;font-weight:700;color:var(--gm)" id="pl-packages">0 QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">⚙ أعمال إضافية</span>
-          <span style="font-size:14px;font-weight:700;color:var(--or)" id="pl-extras">0 QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">🏗 صافي ربح المشاريع</span>
-          <span style="font-size:14px;font-weight:700;color:var(--blue)" id="pl-projects">0 QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">🌱 مواد ونباتات</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-materials">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">👷 رواتب وعمالة</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-salaries">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">⛽ وقود ومواصلات</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-fuel">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">🔧 معدات وأدوات</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-equipment">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F0F0F0">
-          <span style="font-size:13px;color:#555">📦 أخرى</span>
-          <span style="font-size:14px;font-weight:700;color:var(--red)" id="pl-exp-other">— QAR</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-top:4px;border-top:2px solid var(--gd)">
-          <span style="font-size:14px;font-weight:900;color:var(--gd)">صافي الربح</span>
-          <span style="font-size:17px;font-weight:900" id="pl-net">0 QAR</span>
-        </div>
-      </div>
+      <div id="fr-pnl"></div>
     </div>
 
-    <!-- Expenses list -->
-    <div class="card">
-      <div class="card-header between" style="background:var(--gd)">
-        <h2>📋 سجل المصاريف</h2>
-        <span id="fin-exp-count" style="background:var(--goldl);color:#8B6914;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+    <!-- Cash Flow -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header" style="background:var(--blue)">
+        <h2>💸 التدفق النقدي</h2>
       </div>
-      <div id="fin-expenses-list">
-        <div class="empty"><div class="icon">💸</div><p>لا توجد مصاريف بعد</p></div>
+      <div id="fr-cashflow"></div>
+    </div>
+
+    <!-- A/R Aging -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header between" style="background:var(--red)">
+        <h2>⏱ تقادم المستحقات</h2>
+        <span id="fr-aging-total" style="background:#fff;color:var(--red);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0 QAR</span>
       </div>
+      <div id="fr-aging"></div>
+    </div>
+
+    <!-- Chart of Accounts (account balances) -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header" style="background:var(--or)">
+        <h2>🗂 شجرة الحسابات</h2>
+      </div>
+      <div id="fr-accounts"></div>
+    </div>
+
+    <!-- Transactions Log -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header between" style="background:var(--gm)">
+        <h2>📋 سجل الحركات</h2>
+        <span id="fr-tx-count" style="background:#fff;color:var(--gm);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
+      </div>
+      <div style="padding:10px 14px;background:#fafafa;border-bottom:1px solid #eee">
+        <select id="fr-tx-type" onchange="renderFinance()" style="width:100%;font-size:12px;padding:8px;background:#fff">
+          <option value="">كل الحركات</option>
+          <option value="income">إيرادات فقط</option>
+          <option value="expense">مصاريف فقط</option>
+        </select>
+      </div>
+      <div id="fr-tx-list"></div>
     </div>
   </div>
 
@@ -1000,18 +940,6 @@ function initFirebase() {
       renderQuotes();
       renderProjFinanceSummary();
       renderFinanceKPIs();
-      const tabFin = document.getElementById('tab-finance');
-      if (tabFin && tabFin.classList.contains('active')) renderProjFinanceDetailed();
-    }
-  });
-  listen('client_payments', (data) => {
-    if (data) {
-      try { localStorage.setItem('dt_client_payments', JSON.stringify(data)); } catch {}
-      renderProjFinanceSummary();
-      const tabFin = document.getElementById('tab-finance');
-      if (tabFin && tabFin.classList.contains('active')) renderProjFinanceDetailed();
-      const m = document.getElementById('proj-finance-modal');
-      if (m && m.classList.contains('open') && m._currentQuoteId) renderProjFinanceModal(m._currentQuoteId);
     }
   });
   listen('trash', (data) => {
@@ -1501,11 +1429,17 @@ async function waShareInvoicePDF(invoiceId) {
   return _sharePdfFileOnWhatsApp(blob, fileName, phone, shareText);
 }
 
+// Convert multi-line text to HTML bulleted list (one bullet per non-empty line).
+function linesToBullets(text){
+  if (!text) return '';
+  const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return '';
+  return '<ul style="margin:0;padding-right:20px;list-style-type:disc">' + lines.map(l => '<li style="margin-bottom:4px">' + escapeHtml(l) + '</li>').join('') + '</ul>';
+}
+
 // Build the visit report HTML (standalone — no window.open) for either print or PDF rendering
 function buildVisitReportHTML(v) {
   const GOLD='#D4AC0D',GOLDL='#FFF9E6',OR='#E07B39',RED='#C0392B',BLUE='#1A56DB',BLUEL='#EBF5FF';
-  const payColor = v.payStatus==='مدفوع' ? GM : v.payStatus==='مدفوع جزئياً' ? GOLD : RED;
-  const payBg    = v.payStatus==='مدفوع' ? GP   : v.payStatus==='مدفوع جزئياً' ? GOLDL : '#FADBD8';
   return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
   <title>تقرير زيارة — ${escapeHtml(v.client)}</title>
   <style>
@@ -1549,8 +1483,8 @@ function buildVisitReportHTML(v) {
     <!-- Work Done -->
     <div style="background:${GM};padding:9px 20px;font-size:12px;font-weight:700;color:white">الأعمال المنجزة</div>
     <div style="padding:16px 20px;border-bottom:1px solid #eee">
-      <div style="font-size:13px;color:#333;line-height:1.7">${escapeHtml(v.work||'—')}</div>
-      ${v.notes ? `<div style="margin-top:10px;padding:10px 14px;background:#EBF5FF;border-radius:8px;font-size:12px;color:${BLUE}">📝 ${escapeHtml(v.notes)}</div>` : ''}
+      <div style="font-size:13px;color:#333;line-height:1.7">${v.work ? linesToBullets(v.work) : '—'}</div>
+      ${v.notes ? `<div style="margin-top:10px;padding:10px 14px;background:#EBF5FF;border-radius:8px;font-size:12px;color:${BLUE}"><div style="font-weight:700;margin-bottom:6px">📝 ملاحظات:</div>${linesToBullets(v.notes)}</div>` : ''}
     </div>
     <!-- Extra Work -->
     ${v.extra ? `
@@ -1560,13 +1494,7 @@ function buildVisitReportHTML(v) {
       ${v.extraAmount>0 ? `<div style="font-size:15px;font-weight:700;color:${OR}">${v.extraAmount.toLocaleString('en')} QAR</div>` : ''}
       ${v.extraStatus ? `<div style="display:inline-block;margin-top:6px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${GP};color:${GM}">${escapeHtml(v.extraStatus)}</div>` : ''}
     </div>` : ''}
-    <!-- Payment -->
-    <div style="background:${BLUE};padding:9px 20px;font-size:12px;font-weight:700;color:white">حالة الدفع</div>
-    <div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
-      <div style="display:inline-block;padding:6px 16px;border-radius:20px;font-size:13px;font-weight:700;background:${payBg};color:${payColor}">${escapeHtml(v.payStatus||'غير مدفوع')}</div>
-      ${v.dueDate ? `<div style="font-size:12px;color:#666">تاريخ الاستحقاق: <b style="color:${RED}">${fmtDate(v.dueDate)}</b></div>` : ''}
-      ${v.paidAmount>0 ? `<div style="font-size:12px;color:#666">المبلغ المدفوع: <b style="color:${GM}">${v.paidAmount.toLocaleString('en')} QAR</b></div>` : ''}
-    </div>
+
     <!-- Next Visit -->
     ${v.nextDate ? `
     <div style="background:#2D6A4F;padding:9px 20px;font-size:12px;font-weight:700;color:white">الموعد القادم</div>
@@ -1935,11 +1863,6 @@ function renderInvClients() {
     hc.innerHTML = '<option value="">كل العملاء</option>' + clients.map(c=>`<option value="${escapeHtml(c)}"${c===hv?' selected':''}>${escapeHtml(c)}</option>`).join('');
   }
   renderInvoiceHistory();
-  // Refresh bulk-invoice section
-  if (typeof populateBulkMonthOptions === 'function') {
-    populateBulkMonthOptions();
-    renderBulkInvoiceList();
-  }
 }
 
 function renderInvoiceHistory() {
@@ -2438,324 +2361,6 @@ function saveInvoiceRecord(exportedAs) {
 
 function saveInvoiceNum() { saveInvoiceRecord('print'); }
 
-// ══════════════════════════════════════════════════════════
-// Bulk invoice generation (all package clients in one batch)
-// ══════════════════════════════════════════════════════════
-let _bulkSelected = new Set();   // client names selected for bulk
-
-function getMonthKey(dateStr){
-  if (!dateStr) return '';
-  if (dateStr.includes('-')) return dateStr.substring(0,7);
-  if (dateStr.includes('/')){ const p=dateStr.split('/'); return p[2]+'-'+p[1].padStart(2,'0'); }
-  return '';
-}
-function fmtMonthLabel(ym){
-  if (!ym) return '';
-  const [y,m] = ym.split('-');
-  const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-  return (months[parseInt(m,10)-1]||m) + ' ' + y;
-}
-
-function populateBulkMonthOptions(){
-  const sel = document.getElementById('bulk-month');
-  if (!sel) return;
-  const cur = sel.value;
-  // last 12 months (current + 11 previous)
-  const now = new Date();
-  const opts = [];
-  for (let i=0; i<12; i++){
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    const ym = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-    opts.push(`<option value="${ym}"${ym===cur?' selected':''}>${fmtMonthLabel(ym)}</option>`);
-  }
-  sel.innerHTML = '<option value="">اختر الشهر...</option>' + opts.join('');
-  // Default-select current month if nothing selected
-  if (!cur) {
-    const cm = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-    sel.value = cm;
-  }
-}
-
-function getPackageClients(){
-  return clients_data.filter(c => c && c.name && parseFloat(c.monthly||0) > 0);
-}
-
-function bulkSelectAll(state){
-  const ym = document.getElementById('bulk-month').value;
-  if (!ym) return;
-  const pkgClients = getPackageClients();
-  if (state) pkgClients.forEach(c => _bulkSelected.add(c.name));
-  else       _bulkSelected.clear();
-  renderBulkInvoiceList();
-}
-
-function toggleBulkClient(name){
-  if (_bulkSelected.has(name)) _bulkSelected.delete(name);
-  else _bulkSelected.add(name);
-  updateBulkSummary();
-  // Just update the row's visual instead of full re-render
-  const row = document.querySelector(`[data-bulk-row="${CSS.escape(name)}"]`);
-  if (row) row.classList.toggle('selected', _bulkSelected.has(name));
-  const cb = document.querySelector(`[data-bulk-cb="${CSS.escape(name)}"]`);
-  if (cb) cb.checked = _bulkSelected.has(name);
-}
-
-function renderBulkInvoiceList(){
-  const ym = document.getElementById('bulk-month').value;
-  const listEl = document.getElementById('bulk-invoice-list');
-  document.getElementById('bulk-result-area').innerHTML = '';
-  if (!ym) {
-    listEl.innerHTML = '<div class="empty" style="padding:18px"><div class="icon">📅</div><p>اختر الشهر لعرض العملاء</p></div>';
-    document.getElementById('bulk-summary').style.display = 'none';
-    return;
-  }
-  const pkgClients = getPackageClients();
-  if (!pkgClients.length){
-    listEl.innerHTML = '<div class="empty" style="padding:18px"><div class="icon">👥</div><p>لا يوجد عملاء بباقات شهرية</p></div>';
-    document.getElementById('bulk-summary').style.display = 'none';
-    return;
-  }
-
-  // Pre-select all by default if nothing selected yet
-  if (_bulkSelected.size === 0){
-    pkgClients.forEach(c => _bulkSelected.add(c.name));
-  }
-  // Drop selections that are no longer package clients
-  Array.from(_bulkSelected).forEach(n => { if (!pkgClients.some(c=>c.name===n)) _bulkSelected.delete(n); });
-
-  // Already-invoiced clients for this month (avoid duplicate)
-  let invHistory = [];
-  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
-  const alreadyInvoiced = new Set(
-    invHistory.filter(r => r.invType === 'monthly' && r.month === ym).map(r => r.client)
-  );
-
-  listEl.innerHTML = pkgClients.map((c,i) => {
-    const monthly = parseFloat(c.monthly)||0;
-    const expected = parseInt(c.visitsPerMonth||0,10);
-    const cVisits = visits.filter(v => v.client === c.name && getMonthKey(v.date) === ym);
-    const visitCount = cVisits.length;
-    const ext = cVisits.reduce((s,v) => s + (parseFloat(v.extraAmount)||0), 0);
-    const total = monthly + ext;
-    const isInvoiced = alreadyInvoiced.has(c.name);
-    const isSelected = _bulkSelected.has(c.name) && !isInvoiced;
-    const visitStatus = expected > 0
-      ? (visitCount >= expected ? `<span style="color:#2D6A4F;font-weight:700">✓ ${visitCount}/${expected}</span>`
-        : visitCount > 0 ? `<span style="color:#D4AC0D;font-weight:700">⚠ ${visitCount}/${expected}</span>`
-                         : `<span style="color:#C0392B;font-weight:700">✗ ${visitCount}/${expected}</span>`)
-      : `<span style="color:var(--muted)">${visitCount} زيارة</span>`;
-    return `
-      <div data-bulk-row="${escapeHtml(c.name)}" class="bulk-row ${isSelected?'selected':''}" style="padding:10px 12px;border-bottom:1px solid #f0f0f0;background:${isInvoiced?'#F0F0F0':(isSelected?'#E8F5E9':(i%2===0?'#fff':'var(--gray)'))};display:flex;align-items:center;gap:8px">
-        <input type="checkbox" data-bulk-cb="${escapeHtml(c.name)}" ${isSelected?'checked':''} ${isInvoiced?'disabled':''} onchange="toggleBulkClient('${(c.name||'').replace(/'/g,"\\'")}')" style="width:18px;height:18px;cursor:pointer;accent-color:var(--blue);flex-shrink:0">
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-weight:700;font-size:13px;color:var(--gd)">${escapeHtml(c.name)}</span>
-            ${isInvoiced ? '<span style="background:var(--gp);color:var(--gm);padding:1px 7px;border-radius:10px;font-size:9px;font-weight:700">✓ مفوتر مسبقاً</span>' : ''}
-          </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">
-            💰 ${monthly.toLocaleString('en')} QAR${ext>0?' + إضافي '+ext.toLocaleString('en'):''}
-            <span style="margin-right:8px">📋 ${visitStatus}</span>
-          </div>
-        </div>
-        <div style="text-align:left">
-          <div style="font-size:13px;font-weight:900;color:var(--gd)">${total.toLocaleString('en')}</div>
-          <button onclick="openQuickVisitModal('${(c.name||'').replace(/'/g,"\\'")}')" style="background:var(--bluel);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;margin-top:2px">⚡ + زيارة</button>
-        </div>
-      </div>`;
-  }).join('');
-
-  updateBulkSummary();
-}
-
-function updateBulkSummary(){
-  const ym = document.getElementById('bulk-month').value;
-  if (!ym) { document.getElementById('bulk-summary').style.display = 'none'; return; }
-  const pkgClients = getPackageClients();
-  let total=0, count=0;
-  pkgClients.forEach(c=>{
-    if (!_bulkSelected.has(c.name)) return;
-    const monthly = parseFloat(c.monthly)||0;
-    const cVisits = visits.filter(v => v.client === c.name && getMonthKey(v.date) === ym);
-    const ext = cVisits.reduce((s,v)=> s + (parseFloat(v.extraAmount)||0), 0);
-    total += monthly + ext;
-    count += 1;
-  });
-  document.getElementById('bulk-summary').style.display = 'block';
-  document.getElementById('bulk-total').textContent = total.toLocaleString('en') + ' QAR';
-  document.getElementById('bulk-selected-count').textContent = count;
-  const badge = document.getElementById('bulk-count-badge');
-  if (badge) badge.textContent = count + ' عميل محدد';
-}
-
-// Build a single-client invoice record (without UI dependency) and save it
-function buildBulkInvoiceFor(clientName, ym, dueDate){
-  const c = clients_data.find(x => x.name === clientName);
-  if (!c) return null;
-  const monthly = parseFloat(c.monthly)||0;
-  const cVisits = visits.filter(v => v.client === clientName && getMonthKey(v.date) === ym);
-  const ext = cVisits.reduce((s,v)=> s + (parseFloat(v.extraAmount)||0), 0);
-  const total = monthly + ext;
-
-  // Generate invoice number — same scheme as onInvClientChange
-  let allInv = {};
-  try { allInv = JSON.parse(localStorage.getItem('dt_invoices') || '{}'); } catch {}
-  const arToEn = {'ا':'A','أ':'A','إ':'A','آ':'A','ب':'B','ت':'T','ث':'TH','ج':'J','ح':'H','خ':'KH','د':'D','ذ':'Z','ر':'R','ز':'Z','س':'S','ش':'SH','ص':'S','ض':'D','ط':'T','ظ':'Z','ع':'A','غ':'GH','ف':'F','ق':'Q','ك':'K','ل':'L','م':'M','ن':'N','ه':'H','و':'W','ي':'Y','ى':'Y','ة':'H','ء':'A'};
-  const code = clientName.split(' ').map(w => arToEn[w[0]] || (w[0]||'').toUpperCase()).join('').substring(0,3).toUpperCase();
-  const nextNum = String((allInv[clientName]||0) + 1).padStart(3,'0');
-  const invNum = `${code}-INV-${nextNum}`;
-
-  return {
-    id: Date.now() + Math.floor(Math.random()*1000),
-    invNum, client: clientName, invType: 'monthly',
-    fee: monthly, ext, total,
-    due: dueDate || '', payStatus: 'غير مدفوع', month: ym,
-    date: TODAY,
-    visitIds: cVisits.map(v=>v.id),
-    exportedAs: 'bulk'
-  };
-}
-
-function buildBulkWhatsAppMsg(rec){
-  const v = visits.filter(x => (rec.visitIds||[]).includes(x.id));
-  let msg = `🌳 *Dr.Tree — فاتورة خدمات*\n\n`;
-  msg += `رقم الفاتورة: *${rec.invNum}*\n`;
-  msg += `العميل: *${rec.client}*\n`;
-  msg += `الشهر: ${fmtMonthLabel(rec.month)}\n`;
-  msg += `التاريخ: ${new Date().toLocaleDateString('ar-QA')}\n\n`;
-  if (v.length){
-    msg += `📋 *الزيارات:*\n`;
-    v.forEach((vv,i) => {
-      msg += `• زيارة ${i+1} — ${fmtDate(vv.date)} (${vv.type||'—'})\n`;
-      if (vv.extra && vv.extraAmount > 0) msg += `  ⚙ ${vv.extra}: ${(vv.extraAmount||0).toLocaleString('en')} QAR\n`;
-    });
-    msg += `\n`;
-  }
-  msg += `• الباقة الشهرية: ${(rec.fee||0).toLocaleString('en')} QAR\n`;
-  if (rec.ext > 0) msg += `• الأعمال الإضافية: ${(rec.ext||0).toLocaleString('en')} QAR\n`;
-  msg += `\n💰 *الإجمالي: ${(rec.total||0).toLocaleString('en')} QAR*\n`;
-  if (rec.due) msg += `📅 تاريخ الاستحقاق: ${rec.due}\n`;
-  msg += `\nشكراً لثقتكم 🌿`;
-  return msg;
-}
-
-function generateBulkInvoices(){
-  const ym = document.getElementById('bulk-month').value;
-  if (!ym) { showToast('⚠️ اختر الشهر أولاً'); return; }
-  const dueDate = document.getElementById('bulk-due').value || '';
-  const targets = Array.from(_bulkSelected);
-  if (!targets.length) { showToast('⚠️ اختر عميلاً واحداً على الأقل'); return; }
-
-  // Don't duplicate already-invoiced ones
-  let invHistory = [];
-  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
-  const alreadyInvoiced = new Set(invHistory.filter(r => r.invType==='monthly' && r.month===ym).map(r => r.client));
-  const toGenerate = targets.filter(n => !alreadyInvoiced.has(n));
-
-  if (!toGenerate.length){
-    showToast('ℹ️ كل العملاء المحددين مفوترين مسبقاً لهذا الشهر');
-    return;
-  }
-
-  const created = [];
-  // Persist invoice counter atomically per client
-  let allInv = {};
-  try { allInv = JSON.parse(localStorage.getItem('dt_invoices') || '{}'); } catch {}
-
-  toGenerate.forEach(name => {
-    const rec = buildBulkInvoiceFor(name, ym, dueDate);
-    if (!rec) return;
-    invHistory.unshift(rec);
-    allInv[name] = (allInv[name]||0) + 1;
-    created.push(rec);
-  });
-
-  fbSave('inv_history', invHistory);
-  fbSave('invoices', allInv);
-  try { localStorage.setItem('dt_inv_history', JSON.stringify(invHistory)); } catch {}
-  try { localStorage.setItem('dt_invoices', JSON.stringify(allInv)); } catch {}
-  renderInvoiceHistory();
-
-  // Render result area with WhatsApp share buttons
-  const resEl = document.getElementById('bulk-result-area');
-  resEl.innerHTML = `
-    <div style="background:var(--gp);border:1.5px solid var(--gl);border-radius:10px;padding:12px;margin-top:6px">
-      <div style="font-weight:900;color:var(--gm);font-size:13px;margin-bottom:8px">✅ تم توليد ${created.length} فاتورة — اضغط لإرسال كل واحدة</div>
-      ${created.map(rec => {
-        const c = clients_data.find(x => x.name === rec.client);
-        const phone = (c && c.phone) ? c.phone.replace(/[^0-9+]/g,'') : '';
-        const msg = buildBulkWhatsAppMsg(rec);
-        const url = phone
-          ? `https://wa.me/${phone.replace(/^\+/,'')}?text=${encodeURIComponent(msg)}`
-          : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-        return `
-          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #d8e8d8">
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:12px;color:var(--gd)">${escapeHtml(rec.client)}</div>
-              <div style="font-size:10px;color:var(--muted)">${escapeHtml(rec.invNum)} · ${(rec.total||0).toLocaleString('en')} QAR${phone?' · 📞 '+escapeHtml(phone):' · ⚠ بدون رقم'}</div>
-            </div>
-            <a href="${url}" target="_blank" rel="noopener" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;text-decoration:none;display:inline-block">💬 واتساب</a>
-          </div>`;
-      }).join('')}
-      <button class="btn btn-secondary btn-full" onclick="document.getElementById('bulk-result-area').innerHTML=''" style="margin-top:8px">إغلاق</button>
-    </div>`;
-
-  // Refresh list to mark them as invoiced now
-  _bulkSelected.clear();
-  renderBulkInvoiceList();
-  showToast('🎉 تم توليد ' + created.length + ' فاتورة');
-}
-
-// ── Quick visit add (used inline from bulk list) ──
-let _qvClient = null;
-function openQuickVisitModal(clientName){
-  _qvClient = clientName;
-  const ym = document.getElementById('bulk-month').value;
-  const today = TODAY;
-  // Default date: 15th of selected month, or today if month not picked
-  let defaultDate = today;
-  if (ym) defaultDate = ym + '-15';
-  document.getElementById('qv-title').textContent = '⚡ زيارة سريعة — ' + clientName;
-  document.getElementById('qv-date').value = defaultDate;
-  document.getElementById('qv-type').value = '';
-  document.getElementById('qv-work').value = '';
-  document.getElementById('qv-extra').value = '';
-  document.getElementById('qv-extra-amount').value = '';
-  document.getElementById('quick-visit-modal').classList.add('open');
-}
-
-function saveQuickVisit(){
-  const client = _qvClient;
-  if (!client) return;
-  const date = document.getElementById('qv-date').value;
-  const type = document.getElementById('qv-type').value;
-  if (!date || !type) { showToast('⚠️ التاريخ والنوع مطلوبان'); return; }
-  const work = document.getElementById('qv-work').value.trim();
-  const extra = document.getElementById('qv-extra').value.trim();
-  const extraAmount = parseFloat(document.getElementById('qv-extra-amount').value)||0;
-  const c = clients_data.find(x => x.name === client);
-  const visit = {
-    id: nextId++,
-    client, area: c?c.area||'':'',
-    date, type, work, notes:'',
-    extra, extraAmount,
-    extraStatus: extraAmount>0 ? 'غير مكتمل' : '',
-    payStatus: 'غير مدفوع',
-    dueDate: '',
-    paidAmount: 0,
-    nextDate: '', nextNote: ''
-  };
-  visits.unshift(visit);
-  fbSave('visits', visits);
-  fbSave('nextId', nextId);
-  try { localStorage.setItem('dt_visits', JSON.stringify(visits)); } catch {}
-  document.getElementById('quick-visit-modal').classList.remove('open');
-  renderBulkInvoiceList();
-  if (typeof renderRecent === 'function') renderRecent();
-  if (typeof renderKPIs === 'function') renderKPIs();
-  if (typeof renderLog === 'function') renderLog();
-  showToast('✅ تم إضافة الزيارة');
-}
-
 function shareInvoiceWhatsApp() {
   const client = document.getElementById('inv-client').value;
   const invNum = document.getElementById('inv-num').value;
@@ -3131,10 +2736,7 @@ function makeRow(item,idx,type,bg) {
   const subtotal = ((item.qty||0)*(item.price||0)).toLocaleString('en');
   const isPlant = type==='plant';
   const cols = isPlant ? '2fr 55px 90px 70px 70px 60px 1fr 26px' : '2fr 55px 75px 75px 60px 1fr 26px';
-  const paid = !!item.paid;
-  const paidLabel = `<label title="تم دفع تكلفة هذا البند" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;background:${paid?'#D8F3DC':'#FFF9E6'};color:${paid?'#2D6A4F':'#7c6710'};padding:3px 8px;border-radius:6px;font-weight:700;margin-top:6px"><input type="checkbox" ${paid?'checked':''} onchange="updateItem('${type}',${idx},'paid',this.checked);renderRowsForType('${type}')" style="width:auto;margin:0;cursor:pointer">${paid?'✓ مدفوع':'غير مدفوع'}</label>`;
-  return `<div style="background:white;padding:8px;border-radius:8px;margin-bottom:8px;border:1px solid ${paid?'#52B788':'transparent'}">
-    <div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center">
+  return `<div style="background:white;padding:8px;border-radius:8px;margin-bottom:8px;border:1.5px solid ${item.paid?'#52B788':'transparent'}"><div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center">
     ${type==='plant'?`<input placeholder="اسم النبات" list="plants-datalist" value="${escapeHtml(item.desc)}" oninput="updateItem('plant',${idx},'desc',this.value)" style="padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;direction:rtl;width:100%">`:`<input placeholder="البند" value="${escapeHtml(item.desc)}" oninput="updateItem('${type}',${idx},'desc',this.value)" style="padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;direction:rtl;width:100%">`}
     <input type="number" placeholder="كمية" value="${item.qty}" min="0" oninput="updateItem('${type}',${idx},'qty',this.value)" style="padding:7px 4px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:100%;text-align:center">
     <select onchange="updateItem('${type}',${idx},'unit',this.value)" style="padding:7px 4px;border:1px solid #ddd;border-radius:6px;font-size:12px;direction:rtl;width:100%">
@@ -3148,7 +2750,7 @@ function makeRow(item,idx,type,bg) {
     <input placeholder="ملاحظة..." value="${escapeHtml(item.note||'')}" oninput="updateItem('${type}',${idx},'note',this.value)" style="padding:7px 9px;border:1px solid #eee;border-radius:6px;font-size:12px;direction:rtl;color:#888;width:100%">
     <button onclick="removeItem('${type}',${idx})" style="background:none;border:none;color:#ddd;cursor:pointer;font-size:16px">×</button>
     </div>
-    ${paidLabel}
+    <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;background:${item.paid?'#D8F3DC':'#FFF9E6'};color:${item.paid?'#2D6A4F':'#7c6710'};padding:3px 8px;border-radius:6px;font-weight:700;margin-top:6px"><input type="checkbox" ${item.paid?'checked':''} onchange="updateItem('${type}',${idx},'paid',this.checked);renderRowsForType('${type}')" style="width:auto;margin:0;cursor:pointer"><span>${item.paid?'✓ تكلفة مدفوعة':'تكلفة غير مدفوعة'}</span></label>
   </div>`;
 }
 
@@ -3516,6 +3118,7 @@ function renderQuotes(){
     </div>`;
   }).join('');
   renderProjFinanceSummary();
+  if (typeof renderFinReports === 'function') renderFinReports();
 }
 
 function deleteQuote(id){
@@ -3659,69 +3262,210 @@ function populateFinMonths() {
   if (cur) sel.value = cur;
 }
 
-function renderFinanceKPIs() {
-  const rev = calcRevenue('');
-  const projRev = calcProjectRevenue('');
-  const exp = calcExpensesByCategory('');
-  const totalRev = rev.total + projRev;
-  const profit = totalRev - exp.total;
-  const el = document.getElementById('dash-fin-revenue');
-  if (el) el.textContent = totalRev.toLocaleString('en');
-  const el2 = document.getElementById('dash-fin-expenses');
-  if (el2) el2.textContent = exp.total.toLocaleString('en');
-  const el3 = document.getElementById('dash-fin-profit');
-  if (el3) { el3.textContent = profit.toLocaleString('en'); el3.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)'; }
+function renderFinanceKPIs(){
+  // Kept for backward-compat; the dashboard KPIs (kpi-revenue/etc.) are still updated by their original code paths.
+  // The finance-tab KPIs are computed inside renderFinance.
 }
 
-function renderFinance() {
-  populateFinMonths();
-  renderProjFinanceDetailed();
-  const monthFilter = document.getElementById('fin-month-filter').value;
-  const rev = calcRevenue(monthFilter);
-  const projRev = calcProjectRevenue(monthFilter);
-  const exp = calcExpensesByCategory(monthFilter);
-  const totalRev = rev.total + projRev;
-  const profit = totalRev - exp.total;
+function renderFinance(){
+  const range = frPeriodRange();
+  const labelEl = document.getElementById('fr-period-label');
+  if (labelEl) labelEl.textContent = range.label;
+  const kpis = computeFinanceKPIs(range);
+  // Update KPI cards
+  const setText = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  setText('kpi-revenue-period',  fmtQAR(kpis.revenue));
+  setText('kpi-expenses-period', fmtQAR(kpis.totalExp));
+  const npEl = document.getElementById('kpi-net-profit');
+  if (npEl){ npEl.textContent = fmtQAR(kpis.netProfit); npEl.style.color = kpis.netProfit>=0?'#1B4332':'#7B0F0F'; }
+  const cfEl = document.getElementById('kpi-cash-flow');
+  if (cfEl){ cfEl.textContent = fmtQAR(kpis.cashFlow); cfEl.style.color = kpis.cashFlow>=0?'#1A56DB':'#7B0F0F'; }
+  setText('kpi-ar-total', fmtQAR(kpis.arTotal));
+  const margEl = document.getElementById('kpi-margin');
+  if (margEl){ margEl.textContent = kpis.margin.toFixed(1) + '%'; margEl.style.color = kpis.margin>=30?'#1B4332':(kpis.margin>=10?'var(--or)':'var(--red)'); }
 
-  // KPI cards
-  document.getElementById('fin-kpi-revenue').textContent = totalRev.toLocaleString('en');
-  document.getElementById('fin-kpi-expenses').textContent = exp.total.toLocaleString('en');
-  const profEl = document.getElementById('fin-kpi-profit');
-  profEl.textContent = profit.toLocaleString('en');
-  profEl.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)';
+  renderFrPnL(range);
+  renderFrCashFlow(range);
+  renderFrAging();
+  renderFrAccounts(range);
+  renderFrTransactions(range);
+}
 
-  // P&L breakdown
-  document.getElementById('pl-packages').textContent = rev.packageRev.toLocaleString('en') + ' QAR';
-  document.getElementById('pl-extras').textContent = rev.extrasRev.toLocaleString('en') + ' QAR';
-  document.getElementById('pl-projects').textContent = projRev.toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-materials').textContent = (exp['مواد ونباتات'] || 0).toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-salaries').textContent = (exp['رواتب وعمالة'] || 0).toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-fuel').textContent = (exp['وقود ومواصلات'] || 0).toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-equipment').textContent = (exp['معدات وأدوات'] || 0).toLocaleString('en') + ' QAR';
-  document.getElementById('pl-exp-other').textContent = (exp['أخرى'] || 0).toLocaleString('en') + ' QAR';
-  const netEl = document.getElementById('pl-net');
-  netEl.textContent = profit.toLocaleString('en') + ' QAR';
-  netEl.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)';
+function computeFinanceKPIs(range){
+  // Revenue
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const revInvoices = invHistory.filter(r => frInRange(r.date, range)).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+  const revQuotes = quotes.filter(q => (q.status==='منجز' || q.status==='مقبول') && frInRange(q.date, range)).reduce((s,q) => s + (parseFloat(q.total)||0), 0);
+  const revenue = revInvoices + revQuotes;
+  // Expenses
+  const expsInPeriod = expenses.filter(e => frInRange(e.date, range));
+  let opex = 0, cogsGen = 0;
+  expsInPeriod.forEach(e => {
+    const cat = e.category || 'أخرى';
+    const amt = parseFloat(e.amount)||0;
+    if (FR_COGS_CATS.includes(cat)) cogsGen += amt; else opex += amt;
+  });
+  // Direct from quote items (isExpense)
+  let directQuote = 0;
+  quotes.filter(q => frInRange(q.date, range)).forEach(q => {
+    ['labor','plant','material','other'].forEach(sec => {
+      (q[sec]||[]).forEach(it => {
+        if (it.isExpense) directQuote += (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+      });
+    });
+  });
+  // Manual proj_expenses
+  let projExp = {};
+  try { projExp = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}'); } catch {}
+  let directProj = 0;
+  Object.values(projExp).forEach(arr => (arr||[]).forEach(e => {
+    if (frInRange(e.date, range)) directProj += parseFloat(e.amount)||0;
+  }));
+  const totalExp = opex + cogsGen + directQuote + directProj;
+  const netProfit = revenue - totalExp;
+  const margin = revenue > 0 ? (netProfit/revenue)*100 : 0;
+  // Cash flow
+  let inInv = 0;
+  invHistory.filter(r => frInRange(r.date, range)).forEach(r => {
+    if (r.payStatus === 'مدفوع') inInv += parseFloat(r.total)||0;
+    else if (r.payStatus === 'مدفوع جزئياً') inInv += parseFloat(r.paidAmount)||0;
+  });
+  let inVisits = 0;
+  visits.forEach(v => {
+    if (!frInRange(v.date, range)) return;
+    if (v.payStatus === 'مدفوع' || v.payStatus === 'مدفوع جزئياً') inVisits += parseFloat(v.paidAmount)||0;
+  });
+  let outProjItems = 0;
+  quotes.filter(q => frInRange(q.date, range)).forEach(q => {
+    ['labor','plant','material','other'].forEach(sec => {
+      (q[sec]||[]).forEach(it => {
+        if (it.isExpense && it.paid) outProjItems += (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+      });
+    });
+  });
+  const cashIn = inInv + inVisits;
+  const cashOut = (opex + cogsGen) + outProjItems + directProj;
+  const cashFlow = cashIn - cashOut;
+  // A/R
+  let arTotal = 0;
+  invHistory.forEach(r => {
+    if (r.payStatus === 'مدفوع') return;
+    const tot = parseFloat(r.total)||0;
+    const paid = r.payStatus==='مدفوع جزئياً' ? (parseFloat(r.paidAmount)||0) : 0;
+    arTotal += Math.max(0, tot - paid);
+  });
+  visits.forEach(v => {
+    if (v.payStatus === 'مدفوع') return;
+    const tot = parseFloat(v.extraAmount)||0;
+    if (tot <= 0) return;
+    const paid = parseFloat(v.paidAmount)||0;
+    arTotal += Math.max(0, tot - paid);
+  });
+  return {revenue, totalExp, netProfit, margin, cashFlow, arTotal};
+}
 
-  // Expenses list
-  const filteredExp = expenses.filter(e => !monthFilter || getExpMonth(e) === monthFilter);
-  document.getElementById('fin-exp-count').textContent = filteredExp.length;
-  const listEl = document.getElementById('fin-expenses-list');
-  if (!filteredExp.length) {
-    listEl.innerHTML = '<div class="empty"><div class="icon">💸</div><p>لا توجد مصاريف بعد</p></div>';
+function renderFrAccounts(range){
+  const el = document.getElementById('fr-accounts');
+  if (!el) return;
+  // Build account categories with balances
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const revInvoices = invHistory.filter(r => frInRange(r.date, range)).reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+  const revQuotes = quotes.filter(q => (q.status==='منجز' || q.status==='مقبول') && frInRange(q.date, range)).reduce((s,q) => s + (parseFloat(q.total)||0), 0);
+  const expsInPeriod = expenses.filter(e => frInRange(e.date, range));
+  const expByCat = {};
+  expsInPeriod.forEach(e => {
+    const c = e.category || 'أخرى';
+    expByCat[c] = (expByCat[c]||0) + (parseFloat(e.amount)||0);
+  });
+  // Direct from quote items (isExpense) by section
+  const directBySection = {labor:0, plant:0, material:0, other:0};
+  quotes.filter(q => frInRange(q.date, range)).forEach(q => {
+    ['labor','plant','material','other'].forEach(sec => {
+      (q[sec]||[]).forEach(it => {
+        if (it.isExpense) directBySection[sec] += (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+      });
+    });
+  });
+  function row(code, name, amt, isCredit){
+    const color = isCredit ? '#1B4332' : '#7B0F0F';
+    return `<div style="display:grid;grid-template-columns:60px 1fr auto;gap:8px;padding:7px 14px;border-bottom:1px solid #f0f0f0;font-size:13px">
+      <span style="color:var(--muted);font-family:monospace">${code}</span>
+      <span>${name}</span>
+      <span style="font-weight:700;color:${color};font-variant-numeric:tabular-nums">${fmtQAR(amt)}</span>
+    </div>`;
+  }
+  let html = '';
+  html += '<div style="background:#E8F5E9;padding:8px 14px;font-weight:700;color:#1B4332;font-size:12px">حسابات الإيرادات (4xxx)</div>';
+  html += row('4100', 'إيرادات الزيارات والباقات', revInvoices, true);
+  html += row('4200', 'إيرادات المشاريع', revQuotes, true);
+  html += '<div style="background:#FADBD8;padding:8px 14px;font-weight:700;color:#7B0F0F;font-size:12px">حسابات التكاليف المباشرة (5xxx)</div>';
+  html += row('5100', 'تكلفة عمالة - مشاريع', directBySection.labor, false);
+  html += row('5200', 'تكلفة نباتات - مشاريع', directBySection.plant, false);
+  html += row('5300', 'تكلفة مواد - مشاريع', directBySection.material, false);
+  html += row('5400', 'تكاليف أخرى - مشاريع', directBySection.other, false);
+  html += '<div style="background:#FFF9E6;padding:8px 14px;font-weight:700;color:#7c6710;font-size:12px">حسابات المصاريف التشغيلية (6xxx)</div>';
+  let code = 6100;
+  Object.keys(expByCat).sort().forEach(cat => {
+    html += row(String(code), cat, expByCat[cat], false);
+    code += 100;
+  });
+  if (Object.keys(expByCat).length === 0){
+    html += '<div style="padding:10px 14px;color:var(--muted);font-size:12px">— لا حركات —</div>';
+  }
+  el.innerHTML = html;
+}
+
+function renderFrTransactions(range){
+  const list = document.getElementById('fr-tx-list');
+  const countEl = document.getElementById('fr-tx-count');
+  if (!list) return;
+  const filter = document.getElementById('fr-tx-type')?.value || '';
+  const txs = [];
+  // Income: invoices
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  invHistory.filter(r => frInRange(r.date, range)).forEach(r => {
+    txs.push({date: r.date, type: 'income', account: '4100 إيرادات الزيارات', desc: r.invNum + ' · ' + (r.client||''), amount: parseFloat(r.total)||0, status: r.payStatus||'غير مدفوع'});
+  });
+  // Income: quotes
+  quotes.filter(q => (q.status==='منجز'||q.status==='مقبول') && frInRange(q.date, range)).forEach(q => {
+    txs.push({date: q.date, type: 'income', account: '4200 إيرادات المشاريع', desc: (q.qNum||'') + ' · ' + (q.client||''), amount: parseFloat(q.total)||0, status: q.status});
+  });
+  // Expenses
+  expenses.filter(e => frInRange(e.date, range)).forEach(e => {
+    txs.push({date: e.date, type: 'expense', account: e.category || 'أخرى', desc: e.note || '—', amount: parseFloat(e.amount)||0, status: 'مدفوع'});
+  });
+  // Manual proj_expenses
+  let projExp = {};
+  try { projExp = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}'); } catch {}
+  Object.entries(projExp).forEach(([qid, arr]) => {
+    const q = quotes.find(x => String(x.id) === String(qid));
+    (arr||[]).forEach(e => {
+      if (!frInRange(e.date, range)) return;
+      txs.push({date: e.date, type: 'expense', account: (e.category||'مصاريف مشاريع'), desc: (q?q.qNum:'') + ' · ' + (e.note||'—'), amount: parseFloat(e.amount)||0, status: 'مدفوع'});
+    });
+  });
+  let rows = txs;
+  if (filter === 'income') rows = rows.filter(t => t.type === 'income');
+  if (filter === 'expense') rows = rows.filter(t => t.type === 'expense');
+  rows.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (countEl) countEl.textContent = rows.length;
+  if (!rows.length){
+    list.innerHTML = '<div class="empty" style="padding:20px"><div class="icon">📋</div><p>لا حركات مالية في هذه الفترة</p></div>';
     return;
   }
-  listEl.innerHTML = filteredExp.slice().reverse().map((e, i) => {
-    const cat = EXP_CATS[e.category] || EXP_CATS['أخرى'];
-    return `<div class="visit-row ${i % 2 === 0 ? 'even' : 'odd'}">
-      <div class="visit-top">
-        <div><span style="font-size:18px">${cat.icon}</span> <span class="visit-name" style="font-size:13px">${escapeHtml(e.category)}</span></div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <span style="background:var(--redl);color:var(--red);padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700">${(e.amount||0).toLocaleString('en')} QAR</span>
-          <button class="btn-icon" style="color:#ddd" onclick="deleteExpense(${e.id})">🗑</button>
-        </div>
+  list.innerHTML = rows.map((t,i) => {
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    const isInc = t.type === 'income';
+    return `<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;background:${bg};display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center">
+      <span style="font-size:18px">${isInc?'⬇':'⬆'}</span>
+      <div style="min-width:0">
+        <div style="font-size:12px;font-weight:700">${escapeHtml(t.desc)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${fmtDate(t.date)} · ${escapeHtml(t.account)} · <span style="color:${t.status==='مدفوع'?'#2D6A4F':'var(--red)'}">${escapeHtml(t.status)}</span></div>
       </div>
-      <div class="visit-meta">${e.date ? fmtDate(e.date) : '—'}${e.note ? ' · ' + escapeHtml(e.note) : ''}</div>
+      <div style="font-weight:900;color:${isInc?'#1B4332':'#7B0F0F'};font-variant-numeric:tabular-nums">${isInc?'+':'−'}${fmtQAR(t.amount)}</div>
     </div>`;
   }).join('');
 }
@@ -3862,86 +3606,11 @@ function deleteProjExpense(quoteId, idx) {
   });
 }
 
-// ── Tri-state pay status helpers (paid / partial / unpaid) ──
-function getItemPayStatus(it){
-  if (!it) return 'unpaid';
-  if (it.payStatus) return it.payStatus;          // new tri-state field
-  return it.paid ? 'paid' : 'unpaid';             // legacy boolean
-}
-function getItemSub(it){
-  return (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
-}
-function getItemPaidAmount(it){
-  const sub = getItemSub(it);
-  const st = getItemPayStatus(it);
-  if (st === 'paid')    return sub;
-  if (st === 'partial') return Math.min(sub, parseFloat(it.paidAmount)||0);
-  return 0;
-}
-function getExpPayStatus(e){
-  if (!e) return 'unpaid';
-  if (e.payStatus) return e.payStatus;
-  // Legacy: old expenses had no status — treat as paid (cash already out)
-  return 'paid';
-}
-function getExpPaidAmount(e){
-  const amt = parseFloat(e.amount)||0;
-  const st = getExpPayStatus(e);
-  if (st === 'paid')    return amt;
-  if (st === 'partial') return Math.min(amt, parseFloat(e.paidAmount)||0);
-  return 0;
-}
-
-// ── Client payments storage (per-quote installments) ──
-function getClientPayments(quoteId){
-  try {
-    const all = JSON.parse(localStorage.getItem('dt_client_payments') || '{}');
-    return all[quoteId] || [];
-  } catch { return []; }
-}
-function saveClientPayments(quoteId, list){
-  try {
-    const all = JSON.parse(localStorage.getItem('dt_client_payments') || '{}');
-    all[quoteId] = list;
-    fbSave('client_payments', all);
-  } catch(e){ console.log(e); }
-}
-function getClientPaidTotal(quoteId){
-  return getClientPayments(quoteId).reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
-}
-
-// Client-side collection: how much of the contract value the client has paid us.
-// "paid" = collected from client, "unpaid" = remaining client balance.
-function getQuotePaidUnpaid(q){
-  if (!q) return {paid:0, unpaid:0, total:0};
-  const total = q.total||0;
-  const paid  = getClientPaidTotal(q.id);
-  return {paid, unpaid: Math.max(0, total - paid), total};
-}
-
-// Vendor-side totals (what the BUSINESS owes/paid for materials, labor, etc.)
-// NOTE: only counts proj_expenses — quote line items are CLIENT-SIDE (revenue),
-// not money the business pays out. The kotation is what the client owes us.
-function getProjVendorTotals(q){
-  if (!q) return {paid:0, due:0, total:0};
-  let paid=0, due=0;
-  getProjExpenses(q.id).forEach(e=>{
-    const amt = parseFloat(e.amount)||0;
-    const p   = getExpPaidAmount(e);
-    paid += p;
-    due  += amt - p;
-  });
-  return {paid, due, total: paid+due};
-}
-
 function renderProjFinanceSummary() {
   const activeQuotes = quotes.filter(q => q.status === 'مقبول' || q.status === 'منجز');
   const totalRev = activeQuotes.reduce((s, q) => s + (q.total || 0), 0);
   const totalExp = activeQuotes.reduce((s, q) => s + getProjExpTotal(q.id), 0);
   const totalProfit = totalRev - totalExp;
-  // Item-level paid totals
-  const totalPaidItems   = activeQuotes.reduce((s,q) => s + getQuotePaidUnpaid(q).paid, 0);
-  const totalUnpaidItems = activeQuotes.reduce((s,q) => s + getQuotePaidUnpaid(q).unpaid, 0);
 
   const pfRev = document.getElementById('pf-revenue');
   const pfExp = document.getElementById('pf-expenses');
@@ -3963,8 +3632,6 @@ function renderProjFinanceSummary() {
     const margin = q.total > 0 ? ((profit / q.total) * 100).toFixed(0) : 0;
     const profitColor = profit >= 0 ? 'var(--gm)' : 'var(--red)';
     const st = quoteStatusStyle(q.status);
-    const pu = getQuotePaidUnpaid(q);
-    const payPct = pu.total > 0 ? Math.round((pu.paid/pu.total)*100) : 0;
     return `
     <div style="padding:12px 14px;border-bottom:1px solid #f0f0f0;background:${i%2===0?'#fff':'var(--gray)'}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -3973,12 +3640,9 @@ function renderProjFinanceSummary() {
           <span style="color:var(--muted);font-size:11px;margin-right:6px">${escapeHtml(q.qNum)}</span>
           <span style="background:${st.bg};color:${st.color};padding:1px 7px;border-radius:12px;font-size:10px;font-weight:700">${st.icon} ${escapeHtml(q.status)}</span>
         </div>
-        <div style="display:flex;gap:6px">
-          <button onclick="openProjFinanceModal(${q.id})" style="background:#D8F3DC;color:#2D6A4F;border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">💰 ${pu.paid.toLocaleString('en')}/${pu.total.toLocaleString('en')}</button>
-          <button onclick="openProjExpModal(${q.id})" style="background:var(--bluel);color:var(--blue);border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">💸 مصاريف</button>
-        </div>
+        <button onclick="openProjExpModal(${q.id})" style="background:var(--bluel);color:var(--blue);border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">💸 مصاريف</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;text-align:center;margin-bottom:6px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;text-align:center">
         <div style="background:var(--bluel);border-radius:6px;padding:6px">
           <div style="font-size:9px;color:var(--muted)">العقد</div>
           <div style="font-size:12px;font-weight:700;color:var(--blue)">${q.total.toLocaleString('en')}</div>
@@ -3996,455 +3660,349 @@ function renderProjFinanceSummary() {
           <div style="font-size:12px;font-weight:700;color:var(--gold)">${margin}%</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div style="flex:1;height:8px;background:#eee;border-radius:4px;overflow:hidden">
-          <div style="width:${payPct}%;height:100%;background:linear-gradient(90deg,#52B788,#2D6A4F);transition:width 0.3s"></div>
-        </div>
-        <span style="font-size:10px;font-weight:700;color:${payPct===100?'#2D6A4F':payPct>0?'#D4AC0D':'#C0392B'};min-width:90px;text-align:left">مدفوع ${pu.paid.toLocaleString('en')}/${pu.total.toLocaleString('en')}</span>
-      </div>
     </div>`;
   }).join('');
 }
 
-// Open a quick paid-toggle panel for a quote (shows all items with checkbox)
-function openQuotePaidPanel(quoteId) {
-  const q = quotes.find(x => x.id === quoteId);
-  if (!q) return;
-  const sections = [
-    {key:'labor', label:'عمالة', icon:'👷'},
-    {key:'plant', label:'نباتات', icon:'🌱'},
-    {key:'material', label:'مواد', icon:'🔧'},
-    {key:'other', label:'أخرى', icon:'📦'}
-  ];
-  let html = `<div style="padding:4px 0">`;
-  sections.forEach(sec => {
-    const items = q[sec.key]||[];
-    if (!items.length) return;
-    html += `<div style="margin-bottom:12px"><div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--gm)">${sec.icon} ${sec.label}</div>`;
-    items.forEach((it, i) => {
-      const sub = (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:${it.paid?'#D8F3DC':'#FFF9E6'};border-radius:6px;margin-bottom:4px;font-size:12px">
-        <input type="checkbox" ${it.paid?'checked':''} onchange="setQuoteItemPaid(${q.id},'${sec.key}',${i},this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#2D6A4F">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;${it.paid?'text-decoration:line-through':''}">${escapeHtml(it.desc||'بدون وصف')}</div>
-          <div style="font-size:10px;color:var(--muted)">${it.qty||0} ${it.unit||''} × ${(parseFloat(it.price)||0).toLocaleString('en')}</div>
-        </div>
-        <div style="font-weight:700;color:${it.paid?'#2D6A4F':'var(--red)'}">${sub.toLocaleString('en')} QAR</div>
-      </div>`;
+
+// ── Company Financial Reports (NEW) ──
+// Expense bucket: which general categories count as OPEX vs DIRECT COSTS in P&L.
+// We infer this from the category name. Direct project items come from quotes (isExpense flag).
+const FR_OPEX_CATS = ['وقود ومواصلات','معدات وأدوات','أخرى'];
+const FR_COGS_CATS = ['مواد ونباتات','رواتب وعمالة'];
+
+function frPeriodRange(){
+  const sel = document.getElementById('fr-period');
+  const customWrap = document.getElementById('fr-custom');
+  if (!sel) return {from:null, to:null, label:'كل الفترات'};
+  const v = sel.value;
+  if (customWrap) customWrap.style.display = (v === 'custom') ? 'grid' : 'none';
+  const today = new Date();
+  const Y = today.getFullYear(), M = today.getMonth();
+  const fmt = d => d ? d.toISOString().slice(0,10) : null;
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  let from=null, to=null, label='كل الفترات';
+  if (v === 'this-month'){
+    from = new Date(Y, M, 1);
+    to = new Date(Y, M+1, 0);
+    label = arMonths[M] + ' ' + Y;
+  } else if (v === 'last-month'){
+    from = new Date(Y, M-1, 1);
+    to = new Date(Y, M, 0);
+    label = arMonths[(M+11)%12] + ' ' + (M===0?Y-1:Y);
+  } else if (v === 'this-quarter'){
+    const q = Math.floor(M/3);
+    from = new Date(Y, q*3, 1);
+    to = new Date(Y, q*3+3, 0);
+    label = 'الربع ' + (q+1) + ' / ' + Y;
+  } else if (v === 'last-quarter'){
+    const q = Math.floor(M/3) - 1;
+    const yy = q < 0 ? Y-1 : Y;
+    const qq = (q + 4) % 4;
+    from = new Date(yy, qq*3, 1);
+    to = new Date(yy, qq*3+3, 0);
+    label = 'الربع ' + (qq+1) + ' / ' + yy;
+  } else if (v === 'ytd'){
+    from = new Date(Y, 0, 1);
+    to = today;
+    label = 'منذ بداية ' + Y;
+  } else if (v === 'last-year'){
+    from = new Date(Y-1, 0, 1);
+    to = new Date(Y-1, 11, 31);
+    label = 'السنة ' + (Y-1);
+  } else if (v === 'custom'){
+    const fr = document.getElementById('fr-from')?.value;
+    const tr = document.getElementById('fr-to')?.value;
+    from = fr ? new Date(fr) : null;
+    to = tr ? new Date(tr) : null;
+    label = (fr||'?') + ' → ' + (tr||'?');
+  } // else 'all'
+  return {from: fmt(from), to: fmt(to), label};
+}
+
+function frInRange(dateStr, range){
+  if (!range.from && !range.to) return true;
+  if (!dateStr) return false;
+  if (range.from && dateStr < range.from) return false;
+  if (range.to && dateStr > range.to) return false;
+  return true;
+}
+
+function fmtQAR(n){ return (Math.round(n)||0).toLocaleString('en') + ' QAR'; }
+function frRow(label, val, opts){
+  opts = opts || {};
+  const bold = opts.bold ? 'font-weight:900' : '';
+  const indent = opts.indent ? 'padding-right:24px' : 'padding-right:14px';
+  const top   = opts.topBorder ? 'border-top:2px solid #2D6A4F' : '';
+  const color = opts.color || (opts.bold ? '#1B4332' : '#444');
+  const bg = opts.bg || (opts.bold ? '#F0F4F1' : 'transparent');
+  return `<div style="display:flex;justify-content:space-between;padding:7px 14px ${indent.replace('padding-right:','')};font-size:13px;border-bottom:1px solid #f0f0f0;${top};background:${bg}">
+    <span style="${bold};color:${color};${opts.indent?'padding-right:20px':''}">${label}</span>
+    <span style="${bold};color:${color};font-variant-numeric:tabular-nums">${val}</span>
+  </div>`;
+}
+
+function renderFinReports(){
+  const range = frPeriodRange();
+  const labelEl = document.getElementById('fr-period-label');
+  if (labelEl) labelEl.textContent = range.label;
+  renderFrPnL(range);
+  renderFrCashFlow(range);
+  renderFrAging();
+}
+
+function renderFrPnL(range){
+  const el = document.getElementById('fr-pnl');
+  if (!el) return;
+  // ─ Revenue ─
+  // Invoiced revenue: invHistory entries in period
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const invsInPeriod = invHistory.filter(r => frInRange(r.date || (r.month?r.month+'-15':''), range));
+  const revInvoices = invsInPeriod.reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+  // Quote (project) revenue: quotes with status منجز/مقبول in period
+  const projsInPeriod = quotes.filter(q => (q.status==='منجز' || q.status==='مقبول') && frInRange(q.date, range));
+  const revQuotes = projsInPeriod.reduce((s,q) => s + (parseFloat(q.total)||0), 0);
+  // Avoid double-counting: use only invoices for revenue (visits/maintenance)
+  // Plus quotes value if not invoiced. Simplification: add quote totals minus any matching invoiced amount.
+  // For simplicity, treat them as separate revenue lines; user can read both.
+  const revenue = revInvoices + revQuotes;
+
+  // ─ Direct Costs (COGS) ─
+  // From quote items marked isExpense=true, grouped by section
+  const directBySection = {labor:0, plant:0, material:0, other:0};
+  projsInPeriod.forEach(q => {
+    ['labor','plant','material','other'].forEach(sec => {
+      (q[sec]||[]).forEach(it => {
+        if (it.isExpense){
+          directBySection[sec] += (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+        }
+      });
     });
-    html += `</div>`;
   });
-  html += `</div>`;
-  // Use confirmAction-style modal? Simplest: a basic prompt-like modal
-  const modal = document.getElementById('quote-paid-panel');
-  if (modal) {
-    document.getElementById('quote-paid-panel-title').textContent = `💰 دفع بنود — ${q.qNum} · ${q.client}`;
-    document.getElementById('quote-paid-panel-body').innerHTML = html;
-    document.getElementById('quote-paid-panel').classList.add('open');
-    modal._currentQuoteId = q.id;
-  }
-}
-
-function setQuoteItemPaid(quoteId, sectionKey, idx, paid) {
-  const q = quotes.find(x => x.id === quoteId);
-  if (!q || !q[sectionKey] || !q[sectionKey][idx]) return;
-  q[sectionKey][idx].paid = !!paid;
-  q[sectionKey][idx].payStatus = paid ? 'paid' : 'unpaid';
-  if (!paid) q[sectionKey][idx].paidAmount = 0;
-  saveQuotes();
-  renderProjFinanceSummary();
-  if (document.getElementById('tab-finance').classList.contains('active')) renderProjFinanceDetailed();
-  const pfm = document.getElementById('proj-finance-modal');
-  if (pfm && pfm.classList.contains('open') && pfm._currentQuoteId === quoteId) renderProjFinanceModal(quoteId);
-  // Re-render the open panel to reflect the change
-  openQuotePaidPanel(quoteId);
-}
-
-// ══════════════════════════════════════════════════════════
-// Project Finance Modal — full breakdown per project
-// ══════════════════════════════════════════════════════════
-let _pfmTab = 'payments';
-
-function openProjFinanceModal(quoteId){
-  const q = quotes.find(x=>x.id===quoteId);
-  if (!q) return;
-  const m = document.getElementById('proj-finance-modal');
-  m._currentQuoteId = quoteId;
-  document.getElementById('pfm-title').textContent = (q.qNum||'') + ' · ' + (q.client||'');
-  _pfmTab = 'payments';
-  switchPfmTab('payments');
-  renderProjFinanceModal(quoteId);
-  m.classList.add('open');
-}
-
-// Open the add-expense modal from inside the project finance modal
-function openProjExpModalFromPfm(quoteId){
-  // Close the parent modal briefly so the expense modal can be interacted with
-  openProjExpModal(quoteId);
-}
-
-function switchPfmTab(name){
-  _pfmTab = name;
-  document.querySelectorAll('.pfm-tab-btn').forEach(b=>{
-    const active = b.dataset.pfm === name;
-    b.style.borderBottomColor = active ? 'var(--gd)' : 'transparent';
-    b.style.color = active ? 'var(--gd)' : 'var(--muted)';
+  // Plus manual project expenses (proj_expenses) in period
+  let projExp = {};
+  try { projExp = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}'); } catch {}
+  let directProjExp = 0;
+  projsInPeriod.forEach(q => {
+    (projExp[q.id]||[]).forEach(e => {
+      if (frInRange(e.date, range)) directProjExp += (parseFloat(e.amount)||0);
+    });
   });
-  const m = document.getElementById('proj-finance-modal');
-  if (m._currentQuoteId) renderProjFinanceModal(m._currentQuoteId);
-}
-
-function renderProjFinanceModal(quoteId){
-  const q = quotes.find(x=>x.id===quoteId);
-  if (!q) return;
-  const totalContract = q.total||0;
-  const vendor = getProjVendorTotals(q);
-  const profit = totalContract - vendor.total;
-  document.getElementById('pfm-contract').textContent = totalContract.toLocaleString('en') + ' QAR';
-  const profEl = document.getElementById('pfm-profit');
-  profEl.textContent = profit.toLocaleString('en') + ' QAR';
-  profEl.style.color = profit >= 0 ? 'var(--gm)' : 'var(--red)';
-
-  const host = document.getElementById('pfm-content');
-  if (_pfmTab === 'payments')      host.innerHTML = renderPfmPaymentsHtml(q);
-  else if (_pfmTab === 'expenses') host.innerHTML = renderPfmItemsHtml(q, ['plant','material'], '🪨', 'مواد وأشجار');
-  else if (_pfmTab === 'labor')    host.innerHTML = renderPfmItemsHtml(q, ['labor'], '👷', 'العمال');
-  else if (_pfmTab === 'other')    host.innerHTML = renderPfmItemsHtml(q, ['other'], '📋', 'بنود إضافية');
-}
-
-function renderPfmPaymentsHtml(q){
-  const payments = getClientPayments(q.id).slice().sort((a,b)=> (a.date||'').localeCompare(b.date||''));
-  const total = q.total||0;
-  const collected = getClientPaidTotal(q.id);
-  const remaining = Math.max(0, total - collected);
-  const pct = total > 0 ? Math.round((collected/total)*100) : 0;
-  const METHOD_ICON = {'كاش':'💵','تحويل':'🏦','شيك':'📜','بطاقة':'💳','أخرى':'📋'};
-
-  let html = `
-    <div style="background:var(--gp);border-radius:10px;padding:12px;margin-bottom:12px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <div style="flex:1;height:10px;background:#fff;border-radius:5px;overflow:hidden;border:1px solid var(--border)">
-          <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#52B788,#2D6A4F);transition:width .3s"></div>
-        </div>
-        <span style="font-size:12px;font-weight:900;color:var(--gd);min-width:40px;text-align:left">${pct}%</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
-        <div><div style="font-size:9px;color:var(--muted)">المستحق</div><div style="font-size:13px;font-weight:900;color:var(--blue)">${total.toLocaleString('en')}</div></div>
-        <div><div style="font-size:9px;color:var(--muted)">المُحصّل</div><div style="font-size:13px;font-weight:900;color:var(--gm)">${collected.toLocaleString('en')}</div></div>
-        <div><div style="font-size:9px;color:var(--muted)">المتبقي</div><div style="font-size:13px;font-weight:900;color:${remaining>0?'var(--or)':'var(--gm)'}">${remaining.toLocaleString('en')}</div></div>
-      </div>
-    </div>
-    <button class="btn btn-primary btn-full" onclick="openClientPaymentModal(${q.id})" style="margin-bottom:10px">➕ إضافة دفعة</button>
-  `;
-
-  if (!payments.length){
-    html += '<div class="empty" style="padding:16px"><div class="icon">💰</div><p>لا توجد دفعات بعد</p></div>';
-    return html;
-  }
-
-  html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-  payments.forEach((p,i)=>{
-    const amt = parseFloat(p.amount)||0;
-    const pp  = total > 0 ? ((amt/total)*100).toFixed(1) : '0';
-    html += `
-      <div style="padding:10px 12px;border-bottom:1px solid #f0f0f0;background:${i%2===0?'#fff':'var(--gray)'};display:flex;align-items:center;gap:8px">
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-            <span style="font-size:14px">${METHOD_ICON[p.method]||'💰'}</span>
-            <span style="font-weight:700;font-size:13px;color:var(--gd)">${(parseFloat(p.amount)||0).toLocaleString('en')} QAR</span>
-            <span style="font-size:10px;color:var(--muted);background:var(--gp);padding:1px 6px;border-radius:8px">${pp}%</span>
-          </div>
-          <div style="font-size:10px;color:var(--muted)">📅 ${escapeHtml(p.date||'')}${p.method?' · '+escapeHtml(p.method):''}${p.ref?' · مرجع: '+escapeHtml(p.ref):''}</div>
-          ${p.note?`<div style="font-size:10px;color:#888;margin-top:2px">📝 ${escapeHtml(p.note)}</div>`:''}
-        </div>
-        <button onclick="editClientPayment(${q.id},'${p.id}')" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:14px;padding:4px">✏️</button>
-        <button onclick="deleteClientPayment(${q.id},'${p.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:4px">🗑</button>
-      </div>`;
-  });
-  html += '</div>';
-  return html;
-}
-
-function renderPfmItemsHtml(q, sectionKeys, icon, label){
-  const STATUS_INFO = {
-    paid:    {bg:'#D8F3DC', color:'#2D6A4F', icon:'✅', label:'مدفوع'},
-    partial: {bg:'#FFF9E6', color:'#D4AC0D', icon:'⏳', label:'جزئي'},
-    unpaid:  {bg:'#FADBD8', color:'#C0392B', icon:'❌', label:'غير مدفوع'}
-  };
-  // Only project-expenses are tracked here. Quote line items are client-side
-  // (what the client owes us), so they don't appear under expenses.
-  const rows = [];
-  const expFilter = sectionKeys.includes('plant') || sectionKeys.includes('material')
-    ? e => e.category === 'مواد ونباتات'
-    : sectionKeys.includes('labor')
-      ? e => e.category === 'رواتب وعمالة'
-      : sectionKeys.includes('other')
-        ? e => e.category && e.category !== 'مواد ونباتات' && e.category !== 'رواتب وعمالة'
-        : () => false;
-  getProjExpenses(q.id).forEach((e, idx)=>{
-    if (!expFilter(e)) return;
-    const amt  = parseFloat(e.amount)||0;
-    const paid = getExpPaidAmount(e);
-    const st   = getExpPayStatus(e);
-    rows.push({type:'exp', expIdx: idx, desc:(e.category||'مصروف') + (e.note?' · '+e.note:''), sub:amt, paid, status:st, date:e.date});
-  });
-
-  const totalSum = rows.reduce((s,r)=>s+r.sub,0);
-  const paidSum  = rows.reduce((s,r)=>s+r.paid,0);
-  const dueSum   = totalSum - paidSum;
-
-  let html = `
-    <div style="background:var(--redl);border-radius:10px;padding:10px;margin-bottom:10px">
-      <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px">${icon} ${label} — ملخص المصاريف</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center">
-        <div><div style="font-size:9px;color:var(--muted)">الإجمالي</div><div style="font-size:13px;font-weight:900">${totalSum.toLocaleString('en')}</div></div>
-        <div><div style="font-size:9px;color:var(--muted)">مدفوع</div><div style="font-size:13px;font-weight:900;color:#2D6A4F">${paidSum.toLocaleString('en')}</div></div>
-        <div><div style="font-size:9px;color:var(--muted)">مستحق</div><div style="font-size:13px;font-weight:900;color:var(--red)">${dueSum.toLocaleString('en')}</div></div>
-      </div>
-    </div>
-    <button class="btn btn-primary btn-full" onclick="openProjExpModalFromPfm(${q.id})" style="margin-bottom:10px">➕ إضافة مصروف للمشروع</button>
-  `;
-  if (!rows.length) {
-    html += '<div class="empty" style="padding:16px"><div class="icon">📭</div><p>لم يتم إضافة مصاريف في هذا القسم بعد</p></div>';
-    return html;
-  }
-  html += '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">';
-  rows.forEach((r,i)=>{
-    const si = STATUS_INFO[r.status]||STATUS_INFO.unpaid;
-    const click = r.type==='item'
-      ? `openItemPayStatus(${q.id},'${r.sec}',${r.idx})`
-      : `openExpPayStatus(${q.id},${r.expIdx})`;
-    html += `
-      <div style="padding:10px 12px;border-bottom:1px solid #f0f0f0;background:${i%2===0?'#fff':'var(--gray)'}">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:700;font-size:13px;color:var(--gd)">${escapeHtml(r.desc)}</div>
-            ${r.type==='item' && r.qty ? `<div style="font-size:10px;color:var(--muted)">${r.qty} ${escapeHtml(r.unit||'')} × ${(parseFloat(r.price)||0).toLocaleString('en')}</div>` : ''}
-            ${r.type==='exp' && r.date ? `<div style="font-size:10px;color:var(--muted)">📅 ${escapeHtml(r.date)}</div>` : ''}
-          </div>
-          <div style="font-weight:900;color:var(--red);font-size:13px;text-align:left">${r.sub.toLocaleString('en')} QAR</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <button onclick="${click}" style="background:${si.bg};color:${si.color};border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">${si.icon} ${si.label}</button>
-          ${r.status==='partial' ? `<span style="font-size:10px;color:var(--muted)">مدفوع ${r.paid.toLocaleString('en')} / ${r.sub.toLocaleString('en')}</span>`:''}
-        </div>
-      </div>`;
-  });
-  html += '</div>';
-  return html;
-}
-
-// ── Client payment add/edit/delete ──
-let _cpEditing = null;
-function openClientPaymentModal(quoteId, paymentId){
-  _cpEditing = {quoteId, paymentId: paymentId||null};
-  const titleEl = document.getElementById('cp-modal-title');
-  const dateEl = document.getElementById('cp-date');
-  const amtEl  = document.getElementById('cp-amount');
-  const methEl = document.getElementById('cp-method');
-  const refEl  = document.getElementById('cp-ref');
-  const noteEl = document.getElementById('cp-note');
-  if (paymentId) {
-    const p = getClientPayments(quoteId).find(x=>x.id===paymentId);
-    titleEl.textContent = '✏️ تعديل دفعة';
-    if (p) {
-      dateEl.value = p.date||TODAY;
-      amtEl.value  = p.amount||'';
-      methEl.value = p.method||'كاش';
-      refEl.value  = p.ref||'';
-      noteEl.value = p.note||'';
-    }
-  } else {
-    titleEl.textContent = '💰 دفعة جديدة';
-    dateEl.value = TODAY;
-    amtEl.value  = '';
-    methEl.value = 'كاش';
-    refEl.value  = '';
-    noteEl.value = '';
-  }
-  document.getElementById('client-pay-modal').classList.add('open');
-}
-function saveClientPayment(){
-  if (!_cpEditing) return;
-  const {quoteId, paymentId} = _cpEditing;
-  const date   = document.getElementById('cp-date').value;
-  const amount = parseFloat(document.getElementById('cp-amount').value)||0;
-  const method = document.getElementById('cp-method').value;
-  const ref    = document.getElementById('cp-ref').value.trim();
-  const note   = document.getElementById('cp-note').value.trim();
-  if (!date || !amount) { showToast('⚠️ التاريخ والمبلغ مطلوبان'); return; }
-  const list = getClientPayments(quoteId);
-  if (paymentId) {
-    const p = list.find(x=>x.id===paymentId);
-    if (p) Object.assign(p, {date, amount, method, ref, note});
-  } else {
-    list.push({ id: 'cp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-                date, amount, method, ref, note });
-  }
-  saveClientPayments(quoteId, list);
-  document.getElementById('client-pay-modal').classList.remove('open');
-  renderProjFinanceModal(quoteId);
-  renderProjFinanceSummary();
-  if (document.getElementById('tab-finance').classList.contains('active')) renderProjFinanceDetailed();
-  showToast(paymentId ? '✅ تم تعديل الدفعة' : '✅ تم تسجيل الدفعة');
-}
-function editClientPayment(quoteId, paymentId){ openClientPaymentModal(quoteId, paymentId); }
-function deleteClientPayment(quoteId, paymentId){
-  const list = getClientPayments(quoteId);
-  const p = list.find(x=>x.id===paymentId);
-  if (!p) return;
-  confirmAction('حذف الدفعة', `سيتم حذف دفعة ${(parseFloat(p.amount)||0).toLocaleString('en')} QAR بتاريخ ${p.date||''}.`).then(ok=>{
-    if (!ok) return;
-    const next = list.filter(x=>x.id!==paymentId);
-    saveClientPayments(quoteId, next);
-    renderProjFinanceModal(quoteId);
-    renderProjFinanceSummary();
-    if (document.getElementById('tab-finance').classList.contains('active')) renderProjFinanceDetailed();
-    showToast('🗑 تم حذف الدفعة');
-  });
-}
-
-// ── Item / expense pay status modal (tri-state) ──
-let _psContext = null;
-let _psStatus  = 'paid';
-function setPsStatus(s){
-  _psStatus = s;
-  document.querySelectorAll('.ps-status-btn').forEach(b=>{
-    const active = b.dataset.status === s;
-    if (active) {
-      const colorMap = {paid:{bg:'#D8F3DC',c:'#2D6A4F'},partial:{bg:'#FFF9E6',c:'#D4AC0D'},unpaid:{bg:'#FADBD8',c:'#C0392B'}};
-      const cm = colorMap[s];
-      b.style.background = cm.bg; b.style.borderColor = cm.c; b.style.color = cm.c;
+  // Plus general expenses categorized as COGS in period
+  const expsInPeriod = expenses.filter(e => frInRange(e.date, range));
+  let directGeneral = 0;
+  const opexByCat = {};
+  expsInPeriod.forEach(e => {
+    const cat = e.category || 'أخرى';
+    const amt = parseFloat(e.amount)||0;
+    if (FR_COGS_CATS.includes(cat)){
+      directGeneral += amt;
     } else {
-      b.style.background = '#fff'; b.style.borderColor = 'var(--border)'; b.style.color = 'var(--muted)';
+      opexByCat[cat] = (opexByCat[cat]||0) + amt;
     }
   });
-  document.getElementById('ps-paid-amount-wrap').style.display = s==='partial' ? 'block' : 'none';
-}
-function openItemPayStatus(quoteId, sec, idx){
-  const q = quotes.find(x=>x.id===quoteId);
-  if (!q || !q[sec] || !q[sec][idx]) return;
-  const it = q[sec][idx];
-  const sub = getItemSub(it);
-  _psContext = {kind:'item', quoteId, sec, idx, total: sub};
-  document.getElementById('ps-modal-title').textContent = '🪙 ' + (it.desc||'البند');
-  document.getElementById('ps-total').textContent = sub.toLocaleString('en') + ' QAR';
-  const cur = getItemPayStatus(it);
-  document.getElementById('ps-paid-amount').value = (cur==='partial' ? (parseFloat(it.paidAmount)||0) : '');
-  setPsStatus(cur);
-  document.getElementById('paystatus-modal').classList.add('open');
-}
-function openExpPayStatus(quoteId, expIdx){
-  const exps = getProjExpenses(quoteId);
-  const e = exps[expIdx];
-  if (!e) return;
-  const sub = parseFloat(e.amount)||0;
-  _psContext = {kind:'exp', quoteId, expIdx, total: sub};
-  document.getElementById('ps-modal-title').textContent = '🪙 ' + (e.category||'مصروف');
-  document.getElementById('ps-total').textContent = sub.toLocaleString('en') + ' QAR';
-  const cur = getExpPayStatus(e);
-  document.getElementById('ps-paid-amount').value = (cur==='partial' ? (parseFloat(e.paidAmount)||0) : '');
-  setPsStatus(cur);
-  document.getElementById('paystatus-modal').classList.add('open');
-}
-function saveItemPayStatus(){
-  if (!_psContext) return;
-  const {kind, quoteId, total} = _psContext;
-  let paidAmt = 0;
-  if (_psStatus === 'partial') {
-    paidAmt = parseFloat(document.getElementById('ps-paid-amount').value)||0;
-    if (paidAmt <= 0) { showToast('⚠️ أدخل المبلغ المدفوع'); return; }
-    if (paidAmt >= total) { _psStatus = 'paid'; paidAmt = total; }
-  } else if (_psStatus === 'paid') {
-    paidAmt = total;
+
+  const directTotal = directBySection.labor + directBySection.plant + directBySection.material + directBySection.other + directProjExp + directGeneral;
+  const grossProfit = revenue - directTotal;
+  const grossMargin = revenue > 0 ? (grossProfit/revenue)*100 : 0;
+  const opexTotal = Object.values(opexByCat).reduce((s,v)=>s+v,0);
+  const netProfit = grossProfit - opexTotal;
+  const netMargin = revenue > 0 ? (netProfit/revenue)*100 : 0;
+
+  let html = '';
+  html += '<div style="background:#E8F5E9;padding:8px 14px;font-weight:700;color:#1B4332;font-size:12px">📈 الإيرادات</div>';
+  html += frRow('إيرادات الفواتير (الزيارات)', fmtQAR(revInvoices), {indent:true});
+  html += frRow('إيرادات المشاريع (الكوتيشنات)', fmtQAR(revQuotes), {indent:true});
+  html += frRow('إجمالي الإيرادات', fmtQAR(revenue), {bold:true, topBorder:true, bg:'#D8F3DC'});
+
+  html += '<div style="background:#FADBD8;padding:8px 14px;font-weight:700;color:#7B0F0F;font-size:12px;margin-top:8px">📉 التكاليف المباشرة</div>';
+  html += frRow('عمالة', fmtQAR(directBySection.labor), {indent:true});
+  html += frRow('نباتات', fmtQAR(directBySection.plant), {indent:true});
+  html += frRow('مواد', fmtQAR(directBySection.material), {indent:true});
+  html += frRow('أخرى (من البنود)', fmtQAR(directBySection.other), {indent:true});
+  html += frRow('مصاريف مشاريع يدوية', fmtQAR(directProjExp), {indent:true});
+  html += frRow('مواد ورواتب (من المصاريف العامة)', fmtQAR(directGeneral), {indent:true});
+  html += frRow('إجمالي التكاليف المباشرة', fmtQAR(directTotal), {bold:true, topBorder:true, bg:'#FADBD8', color:'#7B0F0F'});
+
+  html += frRow('مجمل الربح (Gross Profit)', fmtQAR(grossProfit) + ' · ' + grossMargin.toFixed(1) + '%', {bold:true, bg:'#FFF9E6', color:'#7c6710'});
+
+  html += '<div style="background:#FFF9E6;padding:8px 14px;font-weight:700;color:#7c6710;font-size:12px;margin-top:8px">📋 المصاريف التشغيلية (OpEx)</div>';
+  if (Object.keys(opexByCat).length === 0){
+    html += '<div style="padding:8px 14px;font-size:12px;color:var(--muted)">— لا مصاريف تشغيلية —</div>';
+  } else {
+    Object.keys(opexByCat).sort().forEach(cat => {
+      html += frRow(cat, fmtQAR(opexByCat[cat]), {indent:true});
+    });
   }
-  if (kind === 'item') {
-    const q = quotes.find(x=>x.id===quoteId);
-    const it = q && q[_psContext.sec] && q[_psContext.sec][_psContext.idx];
-    if (!it) return;
-    it.payStatus = _psStatus;
-    it.paidAmount = paidAmt;
-    it.paid = (_psStatus === 'paid');
-    saveQuotes();
-  } else if (kind === 'exp') {
-    const exps = getProjExpenses(quoteId);
-    if (!exps[_psContext.expIdx]) return;
-    exps[_psContext.expIdx].payStatus = _psStatus;
-    exps[_psContext.expIdx].paidAmount = paidAmt;
-    saveProjExpenses(quoteId, exps);
-  }
-  document.getElementById('paystatus-modal').classList.remove('open');
-  renderProjFinanceModal(quoteId);
-  renderProjFinanceSummary();
-  if (document.getElementById('tab-finance').classList.contains('active')) renderProjFinanceDetailed();
-  showToast('✅ تم تحديث حالة الدفع');
+  html += frRow('إجمالي المصاريف التشغيلية', fmtQAR(opexTotal), {bold:true, topBorder:true, bg:'#FFF9E6', color:'#7c6710'});
+
+  const netColor = netProfit >= 0 ? '#1B4332' : '#7B0F0F';
+  const netBg    = netProfit >= 0 ? '#D8F3DC' : '#FADBD8';
+  html += frRow('صافي الربح (Net Profit)', fmtQAR(netProfit) + ' · ' + netMargin.toFixed(1) + '%', {bold:true, bg:netBg, color:netColor, topBorder:true});
+
+  el.innerHTML = html;
 }
 
-// ── Project Finance Detailed list (in tab-finance) ──
-function renderProjFinanceDetailed(){
-  const activeQuotes = quotes.filter(q => q.status === 'مقبول' || q.status === 'منجز');
-  let totalDue=0, totalCollected=0, vendorPaid=0, vendorDue=0;
-  activeQuotes.forEach(q=>{
-    totalDue       += q.total||0;
-    totalCollected += getClientPaidTotal(q.id);
-    const v = getProjVendorTotals(q);
-    vendorPaid += v.paid;
-    vendorDue  += v.due;
+function renderFrCashFlow(range){
+  const el = document.getElementById('fr-cashflow');
+  if (!el) return;
+  // Cash IN: invoices marked paid in period (we approximate paid-date with invoice date)
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  let inInvoices = 0, inPartial = 0;
+  invHistory.filter(r => frInRange(r.date, range)).forEach(r => {
+    if (r.payStatus === 'مدفوع') inInvoices += parseFloat(r.total)||0;
+    else if (r.payStatus === 'مدفوع جزئياً') inPartial += parseFloat(r.paidAmount)||0;
   });
-  const setIf = (id, val) => { const el=document.getElementById(id); if (el) el.textContent = val; };
-  setIf('pfd-due', totalDue.toLocaleString('en'));
-  setIf('pfd-collected', totalCollected.toLocaleString('en'));
-  setIf('pfd-vendor-paid', vendorPaid.toLocaleString('en'));
-  setIf('pfd-vendor-due', vendorDue.toLocaleString('en'));
+  // Visits with paidAmount in period (one-off cash receipts not via invoice)
+  let inVisits = 0;
+  visits.forEach(v => {
+    if (!frInRange(v.date, range)) return;
+    if (v.payStatus === 'مدفوع' || v.payStatus === 'مدفوع جزئياً'){
+      inVisits += parseFloat(v.paidAmount)||0;
+    }
+  });
+  const cashIn = inInvoices + inPartial + inVisits;
 
-  const listEl = document.getElementById('proj-finance-detailed-list');
-  if (!listEl) return;
-  if (!activeQuotes.length) {
-    listEl.innerHTML = '<div class="empty"><div class="icon">🏗</div><p>لا توجد مشاريع نشطة</p></div>';
+  // Cash OUT: general expenses paid in period (assumed paid-on-date)
+  const expsInPeriod = expenses.filter(e => frInRange(e.date, range));
+  let outGeneral = 0;
+  expsInPeriod.forEach(e => outGeneral += parseFloat(e.amount)||0);
+  // Project items paid (isExpense + paid + quote in period)
+  let outProjItems = 0;
+  quotes.filter(q => frInRange(q.date, range)).forEach(q => {
+    ['labor','plant','material','other'].forEach(sec => {
+      (q[sec]||[]).forEach(it => {
+        if (it.isExpense && it.paid){
+          outProjItems += (parseFloat(it.qty)||0)*(parseFloat(it.price)||0);
+        }
+      });
+    });
+  });
+  // Manual project expenses
+  let projExp = {};
+  try { projExp = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}'); } catch {}
+  let outManualProj = 0;
+  Object.values(projExp).forEach(arr => {
+    (arr||[]).forEach(e => {
+      if (frInRange(e.date, range)) outManualProj += parseFloat(e.amount)||0;
+    });
+  });
+  const cashOut = outGeneral + outProjItems + outManualProj;
+  const net = cashIn - cashOut;
+
+  let html = '';
+  html += '<div style="background:#E8F5E9;padding:8px 14px;font-weight:700;color:#1B4332;font-size:12px">⬇ المقبوضات (Cash IN)</div>';
+  html += frRow('من فواتير مدفوعة كاملة', fmtQAR(inInvoices), {indent:true});
+  html += frRow('من دفعات جزئية على فواتير', fmtQAR(inPartial), {indent:true});
+  html += frRow('من زيارات (مباشر بدون فاتورة)', fmtQAR(inVisits), {indent:true});
+  html += frRow('إجمالي المقبوضات', fmtQAR(cashIn), {bold:true, topBorder:true, bg:'#D8F3DC', color:'#1B4332'});
+
+  html += '<div style="background:#FADBD8;padding:8px 14px;font-weight:700;color:#7B0F0F;font-size:12px;margin-top:8px">⬆ المدفوعات (Cash OUT)</div>';
+  html += frRow('مصاريف عامة', fmtQAR(outGeneral), {indent:true});
+  html += frRow('بنود مشاريع مدفوعة', fmtQAR(outProjItems), {indent:true});
+  html += frRow('مصاريف مشاريع يدوية', fmtQAR(outManualProj), {indent:true});
+  html += frRow('إجمالي المدفوعات', fmtQAR(cashOut), {bold:true, topBorder:true, bg:'#FADBD8', color:'#7B0F0F'});
+
+  const netColor = net >= 0 ? '#1B4332' : '#7B0F0F';
+  const netBg    = net >= 0 ? '#D8F3DC' : '#FADBD8';
+  html += frRow('صافي التدفق النقدي', fmtQAR(net), {bold:true, bg:netBg, color:netColor, topBorder:true});
+
+  el.innerHTML = html;
+}
+
+function renderFrAging(){
+  const el = document.getElementById('fr-aging');
+  const totEl = document.getElementById('fr-aging-total');
+  if (!el) return;
+  // Collect unpaid invoices
+  let invHistory = [];
+  try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const today = new Date();
+  function bucket(daysOverdue){
+    if (daysOverdue <= 0) return 'current';
+    if (daysOverdue <= 30) return '1-30';
+    if (daysOverdue <= 60) return '31-60';
+    if (daysOverdue <= 90) return '61-90';
+    return '90+';
+  }
+  const buckets = {current:0,'1-30':0,'31-60':0,'61-90':0,'90+':0};
+  const byClient = {};
+  function addUnpaid(client, due, total, paid){
+    const remaining = (parseFloat(total)||0) - (parseFloat(paid)||0);
+    if (remaining <= 0.001) return;
+    const dueDate = due ? new Date(due) : null;
+    const daysOverdue = dueDate ? Math.floor((today - dueDate) / 86400000) : 0;
+    const b = bucket(daysOverdue);
+    buckets[b] += remaining;
+    if (!byClient[client]) byClient[client] = {current:0,'1-30':0,'31-60':0,'61-90':0,'90+':0,total:0};
+    byClient[client][b] += remaining;
+    byClient[client].total += remaining;
+  }
+
+  invHistory.forEach(r => {
+    if (r.payStatus === 'مدفوع') return;
+    const total = parseFloat(r.total)||0;
+    const paid = r.payStatus === 'مدفوع جزئياً' ? (parseFloat(r.paidAmount)||0) : 0;
+    addUnpaid(r.client||'—', r.due || r.date, total, paid);
+  });
+  visits.forEach(v => {
+    if (v.payStatus === 'مدفوع') return;
+    // For visits, the "amount" is fee + extra. We don't always have a fee on the visit.
+    // Use extraAmount as a fallback.
+    const total = parseFloat(v.extraAmount)||0;
+    if (total <= 0) return; // skip visits with no billable amount
+    const paid = parseFloat(v.paidAmount)||0;
+    addUnpaid(v.client||'—', v.dueDate || v.date, total, paid);
+  });
+
+  const grand = buckets.current + buckets['1-30'] + buckets['31-60'] + buckets['61-90'] + buckets['90+'];
+  if (totEl) totEl.textContent = fmtQAR(grand);
+
+  if (grand <= 0){
+    el.innerHTML = '<div class="empty" style="padding:20px"><div class="icon">✅</div><p>لا مستحقات غير مدفوعة</p></div>';
     return;
   }
-  listEl.innerHTML = activeQuotes.map((q,i)=>{
-    const collected = getClientPaidTotal(q.id);
-    const total     = q.total||0;
-    const remaining = Math.max(0, total - collected);
-    const collPct   = total > 0 ? Math.round((collected/total)*100) : 0;
-    const v         = getProjVendorTotals(q);
-    const vendPct   = v.total > 0 ? Math.round((v.paid/v.total)*100) : 0;
-    const profit    = total - v.total;
-    const stcol     = quoteStatusStyle(q.status);
-    return `
-    <div style="padding:12px 14px;border-bottom:1px solid #f0f0f0;background:${i%2===0?'#fff':'var(--gray)'}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;color:var(--gd)">${escapeHtml(q.client||'')}</div>
-          <div style="font-size:10px;color:var(--muted)">${escapeHtml(q.qNum||'')} · ${total.toLocaleString('en')} QAR · <span style="color:${stcol.color};font-weight:700">${stcol.icon} ${escapeHtml(q.status||'')}</span></div>
-        </div>
-        <button onclick="openProjFinanceModal(${q.id})" style="background:var(--gd);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer">📊 تفاصيل</button>
-      </div>
-      <div style="margin-bottom:6px">
-        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
-          <span style="color:var(--muted);font-weight:700">💰 من العميل</span>
-          <span style="color:${collPct===100?'#2D6A4F':collPct>0?'#D4AC0D':'#C0392B'};font-weight:700">${collected.toLocaleString('en')} / ${total.toLocaleString('en')} (${collPct}%)</span>
-        </div>
-        <div style="height:7px;background:#eee;border-radius:4px;overflow:hidden">
-          <div style="width:${collPct}%;height:100%;background:linear-gradient(90deg,#52B788,#2D6A4F)"></div>
-        </div>
-      </div>
-      <div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
-          <span style="color:var(--muted);font-weight:700">🪨 للموردين/العمال</span>
-          <span style="color:${vendPct===100?'#2D6A4F':'var(--or)'};font-weight:700">${v.paid.toLocaleString('en')} / ${v.total.toLocaleString('en')} (${vendPct}%)</span>
-        </div>
-        <div style="height:7px;background:#eee;border-radius:4px;overflow:hidden">
-          <div style="width:${vendPct}%;height:100%;background:linear-gradient(90deg,#F39C12,#C0392B)"></div>
-        </div>
-      </div>
-      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;font-size:11px">
-        <span style="color:var(--muted)">المتبقي للعميل: <b style="color:${remaining>0?'var(--or)':'var(--gm)'}">${remaining.toLocaleString('en')} QAR</b></span>
-        <span style="color:var(--muted)">صافي الربح: <b style="color:${profit>=0?'var(--gm)':'var(--red)'}">${profit.toLocaleString('en')} QAR</b></span>
-      </div>
+  let html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#eee">';
+  const cols = [
+    ['جاري', 'current', '#2D6A4F', '#D8F3DC'],
+    ['1-30 يوم', '1-30', '#7c6710', '#FFF9E6'],
+    ['31-60 يوم', '31-60', '#D4AC0D', '#FFF3CD'],
+    ['61-90 يوم', '61-90', '#E07B39', '#FFE5CC'],
+    ['+90 يوم', '90+', '#7B0F0F', '#FADBD8'],
+  ];
+  cols.forEach(([lab, key, color, bg]) => {
+    html += `<div style="background:${bg};padding:10px;text-align:center">
+      <div style="font-size:9px;color:${color};font-weight:700">${lab}</div>
+      <div style="font-size:13px;font-weight:900;color:${color};margin-top:3px">${fmtQAR(buckets[key])}</div>
     </div>`;
-  }).join('');
+  });
+  html += '</div>';
+
+  // Per-client table
+  html += '<div style="padding:10px 0">';
+  html += '<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:6px;padding:6px 14px;background:#f7f7f7;font-size:10px;font-weight:700;color:#333">';
+  html += '<div>العميل</div><div style="text-align:center">إجمالي مستحق</div><div style="text-align:left">أكبر فترة تأخير</div>';
+  html += '</div>';
+  Object.entries(byClient).sort((a,b)=>b[1].total-a[1].total).forEach(([client, b], i) => {
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    let worst = 'جاري';
+    let worstColor = '#2D6A4F';
+    if (b['90+']>0){ worst = '+90 يوم'; worstColor = '#7B0F0F'; }
+    else if (b['61-90']>0){ worst = '61-90 يوم'; worstColor = '#E07B39'; }
+    else if (b['31-60']>0){ worst = '31-60 يوم'; worstColor = '#D4AC0D'; }
+    else if (b['1-30']>0){ worst = '1-30 يوم'; worstColor = '#7c6710'; }
+    html += `<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:6px;padding:8px 14px;background:${bg};font-size:12px;border-bottom:1px solid #f0f0f0">
+      <div style="font-weight:700">${escapeHtml(client)}</div>
+      <div style="text-align:center;font-weight:900;color:var(--red)">${fmtQAR(b.total)}</div>
+      <div style="text-align:left;font-size:10px;color:${worstColor};font-weight:700">${worst}</div>
+    </div>`;
+  });
+  html += '</div>';
+
+  el.innerHTML = html;
 }
 
 // ── Render all ──
@@ -4464,11 +4022,13 @@ let _pwaInstallEvent = null;
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').then((reg) => {
+      // Check for updates periodically
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
         if (!nw) return;
         nw.addEventListener('statechange', () => {
           if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version cached — show a subtle toast
             showToast('🔄 تحديث جديد جاهز — أعد فتح التطبيق لتفعيله');
           }
         });
@@ -4477,6 +4037,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Install prompt (Android/Chromium). iOS Safari users use "Add to Home Screen" manually.
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   _pwaInstallEvent = e;
@@ -4493,6 +4054,7 @@ window.addEventListener('appinstalled', () => {
 
 function pwaInstall() {
   if (!_pwaInstallEvent) {
+    // Fallback for iOS Safari: instruct user
     showToast('اضغط مشاركة ⇪ ثم "أضف إلى الشاشة الرئيسية"');
     return;
   }
@@ -4504,13 +4066,24 @@ function pwaInstall() {
   });
 }
 
+// Offline / online indicator
 function updateOnlineStatus() {
   const banner = document.getElementById('offline-banner');
   if (!banner) return;
-  banner.style.display = navigator.onLine ? 'none' : 'block';
+  if (navigator.onLine) {
+    banner.style.display = 'none';
+  } else {
+    banner.style.display = 'block';
+  }
 }
-window.addEventListener('online', () => { updateOnlineStatus(); showToast('🌐 عاد الإنترنت — يتم رفع البيانات...'); });
-window.addEventListener('offline', () => { updateOnlineStatus(); showToast('📴 لا يوجد إنترنت — البيانات تُحفظ محلياً'); });
+window.addEventListener('online', () => {
+  updateOnlineStatus();
+  showToast('🌐 عاد الإنترنت — يتم رفع البيانات...');
+});
+window.addEventListener('offline', () => {
+  updateOnlineStatus();
+  showToast('📴 لا يوجد إنترنت — البيانات تُحفظ محلياً');
+});
 updateOnlineStatus();
 
 // ── Init ──
@@ -4523,19 +4096,6 @@ cleanupOldTrash();
 updateTrashBadge();
 document.getElementById('f-date').value = TODAY;
 </script>
-
-<!-- Quote Paid Panel Modal -->
-<div class="modal" id="quote-paid-panel">
-  <div class="modal-box">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="quote-paid-panel-title">💰 دفع البنود</div>
-    <div id="quote-paid-panel-body" style="max-height:60vh;overflow-y:auto"></div>
-    <div class="modal-footer" style="margin-top:12px">
-      <button class="btn btn-primary btn-full" onclick="document.getElementById('quote-paid-panel').classList.remove('open')">إغلاق</button>
-    </div>
-  </div>
-</div>
-
 <!-- Expense Modal -->
 <div class="modal" id="expense-modal">
   <div class="modal-box">
@@ -4627,123 +4187,6 @@ document.getElementById('f-date').value = TODAY;
   </div>
 </div>
 
-<!-- Project Finance Modal (comprehensive view per project) -->
-<div class="modal" id="proj-finance-modal">
-  <div class="modal-box" style="max-width:640px;max-height:94dvh">
-    <div class="modal-handle"></div>
-    <div class="modal-title" style="font-size:15px">💼 مالية المشروع — <span id="pfm-title"></span></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <div style="background:var(--bluel);border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:9px;color:var(--muted);font-weight:700">قيمة العقد</div>
-        <div style="font-size:15px;font-weight:900;color:var(--blue)" id="pfm-contract">0 QAR</div>
-      </div>
-      <div style="background:var(--gp);border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:9px;color:var(--muted);font-weight:700">صافي الربح المتوقع</div>
-        <div style="font-size:15px;font-weight:900;color:var(--gm)" id="pfm-profit">0 QAR</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:10px">
-      <button class="pfm-tab-btn active" data-pfm="payments" onclick="switchPfmTab('payments')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid var(--gd);margin-bottom:-2px;font-size:12px;font-weight:700;color:var(--gd);cursor:pointer">💰 دفعات العميل</button>
-      <button class="pfm-tab-btn" data-pfm="expenses" onclick="switchPfmTab('expenses')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer">🪨 مواد/أشجار</button>
-      <button class="pfm-tab-btn" data-pfm="labor" onclick="switchPfmTab('labor')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer">👷 العمال</button>
-      <button class="pfm-tab-btn" data-pfm="other" onclick="switchPfmTab('other')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer">📋 إضافي</button>
-    </div>
-    <div id="pfm-content" style="max-height:54vh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
-    <div class="modal-footer" style="margin-top:12px">
-      <button class="btn btn-secondary" style="width:100%" onclick="document.getElementById('proj-finance-modal').classList.remove('open')">إغلاق</button>
-    </div>
-  </div>
-</div>
-
-<!-- Client Payment Add/Edit Modal -->
-<div class="modal" id="client-pay-modal" style="z-index:1100">
-  <div class="modal-box" style="max-width:480px">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="cp-modal-title">💰 دفعة من العميل</div>
-    <div class="grid2">
-      <div class="field"><label>التاريخ *</label><input type="date" id="cp-date"></div>
-      <div class="field"><label>المبلغ (QAR) *</label><input type="number" inputmode="decimal" id="cp-amount" placeholder="0" min="0" step="0.01"></div>
-    </div>
-    <div class="field">
-      <label>طريقة الدفع *</label>
-      <select id="cp-method" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
-        <option value="كاش">💵 كاش</option>
-        <option value="تحويل">🏦 تحويل بنكي</option>
-        <option value="شيك">📜 شيك</option>
-        <option value="بطاقة">💳 بطاقة</option>
-        <option value="أخرى">📋 أخرى</option>
-      </select>
-    </div>
-    <div class="field"><label>رقم المرجع / رقم الشيك</label><input type="text" id="cp-ref" placeholder="مثال: TRX-12345 أو رقم الشيك"></div>
-    <div class="field"><label>ملاحظة</label><input type="text" id="cp-note" placeholder="ملاحظة اختيارية..."></div>
-    <div class="modal-footer" style="gap:8px;margin-top:8px">
-      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('client-pay-modal').classList.remove('open')">إلغاء</button>
-      <button class="btn btn-primary" style="flex:1" onclick="saveClientPayment()">💾 حفظ</button>
-    </div>
-  </div>
-</div>
-
-<!-- Expense Pay Status Modal (paid/partial/unpaid) -->
-<div class="modal" id="paystatus-modal" style="z-index:1100">
-  <div class="modal-box" style="max-width:420px">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="ps-modal-title">🪙 حالة الدفع</div>
-    <div style="background:var(--gray);border-radius:8px;padding:10px;margin-bottom:12px;text-align:center">
-      <div style="font-size:11px;color:var(--muted)">إجمالي البند</div>
-      <div style="font-size:18px;font-weight:900;color:var(--gd)" id="ps-total">0 QAR</div>
-    </div>
-    <div class="field">
-      <label>الحالة *</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-        <button type="button" class="ps-status-btn" data-status="paid" onclick="setPsStatus('paid')" style="padding:10px 4px;border:2px solid var(--border);border-radius:8px;background:#fff;font-size:12px;font-weight:700;cursor:pointer">✅ مدفوع</button>
-        <button type="button" class="ps-status-btn" data-status="partial" onclick="setPsStatus('partial')" style="padding:10px 4px;border:2px solid var(--border);border-radius:8px;background:#fff;font-size:12px;font-weight:700;cursor:pointer">⏳ جزئي</button>
-        <button type="button" class="ps-status-btn" data-status="unpaid" onclick="setPsStatus('unpaid')" style="padding:10px 4px;border:2px solid var(--border);border-radius:8px;background:#fff;font-size:12px;font-weight:700;cursor:pointer">❌ غير مدفوع</button>
-      </div>
-    </div>
-    <div class="field" id="ps-paid-amount-wrap" style="display:none">
-      <label>المبلغ المدفوع (QAR)</label>
-      <input type="number" inputmode="decimal" id="ps-paid-amount" placeholder="0" min="0" step="0.01">
-    </div>
-    <div class="modal-footer" style="gap:8px;margin-top:8px">
-      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('paystatus-modal').classList.remove('open')">إلغاء</button>
-      <button class="btn btn-primary" style="flex:1" onclick="saveItemPayStatus()">💾 حفظ</button>
-    </div>
-  </div>
-</div>
-
-<!-- Quick Visit Add Modal (used from bulk invoice list) -->
-<div class="modal" id="quick-visit-modal" style="z-index:1100">
-  <div class="modal-box" style="max-width:480px">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="qv-title">⚡ إضافة زيارة سريعة</div>
-    <div class="grid2">
-      <div class="field"><label>التاريخ *</label><input type="date" id="qv-date"></div>
-      <div class="field">
-        <label>نوع الزيارة *</label>
-        <select id="qv-type" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;-webkit-appearance:none">
-          <option value="">اختر...</option>
-          <option>تنسيق</option>
-          <option>تقليم</option>
-          <option>سماد</option>
-          <option>رش</option>
-          <option>زراعة</option>
-          <option>صيانة</option>
-          <option>أخرى</option>
-        </select>
-      </div>
-    </div>
-    <div class="field"><label>وصف الأعمال</label><textarea id="qv-work" placeholder="مثال: تقليم الأشجار وقص العشب" style="min-height:50px"></textarea></div>
-    <div class="grid2">
-      <div class="field"><label>عمل إضافي (اختياري)</label><input type="text" id="qv-extra" placeholder="مثال: زراعة شجرة"></div>
-      <div class="field"><label>مبلغ الإضافي (QAR)</label><input type="number" inputmode="decimal" id="qv-extra-amount" min="0"></div>
-    </div>
-    <div class="modal-footer" style="gap:8px;margin-top:8px">
-      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('quick-visit-modal').classList.remove('open')">إلغاء</button>
-      <button class="btn btn-primary" style="flex:1" onclick="saveQuickVisit()">💾 حفظ</button>
-    </div>
-  </div>
-</div>
-
 <!-- Confirm Modal (replaces native confirm()) -->
 <div class="modal" id="confirm-modal" style="z-index:1000">
   <div class="modal-box" style="max-width:420px">
@@ -4771,4 +4214,5 @@ document.getElementById('f-date').value = TODAY;
   </div>
 </div>
 
-</body></html>
+</body>
+</html>
