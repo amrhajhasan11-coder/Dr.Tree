@@ -1333,10 +1333,7 @@ function autoFillClientData(clientName) {
   if (client) {
     const lines = [];
     if (client.phone) lines.push('📞 ' + client.phone);
-    if (client.monthly) lines.push('💰 الباقة: ' + client.monthly.toLocaleString('en') + ' QAR / شهر');
-    if (client.visitsPerMonth) lines.push('📅 ' + client.visitsPerMonth + ' زيارات/شهر');
-    if (client.notes) lines.push('📝 ' + client.notes);
-    if (lastVisit) lines.push('🕐 آخر زيارة: ' + fmtDate(lastVisit.date) + (lastVisit.type ? ' — ' + lastVisit.type : ''));
+    if (client.area) lines.push('📍 ' + client.area);
     if (lines.length) {
       document.getElementById('client-info-content').innerHTML = lines.join('&nbsp;&nbsp;|&nbsp;&nbsp;');
       document.getElementById('client-info-banner').style.display = 'block';
