@@ -248,9 +248,9 @@ textarea { min-height:72px; resize:vertical; }
         <div class="kpi-label">إضافية مكتملة</div>
         <div class="kpi-value" id="kpi-done" style="color:var(--gold)">0</div>
       </div>
-      <div class="kpi" style="background:var(--redl);border-color:var(--red)">
-        <div class="kpi-label">غير مدفوع</div>
-        <div class="kpi-value" id="kpi-unpaid" style="color:var(--red)">0</div>
+      <div class="kpi" style="background:var(--bluel);border-color:var(--blue)">
+        <div class="kpi-label">زيارات هذا الشهر</div>
+        <div class="kpi-value" id="kpi-month" style="color:var(--blue)">0</div>
       </div>
     </div>
 
@@ -1032,35 +1032,7 @@ textarea { min-height:72px; resize:vertical; }
       </div>
     </div>
 
-    <div class="section-pay" style="display:none">
-      <h3>💰 الدفع</h3>
-      <div class="grid2">
-        <div class="field">
-          <label>حالة الدفع</label>
-          <select id="f-pay-status" style="background:#fff" onchange="togglePaidAmount()">
-            <option>غير مدفوع</option><option>مدفوع جزئياً</option><option>مدفوع</option>
-          </select>
-        </div>
-        <div class="field"><label>تاريخ الاستحقاق</label><input type="date" id="f-due-date" style="background:#fff"></div>
-      </div>
-      <div class="field" id="paid-amount-field" style="display:none">
-        <label>المبلغ المدفوع (QAR) — اختياري</label>
-        <input type="number" id="f-paid-amount" placeholder="0" min="0" style="background:#fff">
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">يستخدم فقط إذا لم تسجّل دفعات تفصيلية بالأسفل</div>
-      </div>
-      <div id="visit-payments-block" style="display:none;background:#fff;padding:12px;border-radius:10px;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:700;color:var(--gm);margin-bottom:8px">📋 سجل الدفعات (اختياري)</div>
-        <div id="visit-payments-list"></div>
-        <div style="display:flex;gap:6px;margin-top:8px;align-items:stretch">
-          <input type="date" id="visit-pay-date" style="flex:1.4;background:#F0F4F1;font-size:12px;padding:8px">
-          <input type="number" id="visit-pay-amount" placeholder="المبلغ" style="flex:1;background:#F0F4F1;font-size:12px;padding:8px" min="0" step="0.01">
-          <select id="visit-pay-method" style="flex:0.9;background:#F0F4F1;font-size:12px;padding:8px">
-            <option>نقدي</option><option>تحويل</option><option>بطاقة</option><option>شيك</option>
-          </select>
-          <button class="btn btn-sm" type="button" style="background:var(--gm);color:#fff;padding:0 12px" onclick="addVisitPayment()">➕</button>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Task checklist -->
     <div style="background:#F0F4F1;border-radius:10px;padding:12px;margin-bottom:12px">
@@ -1440,11 +1412,12 @@ function switchTab(tab) {
 
 // ── KPIs ──
 function renderKPIs() {
-  const overdue = visits.filter(v => v.payStatus !== 'مدفوع' && v.dueDate && daysDiff(v.dueDate) > 0);
+  const overdue = visits.filter(v => v.dueDate && daysDiff(v.dueDate) > 0);
+  const thisMonth = TODAY.substring(0,7);
   document.getElementById('kpi-total').textContent = visits.length;
   document.getElementById('kpi-extras').textContent = visits.reduce((s,v)=>s+(v.extraAmount||0),0).toLocaleString('en');
   document.getElementById('kpi-done').textContent = visits.filter(v=>v.extraStatus==='مكتمل').length;
-  document.getElementById('kpi-unpaid').textContent = visits.filter(v=>v.payStatus==='غير مدفوع').length;
+  document.getElementById('kpi-month').textContent = visits.filter(v=>v.date&&v.date.startsWith(thisMonth)).length;
 
   const hasOverdue = overdue.length > 0;
   document.getElementById('badge-overdue').style.display = hasOverdue ? 'inline-block' : 'none';
@@ -1457,16 +1430,15 @@ function renderKPIs() {
 
 // ── Visit row HTML ──
 function visitRowHTML(v, i, showEdit=true) {
-  const overdue = v.payStatus !== 'مدفوع' && v.dueDate && daysDiff(v.dueDate) > 0;
+  const overdue = v.dueDate && daysDiff(v.dueDate) > 0;
   const cls = overdue ? 'overdue' : i%2===0 ? 'even' : 'odd';
   return `
   <div class="visit-row ${cls}">
     <div class="visit-top">
       <div><span class="visit-name">${v.client}</span><span class="visit-area">${v.area||''}</span></div>
       <div class="visit-actions">
-        <button class="btn-icon" style="color:#E07B39" onclick="exportVisitPDF(${v.id})" title="تجهيز PDF للإرسال">📄</button>
-        <button class="btn-icon" style="color:var(--gm)" onclick="printVisitReport(${v.id})">📋</button>
-        <button class="btn-icon" style="color:#25D366" onclick="shareReportWhatsApp(${v.id})">💬</button>
+        <button class="btn-icon" style="color:#E07B39" onclick="printVisitReport(${v.id})" title="طباعة">📋</button>
+        <button class="btn-icon" style="color:#25D366" onclick="shareReportPDF(${v.id})" title="إرسال PDF واتساب">💬</button>
         ${showEdit ? `<button class="btn-icon" onclick="openEdit(${v.id})">✏️</button>` : ''}
         <button class="btn-icon" style="color:#ddd" onclick="delVisit(${v.id})">🗑</button>
       </div>
@@ -1594,11 +1566,7 @@ function openAdd() {
   document.getElementById('f-extra').value = '';
   document.getElementById('f-extra-amount').value = '';
   document.getElementById('f-extra-status').value = '';
-  document.getElementById('f-pay-status').value = 'غير مدفوع';
-  document.getElementById('f-due-date').value = '';
-  document.getElementById('f-paid-amount').value = '';
-  document.getElementById('paid-amount-field').style.display = 'none';
-  document.getElementById('visit-payments-block').style.display = 'none';
+
   _visitPaymentsBuf = [];
   renderVisitPayments();
   document.getElementById('f-next-date').value = '';
@@ -1629,8 +1597,7 @@ function openEdit(id) {
   document.getElementById('f-extra').value = v.extra||'';
   document.getElementById('f-extra-amount').value = v.extraAmount||'';
   document.getElementById('f-extra-status').value = v.extraStatus||'';
-  document.getElementById('f-pay-status').value = v.payStatus||'غير مدفوع';
-  document.getElementById('f-due-date').value = v.dueDate||'';
+
   document.getElementById('f-paid-amount').value = v.paidAmount||'';
   document.getElementById('f-next-date').value = v.nextDate||'';
   document.getElementById('f-next-note').value = v.nextNote||'';
@@ -1661,7 +1628,7 @@ document.getElementById('modal').addEventListener('click', e => { if (e.target =
 let _visitPaymentsBuf = [];
 
 function togglePaidAmount() {
-  const status = document.getElementById('f-pay-status').value;
+  const status = 
   document.getElementById('paid-amount-field').style.display = status === 'مدفوع جزئياً' ? 'block' : 'none';
   document.getElementById('visit-payments-block').style.display = status === 'مدفوع جزئياً' ? 'block' : 'none';
   if (status === 'مدفوع جزئياً' && !document.getElementById('visit-pay-date').value) {
@@ -1726,13 +1693,6 @@ function saveVisit() {
     extra: document.getElementById('f-extra').value.trim(),
     extraAmount: parseFloat(document.getElementById('f-extra-amount').value)||0,
     extraStatus: document.getElementById('f-extra-status').value,
-    payStatus: document.getElementById('f-pay-status').value,
-    dueDate: document.getElementById('f-due-date').value,
-    paidAmount: (function(){
-      const buf = _visitPaymentsBuf.reduce((s,p) => s + (parseFloat(p.amount)||0), 0);
-      return buf > 0 ? buf : (parseFloat(document.getElementById('f-paid-amount').value)||0);
-    })(),
-    payments: _visitPaymentsBuf.slice(),
     nextDate: document.getElementById('f-next-date').value,
     nextNote: document.getElementById('f-next-note').value.trim(),
     tasks,
