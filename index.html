@@ -303,6 +303,10 @@ textarea { min-height:72px; resize:vertical; }
           </div>
           <div class="field"><label>تاريخ الكوتيشن</label><input type="date" id="q-date" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;box-sizing:border-box"></div>
         </div>
+        <div class="grid2">
+          <div class="field"><label>رقم الهاتف</label><input type="tel" id="q-phone" placeholder="مثال: 55XXXXXX" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:ltr;text-align:right;background:#fafafa;outline:none;box-sizing:border-box"></div>
+          <div class="field"><label>الموقع / المنطقة</label><input type="text" id="q-area" placeholder="مثال: الرفاع" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;outline:none;box-sizing:border-box"></div>
+        </div>
         <div class="field"><label>وصف المشروع</label><textarea id="q-desc" placeholder="وصف الأعمال المطلوبة..." style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;direction:rtl;background:#fafafa;min-height:72px;resize:vertical;outline:none;box-sizing:border-box"></textarea></div>
 
         <!-- Labor Section -->
@@ -5657,8 +5661,15 @@ function onQClientChange(val) {
   if (val === '__new__') {
     newInput.style.display = 'block';
     newInput.focus();
+    document.getElementById('q-phone').value = '';
+    document.getElementById('q-area').value = '';
   } else {
     newInput.style.display = 'none';
+    const client = (clients_data || []).find(c => c.name === val);
+    if (client) {
+      if (client.phone) document.getElementById('q-phone').value = client.phone;
+      if (client.area)  document.getElementById('q-area').value  = client.area;
+    }
   }
 }
 
@@ -5678,6 +5689,8 @@ function newQuote() {
   document.getElementById('q-new-client').value='';
   document.getElementById('q-date').value=TODAY;
   document.getElementById('q-desc').value='';
+  document.getElementById('q-phone').value='';
+  document.getElementById('q-area').value='';
   renderLaborRows(); renderPlantRows(); renderMaterialRows(); renderOtherRows(); updateQuoteSummary();
   window._editQuoteId = null;
   document.getElementById('quote-form-card').style.display='block';
@@ -5839,6 +5852,8 @@ function printQuote(){
   }
   const date=document.getElementById('q-date').value;
   const desc=document.getElementById('q-desc').value;
+  const qPhone=document.getElementById('q-phone').value.trim();
+  const qArea=document.getElementById('q-area').value.trim();
   const l=calcSection(laborItems),p=calcSection(plantItems),m=calcSection(materialItems),o=calcSection(otherItems),total=l+p+m+o;
 
   // Determine qNum: reuse existing if editing, generate new if creating
@@ -5901,6 +5916,8 @@ function printQuote(){
       <div style="flex:1.5;padding:16px 22px;border-left:1px solid #e8ede8">
         <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px">مقدم إلى</div>
         <div style="font-size:17px;font-weight:700;color:#1B4332">${escapeHtml(client||'—')}</div>
+        ${qPhone ? `<div style="font-size:12px;color:#555;margin-top:4px">📞 ${escapeHtml(qPhone)}</div>` : ''}
+        ${qArea  ? `<div style="font-size:12px;color:#555;margin-top:2px">📍 ${escapeHtml(qArea)}</div>`  : ''}
       </div>
       <div style="flex:1;padding:16px 22px;border-left:1px solid #e8ede8">
         <div style="font-size:9px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px">تاريخ العرض</div>
