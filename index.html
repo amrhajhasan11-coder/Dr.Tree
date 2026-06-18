@@ -12,6 +12,9 @@
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="apple-touch-icon" href="icon.svg">
 <title>🌳 Dr.Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root {
   --gd:#1B4332; --gm:#2D6A4F; --gl:#52B788; --gp:#D8F3DC;
@@ -22,72 +25,87 @@
 
   --purple:#7C3AED; --purplel:#F5F3FF;
   --teal:#0D9488; --teall:#F0FDFA;
-  --bg:#EEF2EE; --white:#fff; --gray:#F7F7F7;
-  --border:#E5E7EB; --muted:#6B7280;
+  --bg:#EEF3F1; --white:#fff; --gray:#F6F8F7;
+  --border:#E6EAE8; --muted:#64748B;
+  --ink:#0F1F18;
+  --radius:16px;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+  --shadow:0 4px 16px rgba(16,24,40,.07), 0 1px 3px rgba(16,24,40,.05);
+  --shadow-lg:0 12px 32px rgba(16,24,40,.10);
+  --font:'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html, body { overscroll-behavior-y:none; }
 body {
-  font-family:Arial,sans-serif; background:var(--bg); direction:rtl;
+  font-family:var(--font); color:var(--ink); background:linear-gradient(180deg,#F3F7F5 0%,#EBF1EE 100%); background-attachment:fixed; direction:rtl;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
   min-height:100vh;
   min-height:100dvh;
   -webkit-text-size-adjust:100%;
+  padding-right:74px; /* gutter for the fixed right side-nav */
+  padding-right:calc(74px + env(safe-area-inset-right));
 }
-input,select,textarea,button { font-family:Arial,sans-serif; font-size:16px; }
+input,select,textarea,button { font-family:var(--font); font-size:16px; }
 input, select, textarea {
   min-height:44px;
 }
 input[type="number"], input[type="tel"] { direction:ltr; text-align:right; }
 
 /* Layout */
-#app { max-width:640px; margin:0 auto; padding:14px 12px 90px; }
-.header { background:var(--gd); padding:14px 16px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 2px 10px rgba(0,0,0,.2); }
-.header-logo { color:#fff; font-weight:900; font-size:18px; }
+#app { max-width:640px; margin:0 auto; padding:14px 12px 24px; }
+.header { background:linear-gradient(135deg,#2D6A4F 0%,#1B4332 70%); padding:15px 18px; display:flex; flex-direction:row-reverse; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 4px 18px rgba(16,24,40,.18); }
+.header-logo { color:#fff; font-weight:900; font-size:19px; letter-spacing:-.3px; }
 .header-logo span { color:var(--gl); }
 .header-badges { display:flex; gap:8px; align-items:center; }
 .badge-saved { background:#2D6A4F; color:var(--gl); border-radius:20px; padding:3px 10px; font-size:10px; font-weight:600; }
 .badge-overdue { background:var(--red); color:#fff; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700; animation:pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 
-/* Bottom nav */
-.bottom-nav { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border); display:flex; z-index:100; padding-bottom:env(safe-area-inset-bottom); }
-.nav-item { flex:1; padding:12px 4px 10px; text-align:center; cursor:pointer; border-top:3px solid transparent; min-height:56px; }
-.nav-item.active { background:var(--gp); border-top-color:var(--gm); }
-.nav-item .nav-icon { font-size:20px; }
-.nav-item .nav-label { font-size:10px; font-weight:700; color:var(--muted); margin-top:2px; }
-.nav-item.active .nav-label { color:var(--gm); }
+/* Side nav (right) */
+.bottom-nav { position:fixed; top:0; right:0; bottom:0; width:74px; background:var(--gd); border-left:1px solid rgba(0,0,0,.25); display:flex; flex-direction:column; align-items:stretch; z-index:100; padding:8px 0; padding-bottom:calc(8px + env(safe-area-inset-bottom)); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.nav-item { flex:0 0 auto; padding:11px 4px; text-align:center; cursor:pointer; border-right:3px solid transparent; min-height:58px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+.nav-item.active { background:rgba(82,183,136,.16); border-right-color:var(--gl); }
+.nav-item .nav-icon { font-size:21px; }
+.nav-item .nav-label { font-size:9px; font-weight:700; color:#9fb4a6; margin-top:0; line-height:1.2; }
+.nav-item.active .nav-label { color:var(--gl); }
 
 /* Cards */
-.card { background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.07); margin-bottom:14px; }
-.card-header { padding:13px 16px; display:flex; align-items:center; gap:8px; }
-.card-header h2 { color:#fff; font-weight:700; font-size:15px; }
+.card { background:#fff; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); border:1px solid rgba(16,24,40,.04); margin-bottom:16px; transition:box-shadow .2s ease, transform .2s ease; }
+.card:hover { box-shadow:var(--shadow-lg); }
+.card-header { padding:14px 18px; display:flex; align-items:center; gap:8px; }
+.card-header h2 { color:#fff; font-weight:800; font-size:15px; letter-spacing:-.2px; }
 .card-header.between { justify-content:space-between; }
 
 /* KPIs */
 .kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-.kpi { border-radius:12px; padding:14px; border-right:4px solid; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.kpi { border-radius:14px; padding:16px; border-right:4px solid; box-shadow:var(--shadow); border:1px solid rgba(16,24,40,.04); transition:transform .15s ease, box-shadow .2s ease; }
+.kpi:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
 .kpi-label { font-size:10px; color:var(--muted); font-weight:700; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
-.kpi-value { font-size:22px; font-weight:900; }
+.kpi-value { font-size:24px; font-weight:900; letter-spacing:-.5px; }
 
 /* Forms */
 .field { margin-bottom:12px; }
 .field label { display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.5px; }
 input, select, textarea {
-  width:100%; padding:12px 12px; border:1.5px solid var(--border); border-radius:8px;
-  font-size:16px; direction:rtl; background:#fafafa; outline:none; box-sizing:border-box;
-  min-height:44px; -webkit-appearance:none; appearance:none; color:#111;
-  -webkit-appearance:none; appearance:none; color:#111;
+  width:100%; padding:12px 14px; border:1.5px solid var(--border); border-radius:10px;
+  font-size:16px; direction:rtl; background:#F8FAF9; outline:none; box-sizing:border-box;
+  min-height:44px; -webkit-appearance:none; appearance:none; color:var(--ink);
+  transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
-input:focus, select:focus, textarea:focus { border-color:var(--gl); background:#fff; }
+input:focus, select:focus, textarea:focus { border-color:var(--gm); background:#fff; box-shadow:0 0 0 3px rgba(82,183,136,.18); }
 input.error { border-color:var(--red); background:var(--redl); }
 textarea { min-height:72px; resize:vertical; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
 /* Buttons */
-.btn { border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; padding:13px 20px; display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; }
-.btn-primary { background:var(--gd); color:#fff; width:100%; justify-content:center; }
-.btn-gold { background:var(--gold); color:var(--gd); width:100%; justify-content:center; }
-.btn-secondary { background:transparent; color:var(--muted); border:1.5px solid var(--border); }
+.btn { border:none; border-radius:12px; font-size:15px; font-weight:800; cursor:pointer; padding:13px 20px; display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; transition:transform .12s ease, box-shadow .2s ease, filter .15s ease; }
+.btn:active { transform:translateY(1px) scale(.99); }
+.btn-primary { background:linear-gradient(135deg,#2D6A4F 0%,#1B4332 100%); color:#fff; width:100%; justify-content:center; box-shadow:0 6px 16px rgba(27,67,50,.25); }
+.btn-primary:hover { filter:brightness(1.06); }
+.btn-gold { background:linear-gradient(135deg,#E6BE2E 0%,#D4AC0D 100%); color:var(--gd); width:100%; justify-content:center; box-shadow:0 6px 16px rgba(212,172,13,.28); }
+.btn-gold:hover { filter:brightness(1.04); }
+.btn-secondary { background:#fff; color:var(--muted); border:1.5px solid var(--border); }
+.btn-secondary:hover { border-color:var(--gm); color:var(--gm); }
 .btn-sm { padding:6px 12px; font-size:12px; border-radius:20px; }
 .btn-full { width:100%; padding:14px; font-size:15px; border-radius:12px; margin-bottom:10px; }
 
@@ -455,6 +473,7 @@ textarea { min-height:72px; resize:vertical; }
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary btn-sm" onclick="openAdd()">➕ إضافة</button>
         <button class="btn btn-sm" style="background:var(--goldl);color:#8B6914;border:1px solid var(--gold)" onclick="exportCSV()">📥 Excel</button>
+        <button class="btn btn-sm" style="background:var(--redl);color:var(--red);border:1px solid var(--red)" onclick="clearAllVisits()">🧹 مسح الكل</button>
       </div>
     </div>
     <div class="card" id="log-list"></div>
@@ -509,6 +528,7 @@ textarea { min-height:72px; resize:vertical; }
             </select>
           </div>
         </div>
+        <div class="field"><label>خصم (QAR)</label><input type="number" id="inv-discount" value="" min="0" step="0.01" placeholder="0" oninput="updateInvSummary()"></div>
 
         <!-- Overdue invoices alert -->
         <div id="inv-overdue-box" style="display:none;background:var(--redl);border:1.5px solid var(--red);border-radius:10px;padding:12px;margin-bottom:14px">
@@ -538,13 +558,14 @@ textarea { min-height:72px; resize:vertical; }
             <div class="inv-summary-row" id="inv-sum-fee-row"><span id="inv-sum-fee-label">الباقة الشهرية</span><span id="inv-sum-fee">0 QAR</span></div>
             <div class="inv-summary-row orange" id="inv-sum-ext-row" style="display:none"><span>الأعمال الإضافية</span><span id="inv-sum-ext">0 QAR</span></div>
             <div class="inv-summary-row" id="inv-sum-overdue-row" style="display:none;color:var(--red)"><span>المتأخرات من أشهر سابقة</span><span id="inv-sum-overdue">0 QAR</span></div>
+            <div class="inv-summary-row" id="inv-sum-disc-row" style="display:none;color:var(--red)"><span>الخصم</span><span id="inv-sum-disc">0 QAR</span></div>
             <div class="inv-summary-total"><span>الإجمالي</span><span id="inv-sum-total">0 QAR</span></div>
           </div>
         </div>
       </div>
       <div style="padding:0 16px 16px" id="inv-buttons" style="display:none">
         <button class="btn btn-primary btn-full" onclick="doPrint()">🖨 طباعة / حفظ PDF</button>
-        <button class="btn btn-gold btn-full" onclick="doExportHTML()">📄 تصدير الفاتورة كملف</button>
+        <button class="btn btn-gold btn-full" onclick="downloadInvoicePDFAndSave()">⬇️ تنزيل PDF وحفظ بالسجل</button>
         <button class="btn btn-full" style="background:#25D366;color:#fff;border:none" onclick="shareInvoiceWhatsApp()">💬 مشاركة عبر واتساب</button>
       </div>
     </div>
@@ -1583,6 +1604,17 @@ function clearFilters() {
   renderLog();
 }
 
+function clearAllVisits() {
+  const n = visits.length;
+  if (!n) { showToast('لا توجد زيارات لمسحها'); return; }
+  if (!confirm(`سيتم مسح كامل سجل الزيارات (${n} زيارة) نهائياً.\n\nلن يتأثر العملاء أو الفواتير أو الكوتيشن. هل تريد المتابعة؟`)) return;
+  if (!confirm('تأكيد أخير — لا يمكن التراجع. حذف كل الزيارات؟')) return;
+  visits = [];
+  saveData();
+  renderRecent(); renderLog(); renderKPIs(); updateClientSelects();
+  showToast('🧹 تم مسح كل الزيارات');
+}
+
 function updateClientSelects() {
   const clients = getClients();
   // datalist
@@ -1671,11 +1703,11 @@ function openEdit(id) {
   document.getElementById('f-extra').value = v.extra||'';
   document.getElementById('f-extra-amount').value = v.extraAmount||'';
   document.getElementById('f-extra-status').value = v.extraStatus||'';
-  document.getElementById('f-paid-amount').value = v.paidAmount||'';
+  const _fpa = document.getElementById('f-paid-amount'); if (_fpa) _fpa.value = v.paidAmount||'';
   document.getElementById('f-next-date').value = v.nextDate||'';
   document.getElementById('f-next-note').value = v.nextNote||'';
-  document.getElementById('paid-amount-field').style.display = v.payStatus==='مدفوع جزئياً' ? 'block' : 'none';
-  document.getElementById('visit-payments-block').style.display = v.payStatus==='مدفوع جزئياً' ? 'block' : 'none';
+  const _paf = document.getElementById('paid-amount-field'); if (_paf) _paf.style.display = v.payStatus==='مدفوع جزئياً' ? 'block' : 'none';
+  const _vpb = document.getElementById('visit-payments-block'); if (_vpb) _vpb.style.display = v.payStatus==='مدفوع جزئياً' ? 'block' : 'none';
   _visitPaymentsBuf = Array.isArray(v.payments) ? v.payments.map(p => ({...p})) : [];
   renderVisitPayments();
   document.getElementById('f-client').classList.remove('error');
@@ -1701,7 +1733,8 @@ document.getElementById('modal').addEventListener('click', e => { if (e.target =
 let _visitPaymentsBuf = [];
 
 function togglePaidAmount() {
-  const status = document.getElementById('f-pay-status').value;
+  const _ps = document.getElementById('f-pay-status'); if (!_ps) return;
+  const status = _ps.value;
   document.getElementById('paid-amount-field').style.display = status === 'مدفوع جزئياً' ? 'block' : 'none';
   document.getElementById('visit-payments-block').style.display = status === 'مدفوع جزئياً' ? 'block' : 'none';
   if (status === 'مدفوع جزئياً' && !document.getElementById('visit-pay-date').value) {
@@ -1776,7 +1809,9 @@ function saveVisit() {
   };
 
   if (editId) {
-    visits = visits.map(v => v.id===editId ? data : v);
+    const _orig = visits.find(v => v.id===editId) || {};
+    const merged = { ..._orig, ...data }; // keep payStatus/paidAmount/payments/dueDate etc.
+    visits = visits.map(v => v.id===editId ? merged : v);
     showToast('✅ تم تعديل الزيارة!');
   } else {
     visits.unshift(data);
@@ -1886,7 +1921,8 @@ function onInvClientChange() {
     // Create short client code from first letters
     const arToEn = {'ا':'A','أ':'A','إ':'A','آ':'A','ب':'B','ت':'T','ث':'TH','ج':'J','ح':'H','خ':'KH','د':'D','ذ':'Z','ر':'R','ز':'Z','س':'S','ش':'SH','ص':'S','ض':'D','ط':'T','ظ':'Z','ع':'A','غ':'GH','ف':'F','ق':'Q','ك':'K','ل':'L','م':'M','ن':'N','ه':'H','و':'W','ي':'Y','ى':'Y','ة':'H','ء':'A'};
     const code = client.split(' ').map(w => arToEn[w[0]] || w[0].toUpperCase()).join('').substring(0,3).toUpperCase();
-    document.getElementById('inv-num').value = `${code}-INV-${nextNum}`;
+    document.getElementById('inv-num').value = generateInvoiceNumber(client, invType, document.getElementById('inv-month')?.value || '');
+    const _invDisc = document.getElementById('inv-discount'); if (_invDisc) _invDisc.value = '';
 
     // Auto-load monthly fee from client's saved package (500 / 300 / etc.)
     const cd = clients_data.find(c => c.name === client);
@@ -2229,7 +2265,11 @@ function generateBulkInvoices() {
     // Generate invoice number
     const code = name.split(' ').map(w => arToEn[w[0]] || w[0].toUpperCase()).join('').substring(0,3).toUpperCase();
     const count = invoiceRecords.filter(r => r.client === name).length + 1;
-    const invNum = `${code}-INV-${String(count).padStart(3,'0')}`;
+    const [by, bmo] = (month||'').split('-');
+    const bmmm = String(parseInt(bmo||'0',10)).padStart(3,'0');
+    let invNum = `${code}-${by}-${bmmm}`;
+    let _bn = 2;
+    while (invoiceRecords.some(r => r.invNum === invNum)) invNum = `${code}-${by}-${bmmm}-${_bn++}`;
     invoiceRecords.push({
       invNum, client: name, date: TODAY, month,
       type: 'monthly', fee: c.monthly, extras,
@@ -2463,14 +2503,16 @@ function renderInvoiceLog() {
     const curMonth = new Date().toISOString().substring(0,7);
     const isOverdue = r.payStatus !== 'مدفوع' && r.month && r.month < curMonth;
     return `<div style="padding:12px 16px;border-bottom:1px solid #F0F0F0;background:${bg};${isOverdue?'border-right:4px solid var(--red)':''}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-        <div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+        <div style="min-width:0">
           <div style="font-weight:700;font-size:14px">${r.invNum}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">${escapeHtml(r.client)}</div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center">
+        <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
           ${badge(r.payStatus,true)}
-          <button class="btn-icon" style="color:var(--gm)" onclick="openInvoicePaymentsModal('${r.invNum}')" title="إدارة الدفعات">💰</button>
+          <button class="btn-icon" style="color:var(--gm)" onclick="openInvoicePaymentsModal('${r.invNum}')" title="تحصيل / الدفعات">💰</button>
+          <button class="btn-icon" style="color:var(--blue)" onclick="exportInvoicePDF('${r.invNum}')" title="PDF جاهز للإرسال">📤</button>
+          <button class="btn-icon" onclick="openInvoiceEditModal('${r.invNum}')" title="تعديل الفاتورة">✏️</button>
           ${r.payStatus!=='مدفوع' ? `<button class="btn-icon" style="color:var(--gm)" onclick="markRecordPaid('${r.invNum}')" title="تعليم كمدفوعة">✓</button>` : ''}
           <button class="btn-icon" style="color:#ddd" onclick="deleteInvoiceRecord('${r.invNum}')" title="حذف">🗑</button>
         </div>
@@ -2487,6 +2529,147 @@ function renderInvoiceLog() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ── Build a printable invoice from a SAVED record (no new save) ──
+function buildInvoiceRecordHTML(r){
+  const GD='#1B4332',GM='#2D6A4F',GL='#52B788',GOLD='#D4AC0D',GP='#D8F3DC',OR='#E07B39';
+  const cl = (clients_data||[]).find(c => c.name === r.client) || {};
+  const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const [my,mm] = (r.month||'-').split('-');
+  const monthLabel = mm ? `${arMonths[parseInt(mm)-1]} ${my}` : (r.month||'');
+  const vis = (r.visitIds||[]).map(id => visits.find(v => v.id === id)).filter(Boolean);
+  const fee = parseFloat(r.fee)||0;
+  const extras = parseFloat(r.extras)||0;
+  const discount = Math.max(0, parseFloat(r.discount)||0);
+  const overdueInc = Math.max(0, parseFloat(r.overdueIncluded)||0);
+  const total = parseFloat(r.total) || Math.max(0, fee+extras-discount+overdueInc);
+  const collected = getPaidAmount(r,'total');
+  const remaining = Math.max(0, total - collected);
+  const status = r.payStatus || derivePayStatus(r,'total');
+  const statusColor = status==='مدفوع'?GM:(status==='مدفوع جزئياً'?GOLD:'#C0392B');
+  let rows='';
+  if (r.type==='monthly') {
+    rows = vis.map((v,i) => `<tr style="background:${i%2?'#f7f7f7':'#fff'}">
+      <td style="padding:9px 14px;border-bottom:1px solid #eee;text-align:center;color:${GM};font-weight:700">${i+1}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #eee;font-size:12px">${fmtDate(v.date)}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #eee;font-size:12px">${escapeHtml(v.type||'—')}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #eee;font-size:12px;color:#555">${escapeHtml(v.work||'—')}${v.extra?` · ⚙ ${escapeHtml(v.extra)}`:''}</td>
+      <td style="padding:9px 14px;border-bottom:1px solid #eee;font-size:12px;text-align:left;color:${OR}">${v.extraAmount?v.extraAmount.toLocaleString('en')+' QAR':'—'}</td>
+    </tr>`).join('');
+    rows += `<tr style="background:${GP}"><td colspan="4" style="padding:10px 14px;font-weight:700;color:${GD}">الباقة الشهرية</td><td style="padding:10px 14px;font-weight:900;color:${GD};text-align:left">${fee.toLocaleString('en')} QAR</td></tr>`;
+    if (extras>0) rows += `<tr><td colspan="4" style="padding:10px 14px;font-weight:700;color:${OR}">إجمالي الأعمال الإضافية</td><td style="padding:10px 14px;font-weight:900;color:${OR};text-align:left">${extras.toLocaleString('en')} QAR</td></tr>`;
+  } else {
+    const v = vis[0]||{};
+    rows = `<tr><td style="padding:9px 14px;border-bottom:1px solid #eee;text-align:center;color:${GM};font-weight:700">1</td>
+      <td colspan="3" style="padding:9px 14px;border-bottom:1px solid #eee;font-size:12px"><b>${escapeHtml(v.type||'—')}</b><div style="font-size:11px;color:#555;margin-top:2px">${escapeHtml(v.work||'')}</div></td>
+      <td style="padding:9px 14px;border-bottom:1px solid #eee;font-weight:900;color:${GD};text-align:left">${fee.toLocaleString('en')} QAR</td></tr>`;
+    if (extras>0) rows += `<tr style="background:#f7f7f7"><td style="padding:9px 14px;text-align:center;color:${OR};font-weight:700">2</td><td colspan="3" style="padding:9px 14px;font-weight:700;color:${OR}">أعمال إضافية</td><td style="padding:9px 14px;font-weight:900;color:${OR};text-align:left">${extras.toLocaleString('en')} QAR</td></tr>`;
+  }
+  const payRows = (Array.isArray(r.payments)&&r.payments.length)
+    ? r.payments.map(pp => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed #eee"><span>${fmtDate(pp.date)} · ${escapeHtml(pp.method||'نقدي')}${pp.note?' · '+escapeHtml(pp.note):''}</span><b>${(parseFloat(pp.amount)||0).toLocaleString('en')} QAR</b></div>`).join('')
+    : '<div style="font-size:12px;color:#999">لا دفعات مسجلة</div>';
+  return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>فاتورة ${escapeHtml(r.invNum||'')}</title>
+  <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;direction:rtl;background:#fff}.page{max-width:760px;margin:0 auto;background:#fff}table{width:100%;border-collapse:collapse}</style>
+  </head><body><div class="page">
+    <div style="background:${GD};padding:22px 28px;display:flex;justify-content:space-between;align-items:center">
+      <div><div style="color:#fff;font-size:22px;font-weight:900">🌳 Dr.Tree</div><div style="color:${GL};font-size:10px;letter-spacing:2px;margin-top:3px">GARDEN &amp; TREE SERVICES · QATAR</div></div>
+      <div style="background:${GOLD};color:${GD};padding:12px 18px;border-radius:10px;text-align:center"><div style="font-size:9px;font-weight:700">${r.type==='monthly'?'فاتورة شهرية':'فاتورة زيارة'}</div><div style="font-size:18px;font-weight:900">${escapeHtml(r.invNum||'')}</div><div style="font-size:9px;color:#5a4200;margin-top:2px">${fmtDate(r.date)}</div></div>
+    </div>
+    <div style="height:4px;background:linear-gradient(to left,${GL},${GOLD},${GL})"></div>
+    <div style="display:flex;border-bottom:2px solid ${GP};background:#f8faf8">
+      <div style="flex:1.5;padding:14px 22px;border-left:1px solid #e8ede8"><div style="font-size:9px;color:#999;font-weight:700;margin-bottom:5px">مقدم إلى</div><div style="font-size:17px;font-weight:700;color:${GD}">${escapeHtml(r.client||'—')}</div>${cl.phone?`<div style="font-size:12px;color:#555;margin-top:4px">📞 ${escapeHtml(cl.phone)}</div>`:''}${monthLabel?`<div style="font-size:12px;color:#555;margin-top:2px">🗓 ${escapeHtml(monthLabel)}</div>`:''}</div>
+      <div style="flex:1;padding:14px 22px;border-left:1px solid #e8ede8"><div style="font-size:9px;color:#999;font-weight:700;margin-bottom:5px">الاستحقاق</div><div style="font-size:13px;font-weight:700;color:${r.dueDate?'#C0392B':'#888'}">${r.dueDate?fmtDate(r.dueDate):'عند الاستلام'}</div></div>
+      <div style="flex:1;padding:14px 22px"><div style="font-size:9px;color:#999;font-weight:700;margin-bottom:5px">الحالة</div><div style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;background:${GP};color:${statusColor}">${escapeHtml(status)}</div></div>
+    </div>
+    <table><thead><tr style="background:${GM}"><th style="color:#fff;padding:9px 14px;width:6%">#</th><th style="color:#fff;padding:9px 14px;text-align:right">${r.type==='monthly'?'التاريخ':'البند'}</th><th style="color:#fff;padding:9px 14px">النوع</th><th style="color:#fff;padding:9px 14px;text-align:right">التفاصيل</th><th style="color:${GOLD};padding:9px 14px;text-align:left">المبلغ</th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="padding:14px 24px;border-top:2px solid ${GP}">
+      ${overdueInc>0?`<div style="display:flex;justify-content:space-between;font-size:13px;color:#C0392B;margin-bottom:4px"><span>متأخرات من أشهر سابقة</span><span>+ ${overdueInc.toLocaleString('en')} QAR</span></div>`:''}
+      ${discount>0?`<div style="display:flex;justify-content:space-between;font-size:13px;color:#C0392B;margin-bottom:4px"><span>الخصم</span><span>- ${discount.toLocaleString('en')} QAR</span></div>`:''}
+      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;color:${GD}"><span>الإجمالي</span><span>${total.toLocaleString('en')} QAR</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:${GM};margin-top:6px"><span>المحصّل</span><span>${collected.toLocaleString('en')} QAR</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#C0392B;margin-top:4px"><span>المتبقي</span><span>${remaining.toLocaleString('en')} QAR</span></div>
+    </div>
+    <div style="padding:4px 24px 16px"><div style="font-size:11px;font-weight:700;color:#999;margin-bottom:6px">سجل الدفعات</div>${payRows}</div>
+    <div style="background:${GD};color:${GL};text-align:center;padding:11px;font-size:10px">🌳 Dr.Tree · شكراً لتعاملكم معنا</div>
+  </div></body></html>`;
+}
+
+async function exportInvoicePDF(invNum){
+  const r = invoiceRecords.find(x => x.invNum === invNum);
+  if (!r) return;
+  showToast('📎 جاري إنشاء PDF...');
+  try {
+    const html = buildInvoiceRecordHTML(r);
+    const blob = await _htmlToPdfBlob(html);
+    const fileName = 'فاتورة_' + String(r.invNum||'').replace(/[^\w؀-ۿ-]/g,'_') + '_' + String(r.client||'').replace(/[^\w؀-ۿ-]/g,'_') + '.pdf';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    showToast('✅ تم تنزيل PDF — جاهز للإرسال');
+  } catch (e) {
+    console.error('invoice PDF error:', e);
+    showToast('⚠️ تعذّر إنشاء PDF');
+  }
+}
+
+// ── Edit a saved invoice record ──
+let _ieInv = null;
+function openInvoiceEditModal(invNum){
+  const r = invoiceRecords.find(x => x.invNum === invNum);
+  if (!r) return;
+  _ieInv = invNum;
+  document.getElementById('ie-client').textContent = r.client || '';
+  document.getElementById('ie-num').value = r.invNum || '';
+  document.getElementById('ie-fee').value = r.fee || 0;
+  document.getElementById('ie-extras').value = r.extras || 0;
+  document.getElementById('ie-disc').value = r.discount || 0;
+  document.getElementById('ie-due').value = r.dueDate || '';
+  document.getElementById('ie-status').value = r.payStatus || 'غير مدفوع';
+  ieRecalc();
+  document.getElementById('inv-edit-modal').classList.add('open');
+}
+
+function ieRecalc(){
+  const fee = parseFloat(document.getElementById('ie-fee').value)||0;
+  const ex  = parseFloat(document.getElementById('ie-extras').value)||0;
+  const d   = Math.max(0, parseFloat(document.getElementById('ie-disc').value)||0);
+  const t   = Math.max(0, fee + ex - d);
+  document.getElementById('ie-total').textContent = t.toLocaleString('en') + ' QAR';
+}
+
+function saveInvoiceEdit(){
+  const r = invoiceRecords.find(x => x.invNum === _ieInv);
+  if (!r) return;
+  const newNum = document.getElementById('ie-num').value.trim();
+  if (!newNum) { alert('رقم الفاتورة مطلوب'); return; }
+  if (newNum !== r.invNum && invoiceRecords.some(x => x.invNum === newNum)) { alert('رقم الفاتورة مستخدم بالفعل'); return; }
+  const fee  = parseFloat(document.getElementById('ie-fee').value)||0;
+  const ex   = parseFloat(document.getElementById('ie-extras').value)||0;
+  const disc = Math.max(0, parseFloat(document.getElementById('ie-disc').value)||0);
+  const total = Math.max(0, fee + ex - disc);
+  const status = document.getElementById('ie-status').value;
+  r.invNum = newNum;
+  r.fee = fee; r.extras = ex; r.discount = disc; r.total = total;
+  r.dueDate = document.getElementById('ie-due').value || '';
+  r.payStatus = status;
+  if (status === 'مدفوع') {
+    r.payments = [{ date: TODAY, amount: total, method: 'نقدي', note: 'تسوية كاملة' }];
+    r.paidAmount = total;
+  } else if (status === 'غير مدفوع') {
+    r.payments = [];
+    r.paidAmount = 0;
+  } else {
+    r.paidAmount = (r.payments||[]).reduce((s,p) => s + (parseFloat(p.amount)||0), 0);
+  }
+  saveInvoiceRecords();
+  document.getElementById('inv-edit-modal').classList.remove('open');
+  renderInvoiceLog();
+  if (typeof renderOverdueAlert === 'function') renderOverdueAlert();
+  if (typeof renderFinances === 'function') renderFinances();
+  showToast('✅ تم تعديل الفاتورة');
 }
 
 function renderInvVisits() {
@@ -2552,7 +2735,8 @@ function updateInvSummary() {
   const client = document.getElementById('inv-client').value;
   const overdue = (invType==='monthly' && includeOverdue) ? getOverdueInvoices(client) : [];
   const overdueTotal = overdue.reduce((s,r) => s + getOverdueRemaining(r), 0);
-  const total = baseTotal + overdueTotal;
+  const discount = Math.max(0, parseFloat(document.getElementById('inv-discount')?.value)||0);
+  const total = Math.max(0, baseTotal + overdueTotal - discount);
 
   const summary = document.getElementById('inv-summary');
   if (!selData.length) { summary.style.display='none'; return; }
@@ -2577,6 +2761,8 @@ function updateInvSummary() {
     ovRow.style.display = overdueTotal > 0 ? 'flex' : 'none';
     document.getElementById('inv-sum-overdue').textContent = fmtQAR(overdueTotal);
   }
+  const discRow = document.getElementById('inv-sum-disc-row');
+  if (discRow) { discRow.style.display = discount>0?'flex':'none'; document.getElementById('inv-sum-disc').textContent = '- '+fmtQAR(discount); }
   document.getElementById('inv-sum-total').textContent = fmtQAR(total);
 }
 
@@ -2594,10 +2780,11 @@ function buildInvoiceHTML(forPrint) {
   const selData = visits.filter(v => selectedVisits.includes(v.id));
   const ext = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
   const baseTotal = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+  const discount = Math.max(0, parseFloat(document.getElementById('inv-discount')?.value)||0);
   // Overdue invoices (only monthly)
   const overdue = (invType==='monthly' && includeOverdue) ? getOverdueInvoices(client) : [];
   const overdueTotal = overdue.reduce((s,r) => s + getOverdueRemaining(r), 0);
-  const total = baseTotal + overdueTotal;
+  const total = Math.max(0, baseTotal + overdueTotal - discount);
   const payBadge = payStatus==='مدفوع' ? `background:#D8F3DC;color:#2D6A4F` : `background:#FADBD8;color:#C0392B`;
   const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
@@ -2776,6 +2963,9 @@ function buildInvoiceHTML(forPrint) {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
         <span style="color:#555">المتأخرات من أشهر سابقة</span><span style="font-weight:700;color:#C0392B">QAR ${overdueTotal.toLocaleString('en')}</span>
       </div>`:''}
+      ${discount>0?`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
+        <span style="color:#555">الخصم</span><span style="font-weight:700;color:#C0392B">- QAR ${discount.toLocaleString('en')}</span>
+      </div>`:''}
       <div style="height:1px;background:#e0e0e0;margin:12px 0"></div>
       <div style="background:#1B4332;border-radius:10px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
         <span style="color:white;font-size:14px;font-weight:700">💰 الإجمالي المستحق</span>
@@ -2790,79 +2980,6 @@ function buildInvoiceHTML(forPrint) {
     </div>
 
   </div>
-  
-<!-- Lightbox -->
-<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
-  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-  <img id="lightbox-img" alt="">
-  <div class="lightbox-nav">
-    <button onclick="lightboxPrev()">‹</button>
-    <span class="lightbox-counter" id="lightbox-counter">1 / 1</span>
-    <button onclick="lightboxNext()">›</button>
-  </div>
-</div>
-
-<!-- Confirm Modal -->
-<div class="modal" id="confirm-modal" style="z-index:1000">
-  <div class="modal-box" style="max-width:420px">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="confirm-title" style="text-align:center">تأكيد</div>
-    <p id="confirm-msg" style="text-align:center;color:var(--muted);margin:8px 0 16px;line-height:1.6">هل أنت متأكد؟</p>
-    <div class="modal-footer" style="gap:10px">
-      <button class="btn btn-secondary" style="flex:1" onclick="_resolveConfirm(false)">إلغاء</button>
-      <button class="btn" id="confirm-ok-btn" style="flex:1;background:#C0392B;color:#fff" onclick="_resolveConfirm(true)">حذف</button>
-    </div>
-  </div>
-</div>
-
-<!-- Trash Modal -->
-<div class="modal" id="trash-modal">
-  <div class="modal-box" style="max-width:560px;max-height:92dvh">
-    <div class="modal-handle"></div>
-    <div class="modal-title">🗑 سلة المهملات</div>
-    <p style="color:var(--muted);font-size:12px;margin:0 0 10px">العناصر المحذوفة تُحفظ هنا ٣٠ يوماً ثم تُزال تلقائياً.</p>
-    <div id="trash-list" style="max-height:60dvh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
-    <div class="modal-footer" style="gap:8px;margin-top:12px">
-      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('trash-modal').classList.remove('open')">إغلاق</button>
-      <button class="btn" id="trash-empty-btn" style="background:#C0392B;color:#fff" onclick="emptyTrashConfirm()">🔥 تفريغ السلة</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal" id="proj-exp-modal">
-  <div class="modal-box">
-    <div class="modal-handle"></div>
-    <div class="modal-title">🏗 مصاريف المشروع — <span id="proj-exp-title"></span></div>
-    <div id="proj-exp-existing" style="margin-bottom:12px;max-height:200px;overflow-y:auto"></div>
-    <div style="background:var(--gray);border-radius:10px;padding:12px;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">➕ إضافة مصروف جديد</div>
-      <div class="field">
-        <select id="proj-exp-cat" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;direction:rtl;background:#fff;outline:none;-webkit-appearance:none">
-          <option value="">نوع المصروف *</option>
-          <option>مواد ونباتات</option>
-          <option>رواتب وعمالة</option>
-          <option>وقود ومواصلات</option>
-          <option>معدات وأدوات</option>
-          <option>أخرى</option>
-        </select>
-      </div>
-      <div class="grid2">
-        <div class="field"><input type="number" id="proj-exp-amount" placeholder="المبلغ (QAR) *" min="0"></div>
-        <div class="field"><input type="date" id="proj-exp-date"></div>
-      </div>
-      <div class="field"><input type="text" id="proj-exp-note" placeholder="ملاحظة..."></div>
-      <button class="btn btn-primary" onclick="saveProjExpense()" style="margin-top:4px">✚ إضافة</button>
-    </div>
-    <div id="proj-exp-summary" style="background:var(--gp);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:12px;color:var(--gm);font-weight:700">صافي الربح</span>
-      <span style="font-size:16px;font-weight:900;color:var(--gd)" id="proj-exp-net">— QAR</span>
-    </div>
-    <div class="modal-footer" style="margin-top:12px">
-      <button class="btn btn-secondary" style="width:100%" onclick="document.getElementById('proj-exp-modal').classList.remove('open')">إغلاق</button>
-    </div>
-  </div>
-</div>
-
 </body></html>`;
 }
 
@@ -2893,6 +3010,8 @@ function recordIssuedInvoice() {
   const selData = visits.filter(v => selectedVisits.includes(v.id));
   const ext = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
   const baseTotal = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+  const discount = Math.max(0, parseFloat(document.getElementById('inv-discount')?.value)||0);
+  const netTotal = Math.max(0, baseTotal - discount);
 
   // Determine invoice month: for monthly invoices, use the explicitly selected month
   let month = new Date().toISOString().substring(0,7);
@@ -2903,18 +3022,30 @@ function recordIssuedInvoice() {
     if (vm) month = vm;
   }
 
-  // Upsert invoice record (keyed by invNum)
+  // Overdue consolidation: when this new invoice includes previous overdue invoices,
+  // absorb their remaining balances into it and remove the old records from the log.
+  const overdueRecs = (invType==='monthly' && includeOverdue) ? getOverdueInvoices(client) : [];
+  const overdueTotal = overdueRecs.reduce((s,r) => s + getOverdueRemaining(r), 0);
+  const fullTotal = netTotal + overdueTotal;
+
+  if (overdueRecs.length) {
+    const overdueNums = new Set(overdueRecs.map(r => r.invNum));
+    invoiceRecords = invoiceRecords.filter(r => r.invNum === invNum || !overdueNums.has(r.invNum));
+  }
+
+  // Upsert invoice record (keyed by invNum), full total including absorbed overdue
   const existing = invoiceRecords.find(r => r.invNum === invNum);
-  // Preserve any prior payments on re-issuance (existing record); else seed from status
   let payments = existing && Array.isArray(existing.payments) ? existing.payments.slice() : [];
   if (!payments.length && payStatus === 'مدفوع') {
-    payments = [{ date: TODAY, amount: baseTotal, method: 'نقدي' }];
+    payments = [{ date: TODAY, amount: fullTotal, method: 'نقدي' }];
   }
   const paidSum = payments.reduce((s,p) => s + (parseFloat(p.amount)||0), 0);
   const rec = {
     invNum, client, date: TODAY, month,
     type: invType, fee, extras: invType==='monthly'?ext:(selData[0]?.extraAmount||0),
-    total: baseTotal,
+    discount,
+    overdueIncluded: overdueTotal,
+    total: fullTotal,
     payStatus,
     paidAmount: paidSum,
     payments,
@@ -2927,15 +3058,6 @@ function recordIssuedInvoice() {
     invoiceRecords.push(rec);
   }
   saveInvoiceRecords();
-
-  // If invoice is paid, also auto-mark any included overdue records as paid
-  if (payStatus === 'مدفوع' && includeOverdue) {
-    getOverdueInvoices(client).forEach(r => {
-      r.payStatus = 'مدفوع';
-      r.paidAmount = r.total;
-    });
-    saveInvoiceRecords();
-  }
 }
 
 function doPrint() {
@@ -2943,9 +3065,26 @@ function doPrint() {
   saveInvoiceNum();
   recordIssuedInvoice();
   markVisitsPaid();
-  const w = window.open('','_blank');
-  w.document.write(html); w.document.close(); w.focus();
-  setTimeout(() => { w.print(); w.close(); }, 400);
+  const w = window.open('', '_blank');
+  if (w) {
+    w.document.write(html); w.document.close(); w.focus();
+    // Don't close immediately — that can blank the print preview.
+    setTimeout(() => { try { w.print(); } catch (e) {} }, 500);
+  } else {
+    // Popup blocked (common on mobile/PWA) → download a PDF instead of erroring
+    showToast('📎 المنبثقات محظورة — جاري إنشاء PDF...');
+    _htmlToPdfBlob(html).then(blob => {
+      const invNum = document.getElementById('inv-num').value || 'invoice';
+      const client = document.getElementById('inv-client').value || '';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'فاتورة_' + String(invNum).replace(/[^\w؀-ۿ-]/g,'_') + '_' + String(client).replace(/[^\w؀-ۿ-]/g,'_') + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast('✅ تم تنزيل PDF — جاهز للإرسال');
+    }).catch(e => { console.error('invoice print error:', e); showToast('⚠️ تعذّر إنشاء الملف'); });
+  }
   renderOverdueAlert();
   renderInvoiceLog();
 }
@@ -2971,9 +3110,10 @@ function shareInvoiceWhatsApp() {
   const selData = visits.filter(v => selectedVisits.includes(v.id));
   const ext = selData.reduce((s,v)=>s+(v.extraAmount||0),0);
   const baseTotal = invType==='monthly' ? fee+ext : fee+(selData[0]?.extraAmount||0);
+  const discount = Math.max(0, parseFloat(document.getElementById('inv-discount')?.value)||0);
   const overdue = (invType==='monthly' && includeOverdue) ? getOverdueInvoices(client) : [];
   const overdueTotal = overdue.reduce((s,r) => s + getOverdueRemaining(r), 0);
-  const total = baseTotal + overdueTotal;
+  const total = Math.max(0, baseTotal + overdueTotal - discount);
   const due = document.getElementById('inv-due').value;
   const arMonths = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
   let msg = `🌳 *Dr.Tree — فاتورة خدمات*\n\n`;
@@ -3003,6 +3143,7 @@ function shareInvoiceWhatsApp() {
     });
     msg += `• إجمالي المتأخرات: *${overdueTotal.toLocaleString('en')} QAR*\n`;
   }
+  if (discount > 0) msg += `\n🏷 الخصم: -${discount.toLocaleString('en')} QAR`;
   msg += `\n💰 *الإجمالي المستحق: ${total.toLocaleString('en')} QAR*`;
   if (due) msg += `\n📅 تاريخ الاستحقاق: ${fmtDate(due)}`;
   msg += `\n\nشكراً لثقتكم بخدماتنا 🌿`;
@@ -3067,6 +3208,31 @@ async function exportVisitPDF(id) {
 
 
 function generatePDF(id) { if (typeof id === 'number') printVisitReport(id); }
+
+async function downloadInvoicePDFAndSave() {
+  const html = buildInvoiceHTML(true); // build before recording (keeps overdue lines on the PDF)
+  saveInvoiceNum();
+  recordIssuedInvoice();
+  markVisitsPaid();
+  renderOverdueAlert();
+  renderInvoiceLog();
+  showToast('📎 جاري إنشاء PDF وحفظ الفاتورة...');
+  try {
+    const blob = await _htmlToPdfBlob(html);
+    const invNum = document.getElementById('inv-num').value || 'invoice';
+    const client = document.getElementById('inv-client').value || '';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'فاتورة_' + String(invNum).replace(/[^\w؀-ۿ-]/g,'_') + '_' + String(client).replace(/[^\w؀-ۿ-]/g,'_') + '.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    showToast('✅ تم تنزيل PDF وحفظ الفاتورة بالسجل');
+  } catch (e) {
+    console.error('invoice pdf error:', e);
+    showToast('⚠️ حُفظت الفاتورة لكن تعذّر إنشاء PDF');
+  }
+}
 
 function doExportHTML() {
   const client = document.getElementById('inv-client').value;
@@ -4932,11 +5098,27 @@ function saveClient() {
 }
 
 function delClient(id) {
-  if (!confirm('حذف هذا العميل؟')) return;
-  clients_data = clients_data.filter(c => c.id !== id);
+  const c = clients_data.find(x => x.id === id);
+  if (!c) return;
+  const name = c.name;
+  // Clients are auto-derived from visits, so a client with visits would be
+  // re-created on the next render. Deleting must also remove their visits.
+  const cVisits = visits.filter(v => v.client === name);
+  if (cVisits.length > 0) {
+    if (!confirm(`العميل «${name}» لديه ${cVisits.length} زيارة مسجلة.\n\nحذف العميل سيحذف أيضاً جميع زياراته نهائياً. هل تريد المتابعة؟`)) return;
+    visits = visits.filter(v => v.client !== name);
+    saveData();
+  } else {
+    if (!confirm(`حذف العميل «${name}»؟`)) return;
+  }
+  clients_data = clients_data.filter(x => x.id !== id);
   saveClients();
   renderClients();
-  showToast('🗑 تم الحذف');
+  updateClientSelects();
+  if (typeof renderRecent === 'function') renderRecent();
+  if (typeof renderLog === 'function') renderLog();
+  if (typeof renderKPIs === 'function') renderKPIs();
+  showToast('🗑 تم حذف العميل');
 }
 
 function renderClients() {
@@ -5849,8 +6031,10 @@ function generateInvoiceNumber(client, type, month) {
   let invHistory = [];
   try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
   if (type === 'monthly') {
-    const m = month || (new Date().toISOString().substring(0,7));
-    const base = `${code}-${m}`;
+    const m = month || (new Date().toISOString().substring(0,7)); // YYYY-MM
+    const [y, mo] = m.split('-');
+    const mmm = String(parseInt(mo||'0',10)).padStart(3,'0'); // شهر 5 => 005
+    const base = `${code}-${y}-${mmm}`;
     const sameMonth = invHistory.filter(r => r.client === client && r.invType === 'monthly' && r.month === m);
     if (sameMonth.length === 0) return base;
     return `${base}-${sameMonth.length + 1}`;
@@ -7535,6 +7719,32 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
+<!-- Invoice edit modal -->
+<div class="modal" id="inv-edit-modal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✏️ تعديل الفاتورة</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">العميل: <b id="ie-client"></b></div>
+    <div class="grid2">
+      <div class="field"><label>رقم الفاتورة</label><input type="text" id="ie-num"></div>
+      <div class="field"><label>تاريخ الاستحقاق</label><input type="date" id="ie-due"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>المبلغ الأساسي (QAR)</label><input type="number" id="ie-fee" min="0" step="0.01" oninput="ieRecalc()"></div>
+      <div class="field"><label>الأعمال الإضافية (QAR)</label><input type="number" id="ie-extras" min="0" step="0.01" oninput="ieRecalc()"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>الخصم (QAR)</label><input type="number" id="ie-disc" min="0" step="0.01" oninput="ieRecalc()"></div>
+      <div class="field"><label>حالة الدفع</label><select id="ie-status"><option>غير مدفوع</option><option>مدفوع جزئياً</option><option>مدفوع</option></select></div>
+    </div>
+    <div style="background:var(--gp);border-radius:10px;padding:10px 14px;margin:6px 0 12px;display:flex;justify-content:space-between;font-weight:900;color:var(--gd)"><span>الإجمالي بعد الخصم</span><span id="ie-total">0 QAR</span></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="flex:1" onclick="saveInvoiceEdit()">💾 حفظ</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('inv-edit-modal').classList.remove('open')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <!-- Overdue Detail Modal -->
 <div class="modal" id="overdue-modal">
   <div class="modal-box">
@@ -7603,6 +7813,80 @@ if ('serviceWorker' in navigator) {
 
     <div class="modal-footer">
       <button class="btn btn-secondary" style="width:100%" onclick="document.getElementById('client-payments-modal').classList.remove('open')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== App modals (moved out of invoice template) ===== -->
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" alt="">
+  <div class="lightbox-nav">
+    <button onclick="lightboxPrev()">‹</button>
+    <span class="lightbox-counter" id="lightbox-counter">1 / 1</span>
+    <button onclick="lightboxNext()">›</button>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal" id="confirm-modal" style="z-index:1000">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="confirm-title" style="text-align:center">تأكيد</div>
+    <p id="confirm-msg" style="text-align:center;color:var(--muted);margin:8px 0 16px;line-height:1.6">هل أنت متأكد؟</p>
+    <div class="modal-footer" style="gap:10px">
+      <button class="btn btn-secondary" style="flex:1" onclick="_resolveConfirm(false)">إلغاء</button>
+      <button class="btn" id="confirm-ok-btn" style="flex:1;background:#C0392B;color:#fff" onclick="_resolveConfirm(true)">حذف</button>
+    </div>
+  </div>
+</div>
+
+<!-- Trash Modal -->
+<div class="modal" id="trash-modal">
+  <div class="modal-box" style="max-width:560px;max-height:92dvh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🗑 سلة المهملات</div>
+    <p style="color:var(--muted);font-size:12px;margin:0 0 10px">العناصر المحذوفة تُحفظ هنا ٣٠ يوماً ثم تُزال تلقائياً.</p>
+    <div id="trash-list" style="max-height:60dvh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+    <div class="modal-footer" style="gap:8px;margin-top:12px">
+      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('trash-modal').classList.remove('open')">إغلاق</button>
+      <button class="btn" id="trash-empty-btn" style="background:#C0392B;color:#fff" onclick="emptyTrashConfirm()">🔥 تفريغ السلة</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="proj-exp-modal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🏗 مصاريف المشروع — <span id="proj-exp-title"></span></div>
+    <div id="proj-exp-existing" style="margin-bottom:12px;max-height:200px;overflow-y:auto"></div>
+    <div style="background:var(--gray);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase">➕ إضافة مصروف جديد</div>
+      <div class="field">
+        <select id="proj-exp-cat" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;direction:rtl;background:#fff;outline:none;-webkit-appearance:none">
+          <option value="">نوع المصروف *</option>
+          <option>مواد ونباتات</option>
+          <option>رواتب وعمالة</option>
+          <option>وقود ومواصلات</option>
+          <option>معدات وأدوات</option>
+          <option>أخرى</option>
+        </select>
+      </div>
+      <div class="grid2">
+        <div class="field"><input type="number" id="proj-exp-amount" placeholder="المبلغ (QAR) *" min="0"></div>
+        <div class="field"><input type="date" id="proj-exp-date"></div>
+      </div>
+      <div class="field"><input type="text" id="proj-exp-note" placeholder="ملاحظة..."></div>
+      <button class="btn btn-primary" onclick="saveProjExpense()" style="margin-top:4px">✚ إضافة</button>
+    </div>
+    <div id="proj-exp-summary" style="background:var(--gp);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--gm);font-weight:700">صافي الربح</span>
+      <span style="font-size:16px;font-weight:900;color:var(--gd)" id="proj-exp-net">— QAR</span>
+    </div>
+    <div class="modal-footer" style="margin-top:12px">
+      <button class="btn btn-secondary" style="width:100%" onclick="document.getElementById('proj-exp-modal').classList.remove('open')">إغلاق</button>
     </div>
   </div>
 </div>
