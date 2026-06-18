@@ -42,8 +42,6 @@ body {
   min-height:100vh;
   min-height:100dvh;
   -webkit-text-size-adjust:100%;
-  padding-right:74px; /* gutter for the fixed right side-nav */
-  padding-right:calc(74px + env(safe-area-inset-right));
 }
 input,select,textarea,button { font-family:var(--font); font-size:16px; }
 input, select, textarea {
@@ -61,13 +59,19 @@ input[type="number"], input[type="tel"] { direction:ltr; text-align:right; }
 .badge-overdue { background:var(--red); color:#fff; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700; animation:pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 
-/* Side nav (right) */
-.bottom-nav { position:fixed; top:0; right:0; bottom:0; width:74px; background:var(--gd); border-left:1px solid rgba(0,0,0,.25); display:flex; flex-direction:column; align-items:stretch; z-index:100; padding:8px 0; padding-bottom:calc(8px + env(safe-area-inset-bottom)); overflow-y:auto; -webkit-overflow-scrolling:touch; }
-.nav-item { flex:0 0 auto; padding:11px 4px; text-align:center; cursor:pointer; border-right:3px solid transparent; min-height:58px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
-.nav-item.active { background:rgba(82,183,136,.16); border-right-color:var(--gl); }
-.nav-item .nav-icon { font-size:21px; }
-.nav-item .nav-label { font-size:9px; font-weight:700; color:#9fb4a6; margin-top:0; line-height:1.2; }
-.nav-item.active .nav-label { color:var(--gl); }
+/* Side nav as slide-in drawer (right) */
+.nav-backdrop { position:fixed; inset:0; background:rgba(8,15,12,.5); z-index:300; opacity:0; visibility:hidden; transition:opacity .25s ease, visibility .25s ease; }
+.nav-backdrop.open { opacity:1; visibility:visible; }
+.bottom-nav { position:fixed; top:0; right:0; bottom:0; width:230px; max-width:80vw; background:linear-gradient(180deg,#234C39 0%,#152C21 100%); display:flex; flex-direction:column; align-items:stretch; z-index:301; padding:14px 0; padding-bottom:calc(14px + env(safe-area-inset-bottom)); overflow-y:auto; -webkit-overflow-scrolling:touch; transform:translateX(100%); transition:transform .28s cubic-bezier(.4,0,.2,1); box-shadow:-12px 0 32px rgba(0,0,0,.3); }
+.bottom-nav.open { transform:translateX(0); }
+.nav-drawer-head { color:#fff; font-weight:900; font-size:17px; padding:6px 18px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:8px; }
+.nav-drawer-head .nav-close { background:rgba(255,255,255,.12); color:#fff; border:none; width:34px; height:34px; border-radius:9px; font-size:16px; cursor:pointer; }
+.nav-item { flex:0 0 auto; padding:13px 18px; cursor:pointer; border-right:3px solid transparent; min-height:50px; display:flex; flex-direction:row; align-items:center; gap:12px; }
+.nav-item.active { background:rgba(82,183,136,.18); border-right-color:var(--gl); }
+.nav-item .nav-icon { font-size:20px; width:24px; text-align:center; }
+.nav-item .nav-label { font-size:14px; font-weight:700; color:#cde0d5; margin-top:0; }
+.nav-item.active .nav-label { color:#fff; }
+.nav-toggle { background:rgba(255,255,255,.14); color:#fff; border:none; border-radius:10px; width:42px; height:42px; min-width:42px; font-size:18px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
 
 /* Cards */
 .card { background:#fff; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); border:1px solid rgba(16,24,40,.04); margin-bottom:16px; transition:box-shadow .2s ease, transform .2s ease; }
@@ -255,6 +259,7 @@ textarea { min-height:72px; resize:vertical; }
 </div>
 
 <div class="header">
+  <button class="nav-toggle" onclick="toggleNav()" title="القائمة" aria-label="القائمة">☰</button>
   <div class="header-logo">🌳 <span>Dr.Tree</span></div>
   <div class="header-badges">
     <span id="badge-overdue" class="badge-overdue" style="display:none">⚠️ <span id="overdue-count">0</span> متأخر</span>
@@ -1006,7 +1011,9 @@ textarea { min-height:72px; resize:vertical; }
     </div>
   </div>
 
-<div class="bottom-nav">
+<div class="nav-backdrop" id="nav-backdrop" onclick="closeNav()"></div>
+<div class="bottom-nav" id="side-nav">
+  <div class="nav-drawer-head">القائمة <button class="nav-close" onclick="closeNav()">✕</button></div>
   <div class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
     <div class="nav-icon">🏠</div>
     <div class="nav-label">الرئيسية</div>
@@ -1480,7 +1487,18 @@ function removePhoto(slot) {
 }
 
 // ── Tab switching ──
+function toggleNav(){
+  const n=document.getElementById('side-nav'), b=document.getElementById('nav-backdrop');
+  const open = !n.classList.contains('open');
+  n.classList.toggle('open', open); b.classList.toggle('open', open);
+}
+function closeNav(){
+  document.getElementById('side-nav')?.classList.remove('open');
+  document.getElementById('nav-backdrop')?.classList.remove('open');
+}
+
 function switchTab(tab) {
+  closeNav();
   if (tab === 'finance') tab = 'finances';
   if (tab === 'quote') tab = 'quotation';
   ['dashboard','log','clients','invoice','quotation','finances'].forEach(t => {
