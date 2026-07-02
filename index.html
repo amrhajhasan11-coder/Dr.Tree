@@ -211,7 +211,7 @@ textarea { min-height:72px; resize:vertical; }
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, push, remove, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   // ─────────────────────────────────────────────────────────────────────────
   // ⚠️ الأمان: قاعدة البيانات يجب أن تتطلب تسجيل دخول.
@@ -232,17 +232,26 @@ textarea { min-height:72px; resize:vertical; }
   function fbGo() { window._fbReady = true; window.dispatchEvent(new Event('fb-ready')); }
 
   if (firebaseConfig.apiKey) {
-    // مصادقة مجهولة حتى تتمكن قواعد الأمان من اشتراط auth != null
     const auth = getAuth(app);
     window._fb.auth = auth;
-    onAuthStateChanged(auth, (user) => { if (user) { window._fbUser = user; fbGo(); } });
-    signInAnonymously(auth).catch((e) => {
-      console.error('Firebase sign-in failed:', e);
-      try { window.showToast && window.showToast('تعذّر تسجيل الدخول — وضع عدم الاتصال'); } catch (_) {}
-      fbGo(); // الرجوع للوضع المحلي
+    window._fb.signIn = (email, pass) => signInWithEmailAndPassword(auth, email, pass);
+    window._fb.signOutUser = () => signOut(auth);
+    const ov = document.getElementById('login-overlay');
+    if (ov) ov.style.display = 'flex';
+    onAuthStateChanged(auth, (user) => {
+      const o = document.getElementById('login-overlay');
+      if (user) {
+        window._fbUser = user;
+        if (o) o.style.display = 'none';
+        const ue = document.getElementById('login-user-email'); if (ue) ue.textContent = user.email || '';
+        fbGo();
+      } else {
+        window._fbReady = false;
+        if (o) o.style.display = 'flex';
+      }
     });
   } else {
-    console.warn('[Dr.Tree] apiKey غير مضبوط — قاعدة البيانات بدون حماية. أضف apiKey وانشر database.rules.json.');
+    console.warn('[Dr.Tree] apiKey غير مضبوط — لا حماية. أضف apiKey وفعّل Email/Password وانشر القواعد.');
     fbGo();
   }
 </script>
@@ -251,6 +260,17 @@ textarea { min-height:72px; resize:vertical; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
+<!-- Login overlay (shown only when Firebase apiKey is configured) -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;z-index:5000;background:linear-gradient(180deg,#1B4332,#0c1f16);align-items:center;justify-content:center;padding:24px">
+  <div style="background:#fff;border-radius:18px;max-width:360px;width:100%;padding:26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+    <div style="text-align:center;font-size:24px;font-weight:900;color:#1B4332;margin-bottom:4px">🌳 Dr.Tree</div>
+    <div style="text-align:center;font-size:13px;color:#64748B;margin-bottom:18px">تسجيل الدخول للمتابعة</div>
+    <div class="field"><label>البريد الإلكتروني</label><input type="email" id="login-email" autocomplete="username" placeholder="you@example.com" style="direction:ltr;text-align:left"></div>
+    <div class="field"><label>كلمة المرور</label><input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••" style="direction:ltr;text-align:left" onkeydown="if(event.key==='Enter')dtDoLogin()"></div>
+    <div id="login-error" style="display:none;color:#C0392B;font-size:12px;margin-bottom:10px;text-align:center"></div>
+    <button class="btn btn-primary" id="login-btn" onclick="dtDoLogin()">دخول</button>
+  </div>
+</div>
 
 <!-- Header -->
 <!-- Offline banner -->
@@ -1038,6 +1058,10 @@ textarea { min-height:72px; resize:vertical; }
     <div class="nav-icon">💰</div>
     <div class="nav-label">المالية</div>
   </div>
+  <div class="nav-item" onclick="dtLogout()" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.08)">
+    <div class="nav-icon">🚪</div>
+    <div class="nav-label" id="login-user-email" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">تسجيل الخروج</div>
+  </div>
 </div>
 
 <!-- Visit Modal -->
@@ -1175,12 +1199,26 @@ function saveQuotations() {
   try { localStorage.setItem('dt_quotations', JSON.stringify(quotations)); } catch {}
   if (window._fbReady) {
     const { db, ref, set } = window._fb;
-    set(ref(db, 'quotations'), quotations)
+    set(ref(db, 'quotations'), _fbClean(_keyedObj(quotations, 'id')))
       .then(() => { setCloudStatus(true); showSync(); })
       .catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
   }
 }
 
+
+function _fbClean(x){ try { return JSON.parse(JSON.stringify(x)); } catch(e){ return x; } }
+// Store list as an object keyed by a stable id to avoid Firebase array data-loss quirks
+function _keyedObj(arr, idField){
+  const o = {};
+  (arr||[]).forEach((r,i) => {
+    let k = r && r[idField] != null ? String(r[idField]) : ('rec_'+i);
+    k = k.replace(/[.#$\[\]\/\s]/g,'_');
+    if (!k) k = 'rec_'+i;
+    if (o[k]) k = k + '_' + i; // avoid collisions
+    o[k] = r;
+  });
+  return o;
+}
 
 function saveData() {
   // Save to localStorage always (offline support)
@@ -1188,7 +1226,7 @@ function saveData() {
   // Save to Firebase if ready
   if (window._fbReady) {
     const { db, ref, set } = window._fb;
-    set(ref(db, 'visits'), visits).catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
+    set(ref(db, 'visits'), _fbClean(_keyedObj(visits, 'id'))).catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
     set(ref(db, 'nextId'), nextId).catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
   }
 }
@@ -1197,9 +1235,9 @@ function saveInvoiceRecords() {
   try { localStorage.setItem('dt_invoice_records', JSON.stringify(invoiceRecords)); } catch {}
   if (window._fbReady) {
     const { db, ref, set } = window._fb;
-    set(ref(db, 'invoiceRecords'), invoiceRecords)
+    set(ref(db, 'invoiceRecords'), _fbClean(_keyedObj(invoiceRecords, 'invNum')))
       .then(() => { setCloudStatus(true); showSync(); })
-      .catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
+      .catch(e => { console.warn('Firebase invoiceRecords save error:', e); setCloudStatus(false, e.message); showToast('⚠️ تعذّر حفظ الفواتير بالسحابة: ' + (e.code || e.message)); });
   } else {
     setCloudStatus(false, 'offline');
   }
@@ -1231,9 +1269,11 @@ function initFirebase() {
   // Listen for realtime changes from Firebase
   onValue(ref(db, 'visits'), (snapshot) => {
     const data = snapshot.val();
-    if (data && Array.isArray(data)) {
-      visits = data;
-      // Update localStorage
+    let arr = null;
+    if (Array.isArray(data)) arr = data.filter(r => r);
+    else if (data && typeof data === 'object') arr = Object.values(data).filter(r => r);
+    if (arr) {
+      visits = arr;
       try { localStorage.setItem('dt_visits', JSON.stringify(visits)); } catch {}
       renderAll();
       showSync();
@@ -1265,8 +1305,11 @@ function initFirebase() {
   });
   onValue(ref(db, 'clients'), (snapshot) => {
     const data = snapshot.val();
-    if (data && Array.isArray(data)) {
-      clients_data = data;
+    let arr = null;
+    if (Array.isArray(data)) arr = data.filter(r => r);
+    else if (data && typeof data === 'object') arr = Object.values(data).filter(r => r);
+    if (arr) {
+      clients_data = arr;
       try { localStorage.setItem('dt_clients', JSON.stringify(clients_data)); } catch {}
       showSync();
       if (document.getElementById('tab-clients').classList.contains('active')) renderClients();
@@ -1487,6 +1530,27 @@ function removePhoto(slot) {
 }
 
 // ── Tab switching ──
+function dtDoLogin(){
+  const email=(document.getElementById('login-email').value||'').trim();
+  const pass=document.getElementById('login-pass').value||'';
+  const err=document.getElementById('login-error');
+  const btn=document.getElementById('login-btn');
+  if(!email||!pass){ err.style.display='block'; err.textContent='أدخل البريد وكلمة المرور'; return; }
+  if(!window._fb||!window._fb.signIn){ err.style.display='block'; err.textContent='الخدمة غير مهيأة — أضف apiKey'; return; }
+  btn.disabled=true; btn.textContent='جاري الدخول...';
+  window._fb.signIn(email,pass)
+    .then(()=>{ err.style.display='none'; document.getElementById('login-pass').value=''; })
+    .catch(e=>{ err.style.display='block'; err.textContent=_authErrMsg(e&&e.code); })
+    .finally(()=>{ btn.disabled=false; btn.textContent='دخول'; });
+}
+function _authErrMsg(code){
+  const m={'auth/invalid-email':'بريد غير صحيح','auth/user-not-found':'الحساب غير موجود','auth/wrong-password':'كلمة المرور خاطئة','auth/invalid-credential':'بيانات الدخول غير صحيحة','auth/too-many-requests':'محاولات كثيرة — حاول لاحقاً','auth/network-request-failed':'لا يوجد اتصال بالإنترنت'};
+  return m[code]||'تعذّر تسجيل الدخول';
+}
+function dtLogout(){
+  if(window._fb&&window._fb.signOutUser){ if(confirm('تسجيل الخروج؟')) window._fb.signOutUser().then(()=>location.reload()); }
+}
+
 function toggleNav(){
   const n=document.getElementById('side-nav'), b=document.getElementById('nav-backdrop');
   const open = !n.classList.contains('open');
@@ -5052,7 +5116,7 @@ function saveClients() {
   try { localStorage.setItem('dt_clients', JSON.stringify(clients_data)); } catch {}
   if (window._fbReady) {
     const { db, ref, set } = window._fb;
-    set(ref(db, 'clients'), clients_data).catch(e => { console.log(e); setCloudStatus(false, e.message); });
+    set(ref(db, 'clients'), _fbClean(_keyedObj(clients_data, 'id'))).catch(e => { console.log(e); setCloudStatus(false, e.message); });
   }
 }
 
