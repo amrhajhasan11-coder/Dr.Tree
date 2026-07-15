@@ -384,6 +384,7 @@ textarea { min-height:72px; resize:vertical; }
             <button onclick="addLaborRow()" style="background:#1A56DB;color:white;border:none;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer">+ إضافة</button>
           </div>
           <div id="labor-rows"></div>
+          <datalist id="workers-quote-list"></datalist>
         </div>
 
         <!-- Plants Section -->
@@ -4490,6 +4491,19 @@ function updateQItemField(idx, field, value) {
   updateQTotals();
 }
 
+// Picking a worker for a "عمالة" (labor) item: fills the description with the
+// worker's name and auto-suggests their wage as the unit cost (if cost is empty).
+function onQItemWorkerSelect(i, workerName) {
+  if (!_qItemsBuf[i]) return;
+  _qItemsBuf[i].desc = workerName;
+  _qItemsBuf[i].workerName = workerName;
+  const w = workers.find(x => x.name === workerName);
+  if (w && w.wageAmount && !_qItemsBuf[i].cost) {
+    _qItemsBuf[i].cost = w.wageAmount;
+  }
+  renderQItemsList();
+}
+
 function renderQItemsList() {
   const list = document.getElementById('q-items-list');
   if (!list) return;
@@ -4519,6 +4533,13 @@ function renderQItemsList() {
           <select onchange="updateQItemField(${i},'costCategory',this.value);renderQItemsList()" style="width:100%;font-size:12px;padding:8px;${needsCat?'border:2px solid #E07B39;background:#FFF5EE':''}">${catOpts}</select>
           ${needsCat ? '<div style="font-size:10px;color:#E07B39;margin-top:4px">⚠ هذا البند فيه تكلفة بدون تصنيف — لن يتحول لمصروف</div>' : ''}
         </div>
+        ${it.costCategory==='عمالة' ? `
+        <div style="margin-bottom:6px">
+          <select onchange="onQItemWorkerSelect(${i},this.value)" style="width:100%;font-size:12px;padding:8px;direction:rtl;border:1.5px solid #1A56DB;background:#EBF5FF">
+            <option value="">👷 اختر عاملاً من القائمة...</option>
+            ${workers.map(w=>`<option value="${escapeHtml(w.name)}"${w.name===(it.workerName||it.desc)?' selected':''}>${escapeHtml(w.name)}${w.role?' — '+escapeHtml(w.role):''}${w.wageAmount?' ('+w.wageAmount.toLocaleString('en')+' QAR'+(w.wageType?'/'+w.wageType:'')+')':''}</option>`).join('')}
+          </select>
+        </div>` : ''}
         <textarea placeholder="ملاحظات البند — كل سطر بند مستقل (اضغط Enter)..." oninput="updateQItemField(${i},'note',this.value);renderQNotePreview(${i})" style="width:100%;font-size:12px;padding:8px;min-height:42px;margin-bottom:4px;background:#FAFAFA">${(it.note||'').replace(/</g,'&lt;')}</textarea>
         <div id="q-note-preview-${i}" style="margin-bottom:6px">${_notePrev}</div>
         <label style="display:flex;align-items:center;gap:8px;background:${it.paid?'#D8F3DC':'#FFF9E6'};padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:${it.paid?'#2D6A4F':'#7c6710'};margin-bottom:6px;${!hasCost?'opacity:0.5':''}">
@@ -6569,7 +6590,7 @@ function makeRow(item,idx,type,bg) {
   const isPlant = type==='plant';
   const cols = isPlant ? '2fr 55px 90px 70px 70px 60px 1fr 26px' : '2fr 55px 75px 75px 60px 1fr 26px';
   return `<div style="background:white;padding:8px;border-radius:8px;margin-bottom:8px;border:1.5px solid ${item.paid?'#52B788':'transparent'}"><div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center">
-    ${type==='plant'?`<input placeholder="اسم النبات" list="plants-datalist" value="${escapeHtml(item.desc)}" oninput="updateItem('plant',${idx},'desc',this.value)" style="padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;direction:rtl;width:100%">`:`<input placeholder="البند" value="${escapeHtml(item.desc)}" oninput="updateItem('${type}',${idx},'desc',this.value)" style="padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;direction:rtl;width:100%">`}
+    ${type==='plant'?`<input placeholder="اسم النبات" list="plants-datalist" value="${escapeHtml(item.desc)}" oninput="updateItem('plant',${idx},'desc',this.value)" style="padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;direction:rtl;width:100%">`:type==='labor'?`<input placeholder="اسم العامل أو البند" list="workers-quote-list" value="${escapeHtml(item.desc)}" oninput="updateItem('labor',${idx},'desc',this.value)" style="padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;direction:rtl;width:100%">`:`<input placeholder="البند" value="${escapeHtml(item.desc)}" oninput="updateItem('${type}',${idx},'desc',this.value)" style="padding:7px 9px;border:1px solid #ddd;border-radius:6px;font-size:13px;direction:rtl;width:100%">`}
     <input type="number" placeholder="كمية" value="${item.qty}" min="0" oninput="updateItem('${type}',${idx},'qty',this.value)" style="padding:7px 4px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:100%;text-align:center">
     <select onchange="updateItem('${type}',${idx},'unit',this.value)" style="padding:7px 4px;border:1px solid #ddd;border-radius:6px;font-size:12px;direction:rtl;width:100%">
       ${units.map(u=>`<option value="${escapeHtml(u)}"${u===item.unit?' selected':''}>${escapeHtml(u)}</option>`).join('')}
@@ -6593,7 +6614,12 @@ function renderRowsForType(type){
   else renderOtherRows();
 }
 
-function renderLaborRows(){ document.getElementById('labor-rows').innerHTML=laborItems.map((item,i)=>makeRow(item,i,'labor')).join(''); updateQuoteSummary(); }
+function renderLaborRows(){
+  const wdl = document.getElementById('workers-quote-list');
+  if (wdl) wdl.innerHTML = workers.map(w=>`<option value="${escapeHtml(w.name)}">`).join('');
+  document.getElementById('labor-rows').innerHTML=laborItems.map((item,i)=>makeRow(item,i,'labor')).join('');
+  updateQuoteSummary();
+}
 function renderPlantRows(){
   // Update datalist
   const dl = document.getElementById('plants-datalist');
@@ -6621,6 +6647,16 @@ function updateItem(type,idx,field,val){
   if (field==='paid') arr[idx][field] = !!val;
   else arr[idx][field] = field==='qty'||field==='price' ? parseFloat(val)||0 : val;
   if(field==='size') arr[idx].size = val;
+  // Auto-fill price/unit when the labor "desc" exactly matches a known worker's name
+  if (type==='labor' && field==='desc') {
+    const w = workers.find(x => x.name === val);
+    if (w && w.wageAmount && !arr[idx].price) {
+      arr[idx].price = w.wageAmount;
+      arr[idx].unit = w.wageType==='شهري' ? 'شهر' : w.wageType==='بالمشروع' ? 'يوم' : 'يوم';
+      renderLaborRows();
+      return;
+    }
+  }
   // Only re-render if qty or price changed (to update subtotal) — skip for text fields to avoid keyboard dismiss
   if(field==='qty'||field==='price') {
     // Update only the subtotal span without re-rendering the whole row
