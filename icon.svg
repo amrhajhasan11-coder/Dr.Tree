@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Dr.Tree">
+  <rect width="512" height="512" rx="112" fill="#1B4332"/>
+  <circle cx="256" cy="201" r="118" fill="#52B788"/>
+  <circle cx="199" cy="226" r="70" fill="#74C69D"/>
+  <circle cx="314" cy="228" r="74" fill="#2D6A4F"/>
+  <path d="M248 246h26v144h-26z" fill="#D8F3DC"/>
+  <path d="M261 298c-45-7-81-35-103-83 47 3 82 25 103 83z" fill="#B7E4C7"/>
+  <path d="M261 318c43-14 75-45 94-94-46 8-77 38-94 94z" fill="#95D5B2"/>
+  <text x="256" y="435" text-anchor="middle" font-family="Arial, sans-serif" font-size="58" font-weight="800" fill="#FFFFFF">Dr.Tree</text>
+</svg>
