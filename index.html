@@ -210,24 +210,22 @@ textarea { min-height:72px; resize:vertical; }
 </style>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue, push, remove, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, update, onValue, push, remove, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ⚠️ الأمان: قاعدة البيانات يجب أن تتطلب تسجيل دخول.
-  // 1) ضع apiKey و authDomain من إعدادات مشروع Firebase في الأسفل.
-  // 2) انشر ملف database.rules.json المرفق (Realtime Database → Rules).
-  // طالما apiKey فارغ، يعمل التطبيق في وضع عدم الاتصال/المحلي فقط مع تحذير.
+  // ⚠️ الأمان: قاعدة البيانات تتطلب تسجيل دخول (Email/Password مفعّل بـ Firebase Auth).
+  // القواعد بملف database.rules.json منشورة وبتطلب auth != null على كل شي.
   // ─────────────────────────────────────────────────────────────────────────
   const firebaseConfig = {
-    apiKey: "AIzaSyB60I7xq3sXZCuk2I6plb7CB_-JpHIrCXk",                                  // ← ضع مفتاح المشروع هنا
-    authDomain: "drtree-abfe8.firebaseapp.com",  // ← تأكد من المجال
+    apiKey: "AIzaSyB60I7xq3sXZCuk2I6plb7CB_-JpHIrCXk",
+    authDomain: "drtree-abfe8.firebaseapp.com",
     databaseURL: "https://drtree-abfe8-default-rtdb.asia-southeast1.firebasedatabase.app"
   };
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  window._fb = { db, ref, set, onValue, push, remove, get };
+  window._fb = { db, ref, set, update, onValue, push, remove, get };
 
   function fbGo() { window._fbReady = true; window.dispatchEvent(new Event('fb-ready')); }
 
@@ -339,7 +337,8 @@ textarea { min-height:72px; resize:vertical; }
       <div class="card-header between" style="background:var(--gold);color:var(--gd)">
         <h2 style="color:var(--gd)">⏰ زيارات الباقة المتبقية هالشهر</h2>
         <span id="visits-due-count" style="background:var(--gd);color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">0</span>
-الكوتيشنات المحفوظة      <div id="visits-due-list"></div>
+      </div>
+      <div id="visits-due-list"></div>
     </div>
 
     <div class="card">
@@ -432,7 +431,9 @@ textarea { min-height:72px; resize:vertical; }
       </div>
     </div>
 
-        <div class="card" style="display:none">
+    <!-- Legacy "quotes" feature (superseded by the quotations tab) — kept in the DOM
+         but hidden so it can't be opened by accident or split reporting numbers. -->
+    <div class="card" style="display:none">
       <div class="card-header" style="background:var(--gd)">
         <h2>📁 الكوتيشنات المحفوظة</h2>
         <span id="quotes-count" style="margin-right:auto;background:var(--gl);color:white;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700"></span>
@@ -1030,6 +1031,20 @@ textarea { min-height:72px; resize:vertical; }
     </div>
   </div>
 
+  <!-- WORKERS TAB -->
+  <div id="tab-workers" class="tab">
+    <button class="btn btn-primary btn-full" style="margin-bottom:14px;border-radius:12px;padding:14px;font-size:15px" onclick="openAddWorker()">
+      👷 إضافة عامل جديد
+    </button>
+    <div class="card" id="workers-list-card">
+      <div class="card-header" style="background:var(--gd)">
+        <h2>👷 قائمة العمال</h2>
+        <span id="workers-count" style="margin-right:auto;background:var(--gl);color:white;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700"></span>
+      </div>
+      <div id="workers-list-body"></div>
+    </div>
+  </div>
+
 <div class="nav-backdrop" id="nav-backdrop" onclick="closeNav()"></div>
 <div class="bottom-nav" id="side-nav">
   <div class="nav-drawer-head">القائمة <button class="nav-close" onclick="closeNav()">✕</button></div>
@@ -1056,6 +1071,10 @@ textarea { min-height:72px; resize:vertical; }
   <div class="nav-item" id="nav-finances" onclick="switchTab('finances')">
     <div class="nav-icon">💰</div>
     <div class="nav-label">المالية</div>
+  </div>
+  <div class="nav-item" id="nav-workers" onclick="switchTab('workers')">
+    <div class="nav-icon">👷</div>
+    <div class="nav-label">العمال</div>
   </div>
   <div class="nav-item" onclick="dtLogout()" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.08)">
     <div class="nav-icon">🚪</div>
@@ -1090,6 +1109,12 @@ textarea { min-height:72px; resize:vertical; }
         <datalist id="areas-list"></datalist>
       </div>
       <div class="field"><label>التاريخ *</label><input type="date" id="f-date"></div>
+    </div>
+    <div class="field">
+      <label>العامل المسؤول</label>
+      <select id="f-worker">
+        <option value="">— بدون —</option>
+      </select>
     </div>
     <div class="field">
       <label>نوع العمل</label>
@@ -1197,8 +1222,7 @@ function loadData() {
 function saveQuotations() {
   try { localStorage.setItem('dt_quotations', JSON.stringify(quotations)); } catch {}
   if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    set(ref(db, 'quotations'), _fbClean(_keyedObj(quotations, 'id')))
+    _fbSyncSave('quotations', quotations, 'id')
       .then(() => { setCloudStatus(true); showSync(); })
       .catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
   }
@@ -1219,13 +1243,41 @@ function _keyedObj(arr, idField){
   return o;
 }
 
+// ── Safe multi-device sync save ──
+// Previously we used set(ref(db,node), wholeList) which REPLACES the entire
+// node on every save. If two tabs/devices are open at once, whichever one
+// saves last wins and silently wipes out anything the other one added in
+// between (e.g. a newly added invoice disappearing back down to an older
+// count). _fbLastKeys remembers which keys we last knew about for each
+// node; on save we only touch keys we actually added/changed, and
+// explicitly null out keys we intentionally removed — anything added by
+// another device that we don't know about is left completely alone.
+window._fbLastKeys = window._fbLastKeys || {};
+function _fbSyncSave(node, arr, idField) {
+  if (!window._fbReady) return Promise.resolve();
+  const { db, ref, update } = window._fb;
+  const newObj = _fbClean(_keyedObj(arr, idField));
+  const newKeys = Object.keys(newObj);
+  const oldKeys = window._fbLastKeys[node] || [];
+  const payload = { ...newObj };
+  oldKeys.forEach(k => { if (!(k in newObj)) payload[k] = null; }); // explicit deletions only
+  window._fbLastKeys[node] = newKeys;
+  if (!Object.keys(payload).length) return Promise.resolve();
+  return update(ref(db, node), payload);
+}
+// Keep the "last known keys" baseline in sync with whatever the server confirms,
+// so future saves compute deletions against reality, not stale local state.
+function _fbTrackKeys(node, arr, idField) {
+  window._fbLastKeys[node] = Object.keys(_keyedObj(arr, idField));
+}
+
 function saveData() {
   // Save to localStorage always (offline support)
   try { localStorage.setItem('dt_visits', JSON.stringify(visits)); localStorage.setItem('dt_nextid', String(nextId)); } catch {}
   // Save to Firebase if ready
   if (window._fbReady) {
     const { db, ref, set } = window._fb;
-    set(ref(db, 'visits'), _fbClean(_keyedObj(visits, 'id'))).catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
+    _fbSyncSave('visits', visits, 'id').catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
     set(ref(db, 'nextId'), nextId).catch(e => { console.log('Firebase save error:', e); setCloudStatus(false, e.message); });
   }
 }
@@ -1233,8 +1285,7 @@ function saveData() {
 function saveInvoiceRecords() {
   try { localStorage.setItem('dt_invoice_records', JSON.stringify(invoiceRecords)); } catch {}
   if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    set(ref(db, 'invoiceRecords'), _fbClean(_keyedObj(invoiceRecords, 'invNum')))
+    _fbSyncSave('invoiceRecords', invoiceRecords, 'invNum')
       .then(() => { setCloudStatus(true); showSync(); })
       .catch(e => { console.warn('Firebase invoiceRecords save error:', e); setCloudStatus(false, e.message); showToast('⚠️ تعذّر حفظ الفواتير بالسحابة: ' + (e.code || e.message)); });
   } else {
@@ -1273,6 +1324,7 @@ function initFirebase() {
     else if (data && typeof data === 'object') arr = Object.values(data).filter(r => r);
     if (arr) {
       visits = arr;
+      _fbTrackKeys('visits', visits, 'id');
       try { localStorage.setItem('dt_visits', JSON.stringify(visits)); } catch {}
       renderAll();
       showSync();
@@ -1292,6 +1344,7 @@ function initFirebase() {
     else if (data && typeof data === 'object') records = Object.values(data).filter(r => r);
     if (records) {
       invoiceRecords = records;
+      _fbTrackKeys('invoiceRecords', invoiceRecords, 'invNum');
       try { localStorage.setItem('dt_invoice_records', JSON.stringify(invoiceRecords)); } catch {}
       setCloudStatus(true);
       showSync();
@@ -1309,9 +1362,24 @@ function initFirebase() {
     else if (data && typeof data === 'object') arr = Object.values(data).filter(r => r);
     if (arr) {
       clients_data = arr;
+      _fbTrackKeys('clients', clients_data, 'id');
       try { localStorage.setItem('dt_clients', JSON.stringify(clients_data)); } catch {}
       showSync();
       if (document.getElementById('tab-clients').classList.contains('active')) renderClients();
+    }
+  });
+  onValue(ref(db, 'workers'), (snapshot) => {
+    const data = snapshot.val();
+    let arr = null;
+    if (Array.isArray(data)) arr = data.filter(r => r);
+    else if (data && typeof data === 'object') arr = Object.values(data).filter(r => r);
+    if (arr) {
+      workers = arr;
+      _fbTrackKeys('workers', workers, 'id');
+      try { localStorage.setItem('dt_workers', JSON.stringify(workers)); } catch {}
+      showSync();
+      updateWorkerSelects();
+      if (document.getElementById('tab-workers') && document.getElementById('tab-workers').classList.contains('active')) renderWorkers();
     }
   });
   onValue(ref(db, 'quotations'), (snapshot) => {
@@ -1321,6 +1389,7 @@ function initFirebase() {
     else if (data && typeof data === 'object') rows = Object.values(data).filter(r => r);
     if (rows) {
       quotations = rows;
+      _fbTrackKeys('quotations', quotations, 'id');
       try { localStorage.setItem('dt_quotations', JSON.stringify(quotations)); } catch {}
       setCloudStatus(true);
       showSync();
@@ -1564,7 +1633,7 @@ function switchTab(tab) {
   closeNav();
   if (tab === 'finance') tab = 'finances';
   if (tab === 'quote') tab = 'quotation';
-  ['dashboard','log','clients','invoice','quotation','finances'].forEach(t => {
+  ['dashboard','log','clients','invoice','quotation','finances','workers'].forEach(t => {
     const tabEl = document.getElementById('tab-'+t);
     const navEl = document.getElementById('nav-'+t);
     if (tabEl) tabEl.classList.toggle('active', t===tab);
@@ -1584,6 +1653,7 @@ function switchTab(tab) {
   }
   if (tab === 'quotation') renderQuotations();
   if (tab === 'clients') renderClients();
+  if (tab === 'workers') renderWorkers();
 }
 
 // ── KPIs ──
@@ -1619,7 +1689,7 @@ function visitRowHTML(v, i, showEdit=true) {
         <button class="btn-icon" style="color:#ddd" onclick="delVisit(${v.id})">🗑</button>
       </div>
     </div>
-    <div class="visit-meta">${fmtDate(v.date)} · <span class="type-tag">${escapeHtml(v.type||'—')}</span></div>
+    <div class="visit-meta">${fmtDate(v.date)} · <span class="type-tag">${escapeHtml(v.type||'—')}</span>${v.worker?` · 👷 ${escapeHtml(v.worker)}`:''}</div>
     <div class="visit-meta" style="color:#555;margin-top:2px">${escapeHtml(v.work||'—')}</div>
     ${(v.notes && v.notes.trim()) ? `<div class="visit-notes"><div style="font-weight:700;margin-bottom:2px">📝 ملاحظات</div>${notesToBulletsHtml(v.notes, 'var(--blue)', '11px')}</div>` : ''}
     ${overdue ? `<div style="font-size:11px;color:var(--red);font-weight:700;margin-top:2px">⚠️ متأخر ${daysDiff(v.dueDate)} يوم (استحقاق: ${fmtDate(v.dueDate)})</div>` : ''}
@@ -1748,6 +1818,8 @@ function openAdd() {
   hideClientBanner();
   document.getElementById('f-area').value = '';
   document.getElementById('f-date').value = TODAY;
+  updateWorkerSelects();
+  const fw0 = document.getElementById('f-worker'); if (fw0) fw0.value = '';
   document.getElementById('f-type').value = '';
   document.getElementById('f-work').value = '';
   document.getElementById('f-notes').value = '';
@@ -1778,6 +1850,8 @@ function openEdit(id) {
   document.getElementById('f-area').value = v.area||'';
   const aes=document.getElementById('f-area-select');if(aes)aes.value=v.area||'';
   document.getElementById('f-date').value = v.date||TODAY;
+  updateWorkerSelects();
+  const fw1 = document.getElementById('f-worker'); if (fw1) fw1.value = v.worker||'';
   document.getElementById('f-type').value = v.type||'';
   document.getElementById('f-work').value = v.work||'';
   document.getElementById('f-notes').value = v.notes||'';
@@ -1873,6 +1947,7 @@ function saveVisit() {
   const data = {
     id: editId || nextId,
     client, date,
+    worker: document.getElementById('f-worker') ? document.getElementById('f-worker').value : '',
     area: document.getElementById('f-area').value.trim(),
     type: document.getElementById('f-type').value,
     work: document.getElementById('f-work').value.trim(),
@@ -5111,11 +5186,248 @@ let clients_data = [];
 function loadClients() {
   try { clients_data = JSON.parse(localStorage.getItem('dt_clients') || '[]'); } catch { clients_data = []; }
 }
+
+// ── Workers ──
+let workers = [];
+function loadWorkers() {
+  try { workers = JSON.parse(localStorage.getItem('dt_workers') || '[]'); } catch { workers = []; }
+}
+function saveWorkers() {
+  try { localStorage.setItem('dt_workers', JSON.stringify(workers)); } catch {}
+  if (window._fbReady) {
+    _fbSyncSave('workers', workers, 'id').catch(e => { console.log(e); setCloudStatus(false, e.message); });
+  }
+}
+
+function openAddWorker() {
+  document.getElementById('worker-modal-title').textContent = '👷 إضافة عامل جديد';
+  document.getElementById('worker-save-btn').textContent = '✚ إضافة';
+  document.getElementById('wf-name').value = '';
+  document.getElementById('wf-role').value = '';
+  document.getElementById('wf-phone').value = '';
+  document.getElementById('wf-wage-type').value = 'شهري';
+  document.getElementById('wf-wage-amount').value = '';
+  document.getElementById('wf-notes').value = '';
+  document.getElementById('wf-name').classList.remove('error');
+  window._editWorkerId = null;
+  document.getElementById('worker-modal').classList.add('open');
+}
+
+function openEditWorker(id) {
+  const w = workers.find(x => x.id === id);
+  if (!w) return;
+  document.getElementById('worker-modal-title').textContent = '✏️ تعديل العامل';
+  document.getElementById('worker-save-btn').textContent = '💾 حفظ';
+  document.getElementById('wf-name').value = w.name || '';
+  document.getElementById('wf-role').value = w.role || '';
+  document.getElementById('wf-phone').value = w.phone || '';
+  document.getElementById('wf-wage-type').value = w.wageType || 'شهري';
+  document.getElementById('wf-wage-amount').value = w.wageAmount || '';
+  document.getElementById('wf-notes').value = w.notes || '';
+  window._editWorkerId = id;
+  document.getElementById('worker-modal').classList.add('open');
+}
+
+function saveWorker() {
+  const name = document.getElementById('wf-name').value.trim();
+  if (!name) { document.getElementById('wf-name').classList.add('error'); return; }
+  const data = {
+    id: window._editWorkerId || Date.now(),
+    name,
+    role: document.getElementById('wf-role').value.trim(),
+    phone: document.getElementById('wf-phone').value.trim(),
+    wageType: document.getElementById('wf-wage-type').value,
+    wageAmount: parseFloat(document.getElementById('wf-wage-amount').value) || 0,
+    notes: document.getElementById('wf-notes').value.trim(),
+  };
+  if (window._editWorkerId) {
+    const old = workers.find(x => x.id === window._editWorkerId) || {};
+    data.payments = old.payments || [];
+    workers = workers.map(w => w.id === window._editWorkerId ? data : w);
+    showToast('✅ تم تعديل بيانات العامل!');
+  } else {
+    data.payments = [];
+    workers.unshift(data);
+    showToast('✅ تمت إضافة العامل!');
+  }
+  saveWorkers();
+  document.getElementById('worker-modal').classList.remove('open');
+  renderWorkers();
+  updateWorkerSelects();
+}
+
+function delWorker(id) {
+  const w = workers.find(x => x.id === id);
+  if (!w) return;
+  if (!confirm(`حذف العامل «${w.name}»؟`)) return;
+  workers = workers.filter(x => x.id !== id);
+  saveWorkers();
+  renderWorkers();
+  updateWorkerSelects();
+  showToast('🗑 تم حذف العامل');
+}
+
+function getWorkerPaidTotal(w) {
+  return (w.payments||[]).reduce((s,p) => s + (parseFloat(p.amount)||0), 0);
+}
+
+function updateWorkerSelects() {
+  const sel = document.getElementById('f-worker');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— بدون —</option>' + workers.map(w => `<option value="${escapeHtml(w.name)}">${escapeHtml(w.name)}${w.role?' — '+escapeHtml(w.role):''}</option>`).join('');
+  sel.value = cur;
+}
+
+function renderWorkers() {
+  const el = document.getElementById('workers-list-body');
+  const count = document.getElementById('workers-count');
+  if (count) count.textContent = workers.length + ' عامل';
+
+  if (!workers.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">👷</div><p>لا يوجد عمال بعد</p></div>';
+    return;
+  }
+
+  const WAGE_LABEL = {'شهري':'/شهر','يومي':'/يوم','بالمشروع':'/مشروع'};
+  el.innerHTML = workers.map((w, i) => {
+    const wVisits = visits.filter(v => v.worker === w.name);
+    const paid = getWorkerPaidTotal(w);
+    const bg = i%2===0 ? '#fff' : 'var(--gray)';
+    return `<div style="padding:14px 16px;border-bottom:1px solid #F0F0F0;background:${bg}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div style="font-weight:700;font-size:15px">${escapeHtml(w.name)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">
+            ${w.role ? '🛠 '+escapeHtml(w.role) : ''}
+            ${w.phone ? ' &nbsp;📞 '+escapeHtml(w.phone) : ''}
+            ${w.wageAmount ? `<span style="background:var(--goldl);color:var(--gold);padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-right:4px">💰 ${w.wageAmount.toLocaleString('en')} QAR${WAGE_LABEL[w.wageType]||''}</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="background:var(--gp);color:var(--gm);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${wVisits.length} زيارة</span>
+          <button class="btn-icon" title="الدفعات" style="color:var(--gold)" onclick="openWorkerPaymentsModal(${w.id})">💰</button>
+          ${w.phone ? `<button class="btn-icon" title="واتساب" style="color:#25D366" onclick="window.open('https://wa.me/'+'${w.phone}'.replace(/[^0-9]/g,''),'_blank')">💬</button>` : ''}
+          <button class="btn-icon" onclick="openEditWorker(${w.id})">✏️</button>
+          <button class="btn-icon" style="color:#ddd" onclick="delWorker(${w.id})">🗑</button>
+        </div>
+      </div>
+      ${w.notes ? `<div style="font-size:11px;color:var(--blue);margin-bottom:6px">📝 ${escapeHtml(w.notes)}</div>` : ''}
+      <div style="font-size:11px;color:var(--muted)">💵 إجمالي المدفوع: <b style="color:var(--gm)">${paid.toLocaleString('en')} QAR</b></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Worker Payments ──
+let _wpWorker = null;
+let _wpEditingId = null;
+
+function openWorkerPaymentsModal(wId) {
+  const w = workers.find(x => x.id === wId);
+  if (!w) return;
+  _wpWorker = w;
+  document.getElementById('wp-title-info').textContent = w.name || '';
+  renderWorkerPaymentsList();
+  document.getElementById('wp-date').value = TODAY;
+  document.getElementById('wp-amount').value = '';
+  document.getElementById('wp-method').value = 'نقدي';
+  document.getElementById('wp-note').value = '';
+  _wpEditingId = null;
+  document.getElementById('wp-form-title').textContent = '➕ دفعة جديدة';
+  document.getElementById('worker-payments-modal').classList.add('open');
+}
+
+function renderWorkerPaymentsList() {
+  const w = _wpWorker;
+  if (!w) return;
+  const list = (w.payments||[]).slice().sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const total = list.reduce((s,p)=> s + (parseFloat(p.amount)||0), 0);
+  const METHOD_ICON = {'نقدي':'💵','تحويل':'🏦','بطاقة':'💳','أخرى':'📋'};
+
+  document.getElementById('wp-summary').innerHTML = `
+    <div style="text-align:center">
+      <div style="font-size:10px;color:var(--muted);font-weight:700">إجمالي المدفوع لهذا العامل</div>
+      <div style="font-size:18px;font-weight:900;color:var(--gm);margin-top:4px">${total.toLocaleString('en')} QAR</div>
+    </div>`;
+
+  const listEl = document.getElementById('wp-list');
+  if (!list.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:14px">لا توجد دفعات بعد</div>';
+    return;
+  }
+  listEl.innerHTML = list.map((p,i) => {
+    const amt = parseFloat(p.amount)||0;
+    const ico = METHOD_ICON[p.method]||'💰';
+    return `<div style="padding:8px 10px;border-bottom:1px solid #f0f0f0;background:${i%2===0?'#fff':'#fafafa'};display:flex;align-items:center;gap:8px;font-size:12px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span>${ico}</span>
+          <b style="color:var(--gd)">${amt.toLocaleString('en')} QAR</b>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">📅 ${p.date||'—'}${p.method?' · '+p.method:''}</div>
+        ${p.note?`<div style="font-size:10px;color:#888;margin-top:1px">📝 ${escapeHtml(p.note)}</div>`:''}
+      </div>
+      <button onclick="editWorkerPayment('${p.id}')" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:14px">✏️</button>
+      <button onclick="deleteWorkerPayment('${p.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function saveWorkerPayment() {
+  if (!_wpWorker) return;
+  const date   = document.getElementById('wp-date').value;
+  const amount = parseFloat(document.getElementById('wp-amount').value)||0;
+  const method = document.getElementById('wp-method').value;
+  const note   = document.getElementById('wp-note').value.trim();
+  if (!date || !amount) { showToast('⚠️ التاريخ والمبلغ مطلوبان'); return; }
+  if (!Array.isArray(_wpWorker.payments)) _wpWorker.payments = [];
+  if (_wpEditingId) {
+    const p = _wpWorker.payments.find(x => x.id === _wpEditingId);
+    if (p) Object.assign(p, {date, amount, method, note});
+  } else {
+    _wpWorker.payments.push({
+      id: 'wp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      date, amount, method, note
+    });
+  }
+  workers = workers.map(w => w.id === _wpWorker.id ? _wpWorker : w);
+  saveWorkers();
+  document.getElementById('wp-date').value = TODAY;
+  document.getElementById('wp-amount').value = '';
+  document.getElementById('wp-note').value = '';
+  _wpEditingId = null;
+  document.getElementById('wp-form-title').textContent = '➕ دفعة جديدة';
+  renderWorkerPaymentsList();
+  renderWorkers();
+  showToast('✅ تم حفظ الدفعة');
+}
+
+function editWorkerPayment(pid) {
+  if (!_wpWorker) return;
+  const p = (_wpWorker.payments||[]).find(x => x.id === pid);
+  if (!p) return;
+  _wpEditingId = pid;
+  document.getElementById('wp-date').value   = p.date||TODAY;
+  document.getElementById('wp-amount').value = p.amount||'';
+  document.getElementById('wp-method').value = p.method||'نقدي';
+  document.getElementById('wp-note').value   = p.note||'';
+  document.getElementById('wp-form-title').textContent = '✏️ تعديل دفعة';
+}
+
+function deleteWorkerPayment(pid) {
+  if (!_wpWorker) return;
+  if (!confirm('حذف هذه الدفعة؟')) return;
+  _wpWorker.payments = (_wpWorker.payments||[]).filter(x => x.id !== pid);
+  workers = workers.map(w => w.id === _wpWorker.id ? _wpWorker : w);
+  saveWorkers();
+  renderWorkerPaymentsList();
+  renderWorkers();
+  showToast('🗑 تم حذف الدفعة');
+}
 function saveClients() {
   try { localStorage.setItem('dt_clients', JSON.stringify(clients_data)); } catch {}
   if (window._fbReady) {
-    const { db, ref, set } = window._fb;
-    set(ref(db, 'clients'), _fbClean(_keyedObj(clients_data, 'id'))).catch(e => { console.log(e); setCloudStatus(false, e.message); });
+    _fbSyncSave('clients', clients_data, 'id').catch(e => { console.log(e); setCloudStatus(false, e.message); });
   }
 }
 
@@ -5401,7 +5713,9 @@ function openClientMap(clientName) {
 // ── Init ──
 loadData();
 loadClients();
+loadWorkers();
 renderAll();
+updateWorkerSelects();
 // Show initial cloud status
 const _cs = document.getElementById('cloud-status');
 if (_cs) { _cs.textContent = '⏳ جاري الاتصال...'; _cs.style.color = '#D4AC0D'; }
@@ -6027,7 +6341,7 @@ function changeInvPayStatus(id) {
   const statuses = ['غير مدفوع', 'مدفوع جزئياً', 'مدفوع'];
   const cur = statuses.indexOf(rec.payStatus);
   rec.payStatus = statuses[(cur + 1) % 3];
-  fbSave('inv_history', invHistory);
+  fbSave('inv_history', invHistory, {idField:'id'});
   renderInvoiceHistory();
   showToast('✅ تم تحديث حالة الدفع: ' + rec.payStatus);
 }
@@ -6172,7 +6486,7 @@ function saveInvoiceRecord(exportedAs) {
         visitIds: selectedVisits.slice(),
         exportedAs: exportedAs || 'print'
       });
-      fbSave('inv_history', invHistory);
+      fbSave('inv_history', invHistory, {idField:'id'});
     }
     renderInvoiceHistory();
   } catch(e) { console.log(e); }
@@ -6196,7 +6510,7 @@ function addPlantToRegistry(name) {
 }
 
 function saveQuotes() {
-  fbSave('quotes', quotes);
+  fbSave('quotes', quotes, {idField:'id'});
 }
 
 function onQClientChange(val) {
@@ -6698,7 +7012,7 @@ function loadExpenses() {
 }
 
 function saveExpenses() {
-  fbSave('expenses', expenses);
+  fbSave('expenses', expenses, {idField:'id'});
 }
 
 const EXP_CATS = {
@@ -6985,11 +7299,21 @@ function getProjExpenses(quoteId) {
 }
 
 function saveProjExpenses(quoteId, exps) {
+  let all = {};
   try {
-    const all = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}');
+    all = JSON.parse(localStorage.getItem('dt_proj_expenses') || '{}');
     all[quoteId] = exps;
-    fbSave('proj_expenses', all);
+    localStorage.setItem('dt_proj_expenses', JSON.stringify(all));
   } catch(e) { console.log(e); }
+  // Write only this project's own key instead of overwriting the whole
+  // proj_expenses node, so another device editing a different project's
+  // expenses at the same time can't wipe this one out.
+  if (window._fbReady) {
+    const { db, ref, set } = window._fb;
+    const key = String(quoteId).replace(/[.#$\[\]\/\s]/g,'_');
+    set(ref(db, 'proj_expenses/' + key), exps)
+      .catch(e => { console.warn('Firebase proj_expenses save error:', e); showToast('⚠️ فشل حفظ مصاريف المشروع على السحابة'); });
+  }
 }
 
 function getProjExpTotal(quoteId) {
@@ -7462,6 +7786,11 @@ function renderFrAging(){
 
 function _sig(x) { try { return JSON.stringify(x); } catch { return String(Math.random()); } }
 
+// opts.idField: when the value is a list of records with a stable id, pass
+// the id field name here so the write only touches changed/removed keys
+// (via _fbSyncSave) instead of replacing the whole node — same fix as
+// invoices/visits/clients/quotations, applied here to avoid the same
+// multi-device data loss for this node.
 function fbSave(path, value, opts) {
   try { localStorage.setItem('dt_' + path, JSON.stringify(value)); } catch {}
   if (!window._fbReady) return;
@@ -7469,9 +7798,12 @@ function fbSave(path, value, opts) {
   _lastSig[path] = _sig(value);
   clearTimeout(_saveTimers[path]);
   _saveTimers[path] = setTimeout(() => {
-    const { db, ref, set } = window._fb;
+    const idField = opts && opts.idField;
     showSaveState('saving');
-    set(ref(db, path), value)
+    const writeP = idField
+      ? _fbSyncSave(path, value, idField)
+      : (() => { const { db, ref, set } = window._fb; return set(ref(db, path), value); })();
+    writeP
       .then(() => { showSaveState('saved'); })
       .catch(e => {
         console.warn('Firebase save error:', path, e);
@@ -7680,6 +8012,67 @@ if ('serviceWorker' in navigator) {
     <div class="modal-footer">
       <button class="btn btn-primary" style="flex:1" id="client-save-btn" onclick="saveClient()">✚ إضافة</button>
       <button class="btn btn-secondary" onclick="document.getElementById('client-modal').classList.remove('open')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Worker Modal -->
+<div class="modal" id="worker-modal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="worker-modal-title">👷 إضافة عامل جديد</div>
+    <div class="field"><label>اسم العامل *</label><input type="text" id="wf-name" placeholder="محمد أحمد"></div>
+    <div class="grid2">
+      <div class="field"><label>الدور/الوظيفة</label><input type="text" id="wf-role" placeholder="بستاني، سائق..."></div>
+      <div class="field"><label>الجوال</label><input type="tel" id="wf-phone" placeholder="+974..."></div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>نوع الأجر</label>
+        <select id="wf-wage-type">
+          <option value="شهري">شهري</option>
+          <option value="يومي">يومي</option>
+          <option value="بالمشروع">بالمشروع</option>
+        </select>
+      </div>
+      <div class="field"><label>قيمة الأجر (QAR)</label><input type="number" id="wf-wage-amount" min="0" placeholder="0"></div>
+    </div>
+    <div class="field"><label>ملاحظات</label><textarea id="wf-notes" placeholder="..." style="min-height:60px"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="flex:1" id="worker-save-btn" onclick="saveWorker()">✚ إضافة</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('worker-modal').classList.remove('open')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Worker Payments Modal -->
+<div class="modal" id="worker-payments-modal">
+  <div class="modal-box" style="max-width:560px;max-height:92dvh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">💰 دفعات العامل — <span id="wp-title-info" style="font-size:13px;color:var(--gm)"></span></div>
+    <div id="wp-summary" style="background:var(--gp);border-radius:10px;padding:12px;margin-bottom:12px"></div>
+
+    <div style="background:#F0F4F1;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div id="wp-form-title" style="font-size:13px;font-weight:700;color:var(--gm);margin-bottom:8px">➕ دفعة جديدة</div>
+      <div class="grid2">
+        <div class="field"><label>التاريخ</label><input type="date" id="wp-date" style="background:#fff"></div>
+        <div class="field"><label>المبلغ (QAR)</label><input type="number" id="wp-amount" min="0" step="0.01" style="background:#fff" placeholder="0"></div>
+      </div>
+      <div class="field">
+        <label>طريقة الدفع</label>
+        <select id="wp-method" style="background:#fff">
+          <option>نقدي</option><option>تحويل</option><option>بطاقة</option><option>أخرى</option>
+        </select>
+      </div>
+      <div class="field"><label>ملاحظة</label><input type="text" id="wp-note" style="background:#fff" placeholder="مثال: راتب شهر يوليو"></div>
+      <button class="btn btn-primary btn-full" onclick="saveWorkerPayment()">💾 حفظ الدفعة</button>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--gd);margin-bottom:6px">📋 سجل الدفعات</div>
+    <div id="wp-list" style="border:1px solid var(--border);border-radius:10px;overflow:hidden;max-height:35vh;overflow-y:auto;margin-bottom:12px"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="width:100%" onclick="document.getElementById('worker-payments-modal').classList.remove('open')">إغلاق</button>
     </div>
   </div>
 </div>
