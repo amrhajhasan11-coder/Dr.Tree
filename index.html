@@ -4356,7 +4356,7 @@ ${(data.expenses||[]).length} مصروف
 }
 
 // ── Quotations ──
-const QUOTATION_CATEGORIES = ['بنزين ووقود','مواد زراعية','أدوات ومعدات','صيانة معدات','عمالة','رواتب','اتصالات وإنترنت','ضيافة وإقامة','رسوم وتراخيص','أخرى'];
+const QUOTATION_CATEGORIES = ['بنزين ووقود','مواد زراعية','أشجار','أدوات ومعدات','صيانة معدات','عمالة','رواتب','اتصالات وإنترنت','ضيافة وإقامة','رسوم وتراخيص','أخرى'];
 let _qItemsBuf = []; // working items buffer for the modal
 
 function nextQuotationNumber() {
@@ -4507,6 +4507,8 @@ function onQItemWorkerSelect(i, workerName) {
 function renderQItemsList() {
   const list = document.getElementById('q-items-list');
   if (!list) return;
+  const dl = document.getElementById('q-plants-datalist');
+  if (dl) dl.innerHTML = savedPlants.map(p=>`<option value="${escapeHtml(p)}">`).join('');
   if (!_qItemsBuf.length) { list.innerHTML = ''; document.getElementById('q-items-totals').style.display='none'; return; }
   list.innerHTML = _qItemsBuf.map((it, i) => {
     const sub = (parseFloat(it.qty)||0) * (parseFloat(it.unitPrice)||0);
@@ -4516,12 +4518,13 @@ function renderQItemsList() {
       .join('');
     const needsCat = (parseFloat(it.cost)||0) > 0 && !it.costCategory;
     const hasCost = (parseFloat(it.cost)||0) > 0;
+    const isTree = it.costCategory === 'أشجار';
     const _noteLines = String(it.note||'').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const _notePrev = _noteLines.length ? '<ul style="margin:4px 0 0;padding-right:18px;list-style-type:disc;color:#555">'+_noteLines.map(l => '<li style="margin:2px 0;font-size:11px;line-height:1.5">'+escapeHtml(l)+'</li>').join('')+'</ul>' : '';
     return `
       <div style="background:#fff;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid ${needsCat?'#E07B39':'#E8E8E8'}">
         <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px">
-          <input type="text" placeholder="وصف البند..." value="${(it.desc||'').replace(/"/g,'&quot;')}" oninput="updateQItemField(${i},'desc',this.value)" style="flex:1;font-size:13px;padding:8px">
+          <input type="text" placeholder="${isTree?'🌳 اسم الشجرة/النبات...':'وصف البند...'}" ${isTree?'list="q-plants-datalist"':''} value="${(it.desc||'').replace(/"/g,'&quot;')}" oninput="updateQItemField(${i},'desc',this.value)" ${isTree?`onchange=\"addPlantToRegistry(this.value)\"`:''} style="flex:1;font-size:13px;padding:8px${isTree?';border-color:#8BC34A':''}">
           <button type="button" class="btn-icon" style="color:#C0392B" onclick="removeQuotationItem(${i})">🗑</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1.2fr 1.2fr;gap:6px;margin-bottom:6px">
@@ -8153,6 +8156,7 @@ if ('serviceWorker' in navigator) {
         <button type="button" class="btn btn-sm" style="background:var(--gm);color:#fff" onclick="addQuotationItemRow()">➕ بند</button>
       </div>
       <div id="q-items-list"></div>
+      <datalist id="q-plants-datalist"></datalist>
       <div id="q-items-totals" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;text-align:center">
         <div style="background:#fff;border-radius:8px;padding:8px">
           <div style="font-size:9px;color:var(--muted)">الإيراد</div>
