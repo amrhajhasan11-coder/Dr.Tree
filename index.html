@@ -5741,7 +5741,7 @@ loadClients();
 loadWorkers();
 renderAll();
 updateWorkerSelects();
-if (typeof updateDataCheckBadge === 'function') updateDataCheckBadge();
+setTimeout(() => { if (typeof updateDataCheckBadge === 'function') updateDataCheckBadge(); }, 0);
 // Show initial cloud status
 const _cs = document.getElementById('cloud-status');
 if (_cs) { _cs.textContent = '⏳ جاري الاتصال...'; _cs.style.color = '#D4AC0D'; }
