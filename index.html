@@ -157,6 +157,12 @@ textarea { min-height:72px; resize:vertical; }
 .filters { padding:12px; }
 .filters input, .filters select { margin-bottom:10px; }
 
+/* Finance sub-navigation (collapsible sections) */
+.fin-subnav-btn { flex:0 0 auto; background:#fff; border:1.5px solid var(--border); color:var(--muted); font-size:12px; font-weight:700; padding:9px 14px; border-radius:20px; cursor:pointer; white-space:nowrap; transition:background .15s,color .15s,border-color .15s; }
+.fin-subnav-btn.active { background:var(--gm); border-color:var(--gm); color:#fff; }
+.fin-subtab { display:none; }
+.fin-subtab.active { display:block; }
+
 /* Modal */
 .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:flex-end; }
 .modal.open { display:flex; }
@@ -679,6 +685,15 @@ textarea { min-height:72px; resize:vertical; }
       <select id="fin-month" onchange="renderFinances()"></select>
     </div>
 
+    <!-- Finance sub-navigation -->
+    <div class="fin-subnav" style="display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;-webkit-overflow-scrolling:touch">
+      <button class="fin-subnav-btn active" data-fin="overview" onclick="switchFinSub('overview')">📊 نظرة عامة</button>
+      <button class="fin-subnav-btn" data-fin="expenses" onclick="switchFinSub('expenses')">💸 المصاريف</button>
+      <button class="fin-subnav-btn" data-fin="projects" onclick="switchFinSub('projects')">💼 المشاريع</button>
+      <button class="fin-subnav-btn" data-fin="reports" onclick="switchFinSub('reports')">📈 تقارير متقدمة</button>
+    </div>
+
+    <div id="fin-sub-overview" class="fin-subtab active">
     <!-- Monthly summary -->
     <div class="kpis">
       <div class="kpi" style="background:var(--gp);border-color:var(--gl)">
@@ -711,8 +726,6 @@ textarea { min-height:72px; resize:vertical; }
       <div id="fin-top-clients"></div>
     </div>
 
-    <button class="btn btn-primary btn-full" style="margin:14px 0 10px;border-radius:12px;padding:14px;font-size:15px" onclick="openExpenseModal()">➕ إضافة مصروف</button>
-
     <!-- Backup/Restore card -->
     <div class="card">
       <div class="card-header" style="background:var(--gm)"><h2>💾 نسخ احتياطي واستعادة</h2></div>
@@ -727,6 +740,10 @@ textarea { min-height:72px; resize:vertical; }
         <div style="font-size:11px;color:var(--muted);margin-top:8px">النسخة الكاملة تشمل: العملاء، الزيارات، الفواتير، والمصاريف. زر "دمج المصاريف فقط" يضيف السجلات الناقصة من الملف بدون مس باقي البيانات.</div>
       </div>
     </div>
+    </div><!-- /fin-sub-overview -->
+
+    <div id="fin-sub-expenses" class="fin-subtab">
+    <button class="btn btn-primary btn-full" style="margin:14px 0 10px;border-radius:12px;padding:14px;font-size:15px" onclick="openExpenseModal()">➕ إضافة مصروف</button>
 
     <!-- Expense filters -->
     <div class="card filters">
@@ -763,9 +780,10 @@ textarea { min-height:72px; resize:vertical; }
       </div>
       <div id="exp-list"></div>
     </div>
+    </div><!-- /fin-sub-expenses -->
 
     <!-- ─── PROJECT FINANCES (EXPANDED) ─── -->
-    <div style="margin-top:18px;padding:10px 4px;border-top:3px solid var(--gm)">
+    <div id="fin-sub-projects" class="fin-subtab" style="margin-top:18px;padding:10px 4px;border-top:3px solid var(--gm)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <h2 style="color:var(--gm);font-size:16px;margin:0">📊 مالية المشاريع — تحليل موسّع</h2>
         <button class="btn btn-sm" style="background:var(--gold);color:#5c4500" onclick="exportProjectFinances()">📥 Excel</button>
@@ -874,7 +892,7 @@ textarea { min-height:72px; resize:vertical; }
       </div>
     </div>
     <!-- Advanced Finance Reports -->
-    <div style="margin-top:20px;padding-top:14px;border-top:3px solid var(--gm)">
+    <div id="fin-sub-reports" class="fin-subtab" style="margin-top:20px;padding-top:14px;border-top:3px solid var(--gm)">
       <h2 style="color:var(--gm);font-size:16px;margin-bottom:12px">📊 التقارير المالية المتقدمة</h2>
       <div class="card" style="padding:10px;margin-bottom:14px">
         <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-bottom:8px">
@@ -1641,7 +1659,7 @@ function switchTab(tab) {
     if (tabEl) tabEl.classList.toggle('active', t===tab);
     if (navEl) navEl.classList.toggle('active', t===tab);
   });
-  if (tab === 'finances') renderFinances();
+  if (tab === 'finances') { renderFinances(); if (typeof renderFinance === 'function') renderFinance(); }
   if (tab === 'log') renderLog();
   if (tab === 'invoice') {
     renderInvClients();
@@ -1656,6 +1674,20 @@ function switchTab(tab) {
   if (tab === 'quotation') renderQuotations();
   if (tab === 'clients') renderClients();
   if (tab === 'workers') renderWorkers();
+}
+
+// ── Finance sub-tabs (نظرة عامة / المصاريف / المشاريع / تقارير متقدمة) ──
+function switchFinSub(sub) {
+  ['overview','expenses','projects','reports'].forEach(s => {
+    const el = document.getElementById('fin-sub-'+s);
+    const btn = document.querySelector('.fin-subnav-btn[data-fin="'+s+'"]');
+    if (el) el.classList.toggle('active', s===sub);
+    if (btn) btn.classList.toggle('active', s===sub);
+  });
+  if (sub === 'projects' && typeof renderProjectCosts === 'function') renderProjectCosts();
+  if (sub === 'reports' && typeof renderFinance === 'function') renderFinance();
+  const nav = document.querySelector('.fin-subnav');
+  if (nav) nav.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 // ── KPIs ──
