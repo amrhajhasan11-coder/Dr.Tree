@@ -285,6 +285,7 @@ textarea { min-height:72px; resize:vertical; }
     <span id="save-state" class="badge-saved">💾 محفوظ</span>
     <button id="btn-install" onclick="pwaInstall()" title="تثبيت التطبيق" style="display:none;background:var(--gm);color:#fff;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;min-height:40px">⬇️ تثبيت</button>
     <button id="btn-trash" onclick="openTrash()" title="سلة المهملات" style="position:relative;background:transparent;border:1.5px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center">🗑<span id="trash-count" style="display:none;position:absolute;top:-4px;right:-4px;background:#C0392B;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center">0</span></button>
+    <button id="btn-datacheck" onclick="openDataCheck()" title="فحص البيانات المكررة" style="position:relative;background:transparent;border:1.5px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center">🧹<span id="datacheck-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E07B39;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center">0</span></button>
   </div>
 </div>
 
@@ -5740,6 +5741,7 @@ loadClients();
 loadWorkers();
 renderAll();
 updateWorkerSelects();
+if (typeof updateDataCheckBadge === 'function') updateDataCheckBadge();
 // Show initial cloud status
 const _cs = document.getElementById('cloud-status');
 if (_cs) { _cs.textContent = '⏳ جاري الاتصال...'; _cs.style.color = '#D4AC0D'; }
@@ -5831,6 +5833,111 @@ function updateTrashBadge() {
   if (trash.length > 0) { el.textContent = trash.length; el.style.display = 'inline-block'; }
   else { el.style.display = 'none'; }
 }
+// ── Data integrity check (duplicate records) ──
+// Duplicates happen when the same record gets saved to Firebase more than once
+// under different keys (e.g. an old sync bug, or a node that was blocked by
+// security rules and later re-enabled with stale data already sitting in it —
+// see the "workers" duplication cleaned up manually on 2026-07-18).
+const DATA_CHECK_COLLECTIONS = [
+  { node:'visits',         label:'الزيارات',     idField:'id',     get:()=>visits,         set:(a)=>{visits=a;},         lsKey:'dt_visits' },
+  { node:'clients',        label:'العملاء',      idField:'id',     get:()=>clients_data,   set:(a)=>{clients_data=a;},   lsKey:'dt_clients' },
+  { node:'workers',        label:'العمال',       idField:'id',     get:()=>workers,        set:(a)=>{workers=a;},        lsKey:'dt_workers' },
+  { node:'invoiceRecords', label:'الفواتير',     idField:'invNum', get:()=>invoiceRecords, set:(a)=>{invoiceRecords=a;}, lsKey:'dt_invoice_records' },
+  { node:'quotations',     label:'الكوتيشنات',   idField:'id',     get:()=>quotations,     set:(a)=>{quotations=a;},     lsKey:'dt_quotations' },
+  { node:'expenses',       label:'المصاريف',     idField:'id',     get:()=>expenses,       set:(a)=>{expenses=a;},       lsKey:'dt_expenses' },
+];
+
+function findDupGroups(arr, idField) {
+  const map = {};
+  (arr||[]).forEach(item => {
+    const key = item ? item[idField] : undefined;
+    if (key===undefined || key===null || key==='') return;
+    (map[key] = map[key]||[]).push(item);
+  });
+  return Object.entries(map).filter(([,list]) => list.length>1);
+}
+
+function openDataCheck() {
+  renderDataCheck();
+  document.getElementById('datacheck-modal').classList.add('open');
+}
+
+function updateDataCheckBadge() {
+  const el = document.getElementById('datacheck-badge');
+  if (!el) return;
+  let total = 0;
+  DATA_CHECK_COLLECTIONS.forEach(c => {
+    findDupGroups(c.get(), c.idField).forEach(([,list]) => total += list.length-1);
+  });
+  if (total > 0) { el.textContent = total; el.style.display = 'inline-block'; }
+  else { el.style.display = 'none'; }
+}
+
+function renderDataCheck() {
+  const el = document.getElementById('datacheck-list');
+  if (!el) return;
+  let html = '';
+  let totalIssues = 0;
+  DATA_CHECK_COLLECTIONS.forEach(c => {
+    const arr = c.get();
+    const dups = findDupGroups(arr, c.idField);
+    const dupCount = dups.reduce((s,[,list])=>s+(list.length-1),0);
+    totalIssues += dupCount;
+    html += `<div style="background:#fff;border:1px solid ${dupCount?'#E07B39':'#E8E8E8'};border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div>
+          <div style="font-weight:700;font-size:13px">${c.label}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${(arr||[]).length} سجل${dupCount?` · <span style="color:#E07B39;font-weight:700">${dupCount} مكرر</span>`:' · لا يوجد تكرار ✅'}</div>
+        </div>
+        ${dupCount ? `<button class="btn btn-sm" style="background:#E07B39;color:#fff;white-space:nowrap" onclick="cleanDataCollection('${c.node}')">🧹 تنظيف</button>` : ''}
+      </div>
+    </div>`;
+  });
+  el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${totalIssues ? `تم العثور على <b style="color:#E07B39">${totalIssues}</b> سجل مكرر إجمالاً` : 'كل البيانات سليمة، ما في تكرار ✅'}</div>` + html;
+  updateDataCheckBadge();
+}
+
+async function cleanDataCollection(node) {
+  const c = DATA_CHECK_COLLECTIONS.find(x => x.node === node);
+  if (!c) return;
+  const arr = c.get();
+  const seen = {};
+  const clean = [];
+  (arr||[]).forEach(item => {
+    const key = item ? item[c.idField] : undefined;
+    if (key===undefined || key===null || key==='') { clean.push(item); return; }
+    if (!seen[key]) { seen[key] = item; clean.push(item); }
+    else {
+      // Don't silently drop payments recorded on a duplicate copy — merge them in.
+      const existing = seen[key];
+      ['payments','clientPayments'].forEach(pf => {
+        if (Array.isArray(item[pf]) && item[pf].length) {
+          existing[pf] = [...(existing[pf]||[]), ...item[pf]];
+        }
+      });
+    }
+  });
+  c.set(clean);
+  try { localStorage.setItem(c.lsKey, JSON.stringify(clean)); } catch {}
+  if (window._fbReady) {
+    try {
+      const { db, ref, set } = window._fb;
+      await set(ref(db, node), null);
+      const keyed = {};
+      clean.forEach(it => { keyed[String(it[c.idField])] = it; });
+      if (Object.keys(keyed).length) await set(ref(db, node), keyed);
+      window._fbLastKeys[node] = Object.keys(keyed);
+    } catch(e) { console.warn('cleanDataCollection firebase resync failed:', e); showToast('⚠️ تم التنظيف محلياً، لكن فشلت إعادة المزامنة السحابية'); }
+  }
+  renderDataCheck();
+  renderAll();
+  if (typeof renderClients==='function') renderClients();
+  if (typeof renderWorkers==='function') renderWorkers();
+  if (typeof renderQuotations==='function') renderQuotations();
+  if (typeof renderExpenses==='function') renderExpenses();
+  showToast(`✅ تم تنظيف ${c.label}`);
+}
+
 function openTrash() {
   renderTrash();
   document.getElementById('trash-modal').classList.add('open');
@@ -8367,6 +8474,19 @@ if ('serviceWorker' in navigator) {
     <div class="modal-footer" style="gap:8px;margin-top:12px">
       <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('trash-modal').classList.remove('open')">إغلاق</button>
       <button class="btn" id="trash-empty-btn" style="background:#C0392B;color:#fff" onclick="emptyTrashConfirm()">🔥 تفريغ السلة</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="datacheck-modal">
+  <div class="modal-box" style="max-width:560px;max-height:92dvh">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🧹 فحص البيانات المكررة</div>
+    <p style="color:var(--muted);font-size:12px;margin:0 0 10px">يفحص كل الأقسام بحثاً عن سجلات محفوظة أكثر من مرة بنفس المعرّف (بسبب مزامنة قديمة)، ويسمح بتنظيفها بضغطة واحدة دون فقد أي دفعات مسجلة عليها.</p>
+    <div id="datacheck-list" style="max-height:60dvh;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+    <div class="modal-footer" style="gap:8px;margin-top:12px">
+      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('datacheck-modal').classList.remove('open')">إغلاق</button>
+      <button class="btn" style="background:var(--gm);color:#fff" onclick="renderDataCheck()">🔄 إعادة فحص</button>
     </div>
   </div>
 </div>
