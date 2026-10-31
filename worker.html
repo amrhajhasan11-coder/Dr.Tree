@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B4332">
+<title>Dr.Tree — العمال</title>
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--gd:#1B4332;--gm:#2D6A4F;--gl:#52B788;--gp:#EAF5EE;--border:#DDE5E0;--muted:#64748B;--or:#D97706;--orl:#FEF3E2;--red:#C0392B;--gold:#B8860B;--goldl:#FBF3DC;--bg:#F4F7F5}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:#1E293B;font-size:15px}
+.hdr{background:var(--gd);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.hdr b{font-size:18px}
+.hdr small{display:block;opacity:.8;font-size:12px;margin-top:2px}
+.hdr button{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:13px;font-family:inherit;cursor:pointer}
+.wrap{max-width:560px;margin:0 auto;padding:14px 14px 40px}
+.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 12px;font-size:16px;color:var(--gd)}
+label.l{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.field{margin-bottom:14px}
+input[type=text],input[type=email],input[type=password],input[type=date],select,textarea{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:16px;font-family:inherit;background:#fafafa;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gm);background:#fff}
+textarea{min-height:70px;resize:vertical}
+.err{border-color:var(--red)!important}
+.tasks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tasks label{display:flex;gap:8px;align-items:center;background:var(--gp);padding:10px;border-radius:10px;font-size:14px;cursor:pointer}
+.tasks input{width:20px;height:20px;accent-color:var(--gm)}
+.btn{display:block;width:100%;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;background:var(--gm);color:#fff}
+.btn:disabled{opacity:.6}
+.photos{display:flex;gap:8px;flex-wrap:wrap}
+.ph{position:relative;width:76px;height:76px;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)}
+.ph img{width:100%;height:100%;object-fit:cover}
+.ph button{position:absolute;top:3px;left:3px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;padding:0}
+.add{width:76px;height:76px;border-radius:10px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;cursor:pointer;background:#fff}
+.add input{display:none}
+.log{border-bottom:1px solid #EEF2EF;padding:12px 0}
+.log:last-child{border-bottom:none}
+.badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.chip{background:var(--gp);color:var(--gm);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;display:inline-block;margin:2px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:#1E293B;color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;transition:.3s;z-index:100;max-width:90%;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.muted{color:var(--muted);font-size:13px}
+.uid{direction:ltr;font-family:monospace;background:var(--gp);padding:10px;border-radius:8px;word-break:break-all;font-size:14px;text-align:center;margin:10px 0;user-select:all}
+.hidden{display:none!important}
+</style>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const app = initializeApp({
+    apiKey: "AIzaSyB60I7xq3sXZCuk2I6plb7CB_-JpHIrCXk",
+    authDomain: "drtree-abfe8.firebaseapp.com",
+    databaseURL: "https://drtree-abfe8-default-rtdb.asia-southeast1.firebasedatabase.app"
+  });
+  const db = getDatabase(app);
+  const auth = getAuth(app);
+  const $ = (id) => document.getElementById(id);
+  const show = (id) => ['v-login','v-pending','v-app'].forEach(v => $(v).classList.toggle('hidden', v !== id));
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  const fmt = (d) => { if (!d) return ''; const [y,m,dd] = d.split('-'); return dd + '/' + m + '/' + y; };
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
+
+  let me = null;          // { uid, name }
+  let photos = { before: [], after: [] };
+  const MAX = 3;
+  let unsub = [];
+
+  // ── Login ──
+  window.doLogin = async () => {
+    const email = $('l-email').value.trim(), pass = $('l-pass').value;
+    const err = $('l-err');
+    if (!email || !pass) { err.textContent = 'أدخل البريد وكلمة المرور'; return; }
+    $('l-btn').disabled = true; $('l-btn').textContent = 'جاري الدخول...';
+    try { await signInWithEmailAndPassword(auth, email, pass); err.textContent = ''; $('l-pass').value = ''; }
+    catch (e) { err.textContent = ({'auth/invalid-credential':'البريد أو كلمة المرور غلط','auth/wrong-password':'كلمة المرور غلط','auth/user-not-found':'الحساب غير موجود','auth/too-many-requests':'محاولات كثيرة — جرّب بعد شوي','auth/network-request-failed':'ما في إنترنت'})[e.code] || 'تعذّر الدخول'; }
+    finally { $('l-btn').disabled = false; $('l-btn').textContent = 'دخول'; }
+  };
+  window.doLogout = () => { unsub.forEach(f => f()); unsub = []; signOut(auth); };
+
+  onAuthStateChanged(auth, async (user) => {
+    unsub.forEach(f => f()); unsub = [];
+    if (!user) { me = null; show('v-login'); return; }
+    let snap;
+    try { snap = await get(ref(db, 'workerUsers/' + user.uid)); }
+    catch (e) { snap = null; }
+    if (snap && snap.exists()) {
+      me = { uid: user.uid, name: snap.val().name || '' };
+      $('h-name').textContent = '👷 ' + me.name;
+      show('v-app');
+      startApp();
+      return;
+    }
+    // المدير؟ رجّعه للتطبيق الرئيسي
+    try { const a = await get(ref(db, 'admins/' + user.uid)); if (a.val() === true) { location.replace('index.html'); return; } } catch (e) {}
+    $('p-uid').textContent = user.uid;
+    $('p-email').textContent = user.email || '';
+    show('v-pending');
+    // ينتظر لين المدير يربط الحساب ويفتح تلقائياً
+    unsub.push(onValue(ref(db, 'workerUsers/' + user.uid), (s) => { if (s.exists()) location.reload(); }, () => {}));
+  });
+
+  window.copyUid = () => {
+    const t = $('p-uid').textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('✅ تم النسخ')).catch(() => toast('حدد الرمز وانسخه يدوياً'));
+  };
+  window.shareUid = () => {
+    const t = 'رمز حسابي في Dr.Tree:\n' + $('p-uid').textContent;
+    window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+  };
+
+  // ── App ──
+  function startApp() {
+    resetForm();
+    unsub.push(onValue(ref(db, 'clientNames'), (s) => {
+      const names = (Object.values(s.val() || {})).filter(n => typeof n === 'string');
+      const sel = $('f-client'), cur = sel.value;
+      sel.innerHTML = '<option value="">اختر العميل...</option>' + names.map(n => `<option>${esc(n)}</option>`).join('');
+      sel.value = cur;
+    }, () => toast('⚠️ تعذّر تحميل أسماء العملاء')));
+    unsub.push(onValue(ref(db, 'workLogs/' + me.uid), (s) => renderMine(s.val() || {}), () => {}));
+  }
+
+  function resetForm() {
+    $('f-client').value = '';
+    $('f-date').value = today();
+    $('f-date').max = today();
+    document.querySelectorAll('.t-cb').forEach(c => c.checked = false);
+    $('f-notes').value = '';
+    $('f-extra').value = '';
+    photos = { before: [], after: [] };
+    renderPhotos('before'); renderPhotos('after');
+    ['f-client','f-date'].forEach(id => $(id).classList.remove('err'));
+  }
+
+  function compress(file, maxDim = 800, q = 0.7) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if (w > h && w > maxDim) { h = h * maxDim / w; w = maxDim; } else if (h > maxDim) { w = w * maxDim / h; h = maxDim; }
+          const c = document.createElement('canvas'); c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          res(c.toDataURL('image/jpeg', q));
+        };
+        img.onerror = rej; img.src = e.target.result;
+      };
+      r.onerror = rej; r.readAsDataURL(file);
+    });
+  }
+
+  function renderPhotos(side) {
+    const tiles = photos[side].map((u, i) => `<div class="ph"><img src="${u}"><button type="button" onclick="delPhoto('${side}',${i})">✕</button></div>`).join('');
+    const add = photos[side].length < MAX ? `<label class="add"><span style="font-size:22px">📷</span>إضافة<input type="file" accept="image/*" capture="environment" multiple onchange="addPhotos('${side}', this)"></label>` : '';
+    $('ph-' + side).innerHTML = tiles + add;
+  }
+  window.delPhoto = (side, i) => { photos[side].splice(i, 1); renderPhotos(side); };
+  window.addPhotos = async (side, input) => {
+    const files = Array.from(input.files || []); input.value = '';
+    const room = MAX - photos[side].length;
+    if (room <= 0) return;
+    toast('📸 جاري تجهيز الصور...');
+    for (const f of files.slice(0, room)) { try { photos[side].push(await compress(f)); } catch (e) {} }
+    renderPhotos(side);
+  };
+
+  window.submitLog = async () => {
+    const client = $('f-client').value, date = $('f-date').value;
+    $('f-client').classList.toggle('err', !client);
+    $('f-date').classList.toggle('err', !date);
+    if (!client || !date) { toast('⚠️ اختر العميل والتاريخ'); return; }
+    const tasks = [...document.querySelectorAll('.t-cb')].filter(c => c.checked).map(c => c.dataset.task);
+    const notes = $('f-notes').value.trim(), extra = $('f-extra').value.trim();
+    if (!tasks.length && !notes && !extra) { toast('⚠️ حدد الشغل اللي سويته أو اكتب ملاحظة'); return; }
+    const btn = $('f-btn'); btn.disabled = true; btn.textContent = 'جاري الإرسال...';
+    try {
+      const r = push(ref(db, 'workLogs/' + me.uid));
+      const rec = {
+        id: r.key, workerUid: me.uid, workerName: me.name,
+        client, date, tasks, notes, extra,
+        photosBefore: photos.before.slice(), photosAfter: photos.after.slice(),
+        status: 'pending', createdAt: Date.now()
+      };
+      const p = set(r, rec);
+      if (!navigator.onLine) { toast('📴 انحفظ — بيترسل أول ما يرجع النت'); resetForm(); }
+      await p;
+      if (navigator.onLine) toast('✅ تم الإرسال للمدير');
+      resetForm();
+      window.scrollTo({ top: document.getElementById('mine').offsetTop - 70, behavior: 'smooth' });
+    } catch (e) {
+      toast('⚠️ فشل الإرسال: ' + (e.code || e.message));
+    } finally { btn.disabled = false; btn.textContent = '📤 إرسال'; }
+  };
+
+  function renderMine(obj) {
+    const rows = Object.values(obj).filter(Boolean).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 50);
+    const ST = { pending: ['⏳ بانتظار المراجعة', '#FBF3DC', '#8B6914'], approved: ['✅ معتمد', '#EAF5EE', '#2D6A4F'], rejected: ['❌ مرفوض', '#FDECEA', '#C0392B'] };
+    $('mine-count').textContent = rows.length ? '(' + rows.length + ')' : '';
+    $('mine-list').innerHTML = rows.length ? rows.map(l => {
+      const st = ST[l.status] || ST.pending;
+      const n = (l.photosBefore || []).length + (l.photosAfter || []).length;
+      return `<div class="log">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+          <div><b>${esc(l.client)}</b><div class="muted">📅 ${fmt(l.date)}${n ? ' · 📷 ' + n : ''}</div></div>
+          <span class="badge" style="background:${st[1]};color:${st[2]}">${st[0]}</span>
+        </div>
+        ${(l.tasks || []).length ? `<div style="margin-top:6px">${l.tasks.map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : ''}
+        ${l.notes ? `<div style="font-size:13px;margin-top:6px">📝 ${esc(l.notes)}</div>` : ''}
+        ${l.extra ? `<div style="font-size:13px;margin-top:4px;color:var(--or)">➕ ${esc(l.extra)}</div>` : ''}
+        ${l.status === 'rejected' && l.rejectReason ? `<div style="font-size:13px;margin-top:4px;color:var(--red)">السبب: ${esc(l.rejectReason)}</div>` : ''}
+        ${l.status === 'pending' ? `<button onclick="delLog('${esc(l.id)}')" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;color:var(--muted);cursor:pointer">🗑 حذف</button>` : ''}
+      </div>`;
+    }).join('') : '<div class="muted" style="text-align:center;padding:16px">ما سجلت شغل بعد</div>';
+  }
+  window.delLog = (id) => {
+    if (!confirm('حذف هذا الشغل؟')) return;
+    remove(ref(db, 'workLogs/' + me.uid + '/' + id)).then(() => toast('🗑 تم الحذف')).catch(e => toast('⚠️ ' + (e.code || e.message)));
+  };
+</script>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- تسجيل الدخول -->
+<div id="v-login" class="hidden" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(180deg,#1B4332,#0c1f16)">
+  <div class="card" style="max-width:360px;width:100%;margin:0">
+    <div style="text-align:center;font-size:24px;font-weight:900;color:var(--gd)">🌳 Dr.Tree</div>
+    <div class="muted" style="text-align:center;margin:4px 0 18px">دخول العمال</div>
+    <div class="field"><label class="l">البريد الإلكتروني</label><input type="email" id="l-email" autocomplete="username" style="direction:ltr;text-align:left"></div>
+    <div class="field"><label class="l">كلمة المرور</label><input type="password" id="l-pass" autocomplete="current-password" style="direction:ltr;text-align:left" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div id="l-err" style="color:var(--red);font-size:13px;text-align:center;min-height:18px;margin-bottom:8px"></div>
+    <button class="btn" id="l-btn" onclick="doLogin()">دخول</button>
+  </div>
+</div>
+
+<!-- حساب غير مفعّل -->
+<div id="v-pending" class="hidden">
+  <div class="hdr"><div><b>🌳 Dr.Tree</b></div><button onclick="doLogout()">خروج</button></div>
+  <div class="wrap">
+    <div class="card" style="text-align:center">
+      <div style="font-size:40px">🔑</div>
+      <h2>حسابك لسا مو مفعّل</h2>
+      <div class="muted">أرسل هذا الرمز للمدير عشان يفعّل حسابك:</div>
+      <div class="uid" id="p-uid"></div>
+      <div class="muted" id="p-email" style="direction:ltr"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn" style="background:var(--gm)" onclick="copyUid()">📋 نسخ</button>
+        <button class="btn" style="background:#25D366" onclick="shareUid()">💬 واتساب</button>
+      </div>
+      <div class="muted" style="margin-top:12px">الصفحة بتفتح تلقائياً أول ما يتفعّل الحساب</div>
+    </div>
+  </div>
+</div>
+
+<!-- التطبيق -->
+<div id="v-app" class="hidden">
+  <div class="hdr">
+    <div><b>🌳 Dr.Tree</b><small id="h-name"></small></div>
+    <button onclick="doLogout()">خروج</button>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <h2>➕ تسجيل شغل جديد</h2>
+      <div class="field"><label class="l">العميل</label><select id="f-client"><option value="">اختر العميل...</option></select></div>
+      <div class="field"><label class="l">التاريخ</label><input type="date" id="f-date"></div>
+      <div class="field">
+        <label class="l">الشغل اللي سويته</label>
+        <div class="tasks">
+          <label><input type="checkbox" class="t-cb" data-task="قص العشب">قص العشب</label>
+          <label><input type="checkbox" class="t-cb" data-task="تشذيب">تشذيب</label>
+          <label><input type="checkbox" class="t-cb" data-task="تسميد">تسميد</label>
+          <label><input type="checkbox" class="t-cb" data-task="فحص ري">فحص ري</label>
+          <label><input type="checkbox" class="t-cb" data-task="رش مبيد">رش مبيد</label>
+          <label><input type="checkbox" class="t-cb" data-task="تنظيف">تنظيف</label>
+          <label><input type="checkbox" class="t-cb" data-task="زراعة">زراعة</label>
+          <label><input type="checkbox" class="t-cb" data-task="مكافحة آفات">مكافحة آفات</label>
+        </div>
+      </div>
+      <div class="field"><label class="l">📷 صور قبل</label><div class="photos" id="ph-before"></div></div>
+      <div class="field"><label class="l">📷 صور بعد</label><div class="photos" id="ph-after"></div></div>
+      <div class="field"><label class="l">ملاحظات</label><textarea id="f-notes" placeholder="أي شي لازم المدير يعرفه..."></textarea></div>
+      <div class="field"><label class="l">شغل إضافي (إذا في)</label><textarea id="f-extra" placeholder="مثال: زرعنا ٣ شجرات زيادة بطلب العميل"></textarea></div>
+      <button class="btn" id="f-btn" onclick="submitLog()">📤 إرسال</button>
+    </div>
+
+    <div class="card" id="mine">
+      <h2>📋 شغلي <span class="muted" id="mine-count"></span></h2>
+      <div id="mine-list"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

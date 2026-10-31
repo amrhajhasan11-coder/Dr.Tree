@@ -1,7 +1,8 @@
-const CACHE_NAME = 'dr-tree-v1';
+const CACHE_NAME = 'dr-tree-v2';
 const APP_SHELL = [
   './',
   './index.html',
+  './worker.html',
   './manifest.json',
   './icon.svg',
   './icon-192.png',
@@ -38,7 +39,7 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('./index.html'))
+      fetch(request).catch(() => caches.match(request, { ignoreSearch: true }).then((r) => r || caches.match('./index.html')))
     );
     return;
   }

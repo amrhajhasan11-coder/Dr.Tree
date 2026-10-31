@@ -248,7 +248,22 @@ textarea { min-height:72px; resize:vertical; }
         window._fbUser = user;
         if (o) o.style.display = 'none';
         const ue = document.getElementById('login-user-email'); if (ue) ue.textContent = user.email || '';
-        fbGo();
+        // حسابات العمال تنحوّل لصفحة العمال (ما تشوف أي بيانات هنا)
+        get(ref(db, 'workerUsers/' + user.uid)).then((snap) => {
+          if (snap.exists()) { location.replace('worker.html'); return; }
+          // لازم الحساب يكون مسجّل في admins — غير كذا ما نعرض أي بيانات
+          get(ref(db, 'admins/' + user.uid)).then((a) => {
+            if (a.val() === true) { fbGo(); return; }
+            if (o) {
+              o.style.display = 'flex';
+              const box = o.firstElementChild;
+              box.innerHTML = '<div style="text-align:center;font-size:22px;font-weight:900;color:#1B4332">🔒 الحساب مو مسجّل كمدير</div>'
+                + '<div style="font-size:13px;color:#64748B;margin:12px 0;line-height:1.7">ضيف هذا الرمز في Firebase Console:<br>Realtime Database ← Data ← <b>admins</b> ← الرمز = <b>true</b></div>'
+                + '<div style="direction:ltr;font-family:monospace;background:#EAF5EE;padding:10px;border-radius:8px;word-break:break-all;text-align:center;user-select:all">' + user.uid + '</div>'
+                + '<button class="btn btn-primary" style="margin-top:14px" onclick="window._fb.signOutUser().then(()=>location.reload())">خروج</button>';
+            }
+          }).catch(() => fbGo());
+        }).catch(() => fbGo());
       } else {
         window._fbReady = false;
         if (o) o.style.display = 'flex';
@@ -1069,6 +1084,25 @@ textarea { min-height:72px; resize:vertical; }
     </div>
   </div>
 
+  <!-- WORKER LOGS TAB (طلبات العمال) -->
+  <div id="tab-worklogs" class="tab">
+    <div class="card">
+      <div class="card-header between" style="background:var(--gd)">
+        <h2>📥 شغل العمال</h2>
+        <select id="wl-filter" onchange="renderWorkLogs()" style="width:auto;max-width:150px;background:#fff;border:none;border-radius:8px;padding:4px 8px;font-size:12px;font-family:inherit">
+          <option value="pending">بانتظار المراجعة</option>
+          <option value="approved">المعتمدة</option>
+          <option value="rejected">المرفوضة</option>
+          <option value="all">الكل</option>
+        </select>
+      </div>
+      <div id="worklogs-list"></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin:8px 0 16px">
+      رابط صفحة العمال: <b style="direction:ltr;display:inline-block">worker.html</b> — ربط حساب العامل من تبويب 👷 العمال
+    </div>
+  </div>
+
 <div class="nav-backdrop" id="nav-backdrop" onclick="closeNav()"></div>
 <div class="bottom-nav" id="side-nav">
   <div class="nav-drawer-head">القائمة <button class="nav-close" onclick="closeNav()">✕</button></div>
@@ -1099,6 +1133,10 @@ textarea { min-height:72px; resize:vertical; }
   <div class="nav-item" id="nav-workers" onclick="switchTab('workers')">
     <div class="nav-icon">👷</div>
     <div class="nav-label">العمال</div>
+  </div>
+  <div class="nav-item" id="nav-worklogs" onclick="switchTab('worklogs')">
+    <div class="nav-icon" style="position:relative">📥<span id="wl-badge" style="display:none;position:absolute;top:-6px;left:-10px;background:#C0392B;color:#fff;border-radius:10px;font-size:10px;font-weight:800;padding:1px 6px;line-height:1.4">0</span></div>
+    <div class="nav-label">شغل العمال</div>
   </div>
   <div class="nav-item" onclick="dtLogout()" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.08)">
     <div class="nav-icon">🚪</div>
@@ -1232,6 +1270,9 @@ const _lastSig = {};
 const _saveTimers = {};
 const PHOTO_MAX_PER_SIDE = 3;
 let formPhotos = { before: [], after: [] };
+let workLogs = [];      // شغل العمال (من workLogs)
+let workerUsers = {};   // حسابات دخول العمال
+let _approvingLog = null;
 
 function loadData() {
   // Load from localStorage as fallback while Firebase loads
@@ -1444,6 +1485,22 @@ function initFirebase() {
       try { localStorage.setItem('dt_nextid', String(nextId)); } catch {}
     }
   });
+  // ── شغل العمال + حسابات العمال ──
+  onValue(ref(db, 'workLogs'), (snapshot) => {
+    const data = snapshot.val() || {};
+    const arr = [];
+    Object.keys(data).forEach(uid => {
+      const byUid = data[uid] || {};
+      Object.keys(byUid).forEach(k => { const r = byUid[k]; if (r) arr.push({ ...r, _uid: uid, _key: k }); });
+    });
+    workLogs = arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+    updateWorkLogsBadge();
+    if (document.getElementById('tab-worklogs')?.classList.contains('active')) renderWorkLogs();
+  }, () => {});
+  onValue(ref(db, 'workerUsers'), (snapshot) => {
+    workerUsers = snapshot.val() || {};
+    if (document.getElementById('tab-workers')?.classList.contains('active')) renderWorkers();
+  }, () => {});
 }
 
 function showSync() {
@@ -1657,7 +1714,7 @@ function switchTab(tab) {
   closeNav();
   if (tab === 'finance') tab = 'finances';
   if (tab === 'quote') tab = 'quotation';
-  ['dashboard','log','clients','invoice','quotation','finances','workers'].forEach(t => {
+  ['dashboard','log','clients','invoice','quotation','finances','workers','worklogs'].forEach(t => {
     const tabEl = document.getElementById('tab-'+t);
     const navEl = document.getElementById('nav-'+t);
     if (tabEl) tabEl.classList.toggle('active', t===tab);
@@ -1678,6 +1735,7 @@ function switchTab(tab) {
   if (tab === 'quotation') renderQuotations();
   if (tab === 'clients') renderClients();
   if (tab === 'workers') renderWorkers();
+  if (tab === 'worklogs') renderWorkLogs();
 }
 
 // ── Finance sub-tabs (نظرة عامة / المصاريف / المشاريع / تقارير متقدمة) ──
@@ -1874,6 +1932,8 @@ function openAdd() {
   document.querySelectorAll('.task-cb').forEach(cb => cb.checked = false);
   _pendingPhotos = { before: '', after: '' };
   renderPhotosPreview();
+  resetFormPhotos();
+  _approvingLog = null;
   document.getElementById('modal').classList.add('open');
 }
 
@@ -2013,6 +2073,13 @@ function saveVisit() {
     showToast('✅ تمت إضافة الزيارة وحُفظت!');
   }
   saveData(); closeModal(); renderAll();
+  if (_approvingLog && !editId) {
+    markWorkLog(_approvingLog, { status: 'approved', visitId: data.id, reviewedAt: Date.now() });
+    _approvingLog = null;
+    switchTab('worklogs');
+    return;
+  }
+  _approvingLog = null;
   switchTab('log');
 }
 
@@ -3235,8 +3302,15 @@ function recordIssuedInvoice() {
     invoiceRecords = invoiceRecords.filter(r => r.invNum === invNum || !overdueNums.has(r.invNum));
   }
 
-  // Upsert invoice record (keyed by invNum), full total including absorbed overdue
-  const existing = invoiceRecords.find(r => r.invNum === invNum);
+  // Upsert invoice record (keyed by invNum + client), full total including absorbed overdue.
+  // Guard: if this invNum is already used by a DIFFERENT client (initials collision),
+  // renumber this invoice instead of overwriting their record.
+  if (invoiceRecords.some(r => r.invNum === invNum && r.client !== client)) {
+    invNum = ensureUniqueInvNum(invNum, client);
+    const numField = document.getElementById('inv-num');
+    if (numField) numField.value = invNum;
+  }
+  const existing = invoiceRecords.find(r => r.invNum === invNum && r.client === client);
   let payments = existing && Array.isArray(existing.payments) ? existing.payments.slice() : [];
   if (!payments.length && payStatus === 'مدفوع') {
     payments = [{ date: TODAY, amount: fullTotal, method: 'نقدي' }];
@@ -5377,6 +5451,7 @@ function renderWorkers() {
           <span style="background:var(--gp);color:var(--gm);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${wVisits.length} زيارة</span>
           <button class="btn-icon" title="الدفعات" style="color:var(--gold)" onclick="openWorkerPaymentsModal(${w.id})">💰</button>
           ${w.phone ? `<button class="btn-icon" title="واتساب" style="color:#25D366" onclick="window.open('https://wa.me/'+'${w.phone}'.replace(/[^0-9]/g,''),'_blank')">💬</button>` : ''}
+          <button class="btn-icon" title="حساب دخول العامل" style="color:${workerAccountUid(w) ? 'var(--gm)' : '#bbb'}" onclick="manageWorkerAccount(${w.id})">🔑</button>
           <button class="btn-icon" onclick="openEditWorker(${w.id})">✏️</button>
           <button class="btn-icon" style="color:#ddd" onclick="delWorker(${w.id})">🗑</button>
         </div>
@@ -6596,6 +6671,17 @@ function buildClientCode(client) {
 //         single  => "{CODE}-V-{NNN}"   (sequential per client)
 
 // ── Generate Invoice Number ──
+// Ensure an invoice number isn't already used by a DIFFERENT client
+// (client-initials codes can collide, e.g. two different names both -> "AA").
+function ensureUniqueInvNum(num, client) {
+  if (typeof invoiceRecords === 'undefined' || !Array.isArray(invoiceRecords)) return num;
+  let n = num, i = 2;
+  while (invoiceRecords.some(r => r.invNum === n && r.client !== client)) {
+    n = `${num}-${i++}`;
+  }
+  return n;
+}
+
 function generateInvoiceNumber(client, type, month) {
   const code = buildClientCode(client);
   let invHistory = [];
@@ -6606,11 +6692,12 @@ function generateInvoiceNumber(client, type, month) {
     const mmm = String(parseInt(mo||'0',10)).padStart(3,'0'); // شهر 5 => 005
     const base = `${code}-${y}-${mmm}`;
     const sameMonth = invHistory.filter(r => r.client === client && r.invType === 'monthly' && r.month === m);
-    if (sameMonth.length === 0) return base;
-    return `${base}-${sameMonth.length + 1}`;
+    const num = sameMonth.length === 0 ? base : `${base}-${sameMonth.length + 1}`;
+    return ensureUniqueInvNum(num, client);
   }
   const singles = invHistory.filter(r => r.client === client && r.invType === 'single');
-  return `${code}-V-${String(singles.length + 1).padStart(3,'0')}`;
+  const num = `${code}-V-${String(singles.length + 1).padStart(3,'0')}`;
+  return ensureUniqueInvNum(num, client);
 }
 
 // Re-fill the inv-num input from the current client/type/month.
@@ -8059,6 +8146,134 @@ function openVisitPhotos(id, side, idx) {
   if (start >= all.length) start = 0;
   openLightbox(all, start);
 }
+
+// ── شغل العمال (Worker logs) ──
+
+function updateWorkLogsBadge() {
+  const n = workLogs.filter(l => l.status === 'pending').length;
+  const b = document.getElementById('wl-badge');
+  if (b) { b.textContent = n; b.style.display = n ? 'inline-block' : 'none'; }
+}
+
+function renderWorkLogs() {
+  const el = document.getElementById('worklogs-list');
+  if (!el) return;
+  const f = (document.getElementById('wl-filter') || {}).value || 'pending';
+  const rows = workLogs.filter(l => f === 'all' || l.status === f);
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>' + (f === 'pending' ? 'ما في شغل بانتظار المراجعة' : 'لا يوجد') + '</p></div>';
+    return;
+  }
+  const ST = { pending: ['⏳ بانتظار', 'var(--goldl)', '#8B6914'], approved: ['✅ معتمد', 'var(--gp)', 'var(--gm)'], rejected: ['❌ مرفوض', '#FDECEA', '#C0392B'] };
+  el.innerHTML = rows.map((l, i) => {
+    const st = ST[l.status] || ST.pending;
+    const pb = l.photosBefore || [], pa = l.photosAfter || [];
+    const photos = [...pb, ...pa];
+    const idx = workLogs.indexOf(l);
+    const thumbs = photos.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${photos.map((u, j) =>
+      `<div style="position:relative"><img src="${u}" onclick="openLightbox(workLogPhotos(${idx}), ${j})" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1.5px solid var(--border);cursor:pointer"><span style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;font-size:9px;padding:0 5px;border-radius:6px">${j < pb.length ? 'قبل' : 'بعد'}</span></div>`).join('')}</div>` : '';
+    const tasks = (l.tasks || []).map(t => `<span style="background:var(--gp);color:var(--gm);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">${escapeHtml(t)}</span>`).join(' ');
+    const when = l.createdAt ? new Date(l.createdAt).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    return `<div style="padding:14px 16px;border-bottom:1px solid #F0F0F0;background:${i%2 ? 'var(--gray)' : '#fff'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div>
+          <div style="font-weight:800;font-size:15px">${escapeHtml(l.client || '')}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">👷 ${escapeHtml(l.workerName || '')} · 📅 ${fmtDate(l.date)} ${when ? '· أُرسل ' + when : ''}</div>
+        </div>
+        <span style="background:${st[1]};color:${st[2]};padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap">${st[0]}</span>
+      </div>
+      ${tasks ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">${tasks}</div>` : ''}
+      ${l.notes ? `<div style="font-size:13px;margin-top:8px">📝 ${escapeHtml(l.notes)}</div>` : ''}
+      ${l.extra ? `<div style="font-size:13px;margin-top:6px;color:var(--or)">➕ عمل إضافي: ${escapeHtml(l.extra)}</div>` : ''}
+      ${thumbs}
+      ${l.status === 'rejected' && l.rejectReason ? `<div style="font-size:12px;color:#C0392B;margin-top:6px">السبب: ${escapeHtml(l.rejectReason)}</div>` : ''}
+      ${l.status === 'pending' ? `<div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary btn-sm" style="flex:1" onclick="approveWorkLog(${idx})">✅ اعتماد كزيارة</button>
+        <button class="btn btn-sm" style="flex:1;background:#FDECEA;color:#C0392B;border:1px solid #F5B7B1" onclick="rejectWorkLog(${idx})">❌ رفض</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// يفتح نافذة الزيارة معبّاة من شغل العامل — تراجع، تضيف المبالغ، وتحفظ
+function approveWorkLog(idx) {
+  const l = workLogs[idx];
+  if (!l) return;
+  openAdd();
+  _approvingLog = { uid: l._uid, key: l._key };
+  document.getElementById('modal-title').textContent = '✅ اعتماد شغل ' + (l.workerName || 'العامل');
+  document.getElementById('modal-save-btn').textContent = '✅ اعتماد وإضافة للسجل';
+  document.getElementById('f-client').value = l.client || '';
+  const csel = document.getElementById('f-client-select'); if (csel) csel.value = l.client || '';
+  if (l.client && typeof autoFillClientData === 'function') autoFillClientData(l.client);
+  document.getElementById('f-date').value = l.date || TODAY;
+  const fw = document.getElementById('f-worker'); if (fw) fw.value = l.workerName || '';
+  document.getElementById('f-notes').value = l.notes || '';
+  document.getElementById('f-extra').value = l.extra || '';
+  const tasks = l.tasks || [];
+  document.querySelectorAll('.task-cb').forEach(cb => { cb.checked = tasks.includes(cb.dataset.task); });
+  formPhotos = { before: (l.photosBefore || []).slice(), after: (l.photosAfter || []).slice() };
+  renderPhotoGrid('before'); renderPhotoGrid('after');
+}
+
+function workLogPhotos(idx) {
+  const l = workLogs[idx] || {};
+  return [...(l.photosBefore || []), ...(l.photosAfter || [])];
+}
+
+function rejectWorkLog(idx) {
+  const l = workLogs[idx];
+  if (!l) return;
+  const reason = prompt('سبب الرفض (يشوفه العامل):', '');
+  if (reason === null) return;
+  markWorkLog({ uid: l._uid, key: l._key }, { status: 'rejected', rejectReason: reason.trim(), reviewedAt: Date.now() });
+}
+
+function markWorkLog(ref_, patch) {
+  if (!window._fbReady) { showToast('⚠️ لازم اتصال بالإنترنت'); return; }
+  const { db, ref, update } = window._fb;
+  update(ref(db, 'workLogs/' + ref_.uid + '/' + ref_.key), patch)
+    .then(() => showToast(patch.status === 'approved' ? '✅ تم الاعتماد' : '❌ تم الرفض'))
+    .catch(e => showToast('⚠️ فشل الحفظ: ' + (e.code || e.message)));
+}
+
+// ── حسابات دخول العمال ──
+function workerAccountUid(w) {
+  return Object.keys(workerUsers || {}).find(uid => workerUsers[uid] && (workerUsers[uid].workerId === w.id || workerUsers[uid].name === w.name)) || '';
+}
+
+function manageWorkerAccount(id) {
+  const w = workers.find(x => x.id === id);
+  if (!w || !window._fbReady) return;
+  const { db, ref, set, remove } = window._fb;
+  const cur = workerAccountUid(w);
+  if (cur) {
+    if (confirm('حساب ' + w.name + ' مربوط.\n\nUID: ' + cur + '\n\nتبي تلغي ربط الحساب؟ (ما يقدر يدخل بعدها)')) {
+      remove(ref(db, 'workerUsers/' + cur)).then(() => showToast('🔒 تم إلغاء الربط')).catch(e => showToast('⚠️ ' + (e.code || e.message)));
+    }
+    return;
+  }
+  const uid = (prompt('ربط حساب دخول لـ ' + w.name + '\n\n1) أنشئ له حساب (إيميل + كلمة سر) من Firebase Console > Authentication\n2) خلّه يدخل على worker.html — بتطلع له رسالة فيها الرمز (UID)\n3) الصق الرمز هنا:', '') || '').trim();
+  if (!uid) return;
+  if (!/^[A-Za-z0-9]{20,40}$/.test(uid)) { alert('الرمز غير صحيح'); return; }
+  set(ref(db, 'workerUsers/' + uid), { name: w.name, workerId: w.id, linkedAt: Date.now() })
+    .then(() => { syncClientNames(true); showToast('✅ تم ربط الحساب — العامل يقدر يدخل الحين'); })
+    .catch(e => showToast('⚠️ ' + (e.code || e.message)));
+}
+
+// قائمة أسماء العملاء بس (بدون أي بيانات ثانية) — هذي اللي يشوفها العامل
+let _lastClientNames = '';
+function syncClientNames(force) {
+  if (!window._fbReady) return;
+  const names = [...new Set([...(clients_data || []).map(c => c && c.name), ...(visits || []).map(v => v && v.client)]
+    .filter(n => typeof n === 'string' && n.trim()).map(n => n.trim()))].sort((a, b) => a.localeCompare(b, 'ar'));
+  const sig = JSON.stringify(names);
+  if (!force && sig === _lastClientNames) return;
+  _lastClientNames = sig;
+  const { db, ref, set } = window._fb;
+  set(ref(db, 'clientNames'), names).catch(() => {});
+}
+setInterval(() => syncClientNames(false), 15000);
 
 // ── PWA: service worker registration ──
 if ('serviceWorker' in navigator) {

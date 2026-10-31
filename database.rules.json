@@ -1,0 +1,48 @@
+// Dr.Tree — Realtime Database security rules. Email/Password auth only.
+//
+// الأدوار:
+//   • المدير  = أي حساب موجود في  admins/<uid> = true  → يقرأ ويكتب كل شي.
+//   • العامل  = أي حساب موجود في  workerUsers/<uid>   → ما يشوف أي بيانات،
+//               بس يقرأ أسماء العملاء (clientNames) ويضيف شغله في workLogs/<uid>
+//               ويشوف شغله هو بس. ما يقدر يعدّل شي بعد ما المدير يعتمده.
+//   • أي حساب ثاني → ما يقدر يقرأ ولا يكتب أي شي.
+//
+// ⚠️ قبل النشر: لازم يكون حسابك (المدير) مسجّل في admins وإلا بتنقفل برّا.
+//    Firebase Console ← Realtime Database ← Data ← admins ← <UID حقك> = true
+//
+// '$other' بالأسفل يمنع الكتابة على أي عقدة مو مذكورة هنا —
+// إذا أضفت نوع بيانات جديد للتطبيق لازم تضيفه هنا.
+{
+  "rules": {
+    ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+    ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+
+    "admins":      { "$uid": { ".read": "auth != null && auth.uid === $uid", ".validate": "newData.val() === null || newData.val() === true" } },
+    "workerUsers": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".validate": "newData.val() === null || newData.hasChildren(['name'])" } },
+    "clientNames": { ".read": "auth != null && root.child('workerUsers').child(auth.uid).exists()", "$i": { ".validate": "newData.isString()" } },
+    "workLogs": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid && root.child('workerUsers').child(auth.uid).exists()",
+        "$logId": {
+          ".write": "auth != null && auth.uid === $uid && root.child('workerUsers').child(auth.uid).exists() && (!data.exists() || data.child('status').val() === 'pending') && (!newData.exists() || newData.child('status').val() === 'pending')",
+          ".validate": "newData.val() === null || (newData.hasChildren(['client', 'date', 'status', 'createdAt']) && newData.child('workerUid').val() === $uid && newData.child('client').isString() && newData.child('client').val().length <= 200 && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'rejected'))"
+        }
+      }
+    },
+
+    "visits":         { ".indexOn": ["id", "client", "date"], "$id": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "invoiceRecords": { ".indexOn": ["invNum", "client", "month"], "$invNum": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "quotations":     { ".indexOn": ["qNum", "client", "id"], "$id": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "expenses":       { ".indexOn": ["id", "category"], "$id": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "clients":        { "$id": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "workers":        { "$id": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "quotes":         { "$id": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "inv_history":    { "$id": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "proj_expenses":  { "$quoteId": { ".validate": "newData.val() === null || newData.hasChildren()" } },
+    "plants_list":    { "$i": { ".validate": "newData.isString()" } },
+    "invoices":       { "$client": { ".validate": "newData.isNumber()" } },
+    "nextId":         { ".validate": "newData.isNumber()" },
+
+    "$other": { ".validate": false }
+  }
+}
