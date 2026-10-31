@@ -8224,9 +8224,10 @@ function workLogPhotos(idx) {
 function rejectWorkLog(idx) {
   const l = workLogs[idx];
   if (!l) return;
-  const reason = prompt('سبب الرفض (يشوفه العامل):', '');
-  if (reason === null) return;
-  markWorkLog({ uid: l._uid, key: l._key }, { status: 'rejected', rejectReason: reason.trim(), reviewedAt: Date.now() });
+  dtAsk({ title: '❌ رفض شغل ' + (l.workerName || ''), text: 'اكتب سبب الرفض — بيشوفه العامل:', input: true, ok: 'رفض', danger: true }).then(reason => {
+    if (reason === null) return;
+    markWorkLog({ uid: l._uid, key: l._key }, { status: 'rejected', rejectReason: reason.trim(), reviewedAt: Date.now() });
+  });
 }
 
 function markWorkLog(ref_, patch) {
@@ -8248,17 +8249,44 @@ function manageWorkerAccount(id) {
   const { db, ref, set, remove } = window._fb;
   const cur = workerAccountUid(w);
   if (cur) {
-    if (confirm('حساب ' + w.name + ' مربوط.\n\nUID: ' + cur + '\n\nتبي تلغي ربط الحساب؟ (ما يقدر يدخل بعدها)')) {
+    dtAsk({ title: '🔑 حساب ' + w.name + ' مربوط', text: 'الرمز: ' + cur + '\n\nتبي تلغي ربط الحساب؟ ما يقدر يدخل بعدها.', ok: 'إلغاء الربط', danger: true }).then(r => {
+      if (r === null) return;
       remove(ref(db, 'workerUsers/' + cur)).then(() => showToast('🔒 تم إلغاء الربط')).catch(e => showToast('⚠️ ' + (e.code || e.message)));
-    }
+    });
     return;
   }
-  const uid = (prompt('ربط حساب دخول لـ ' + w.name + '\n\n1) أنشئ له حساب (إيميل + كلمة سر) من Firebase Console > Authentication\n2) خلّه يدخل على worker.html — بتطلع له رسالة فيها الرمز (UID)\n3) الصق الرمز هنا:', '') || '').trim();
-  if (!uid) return;
-  if (!/^[A-Za-z0-9]{20,40}$/.test(uid)) { alert('الرمز غير صحيح'); return; }
-  set(ref(db, 'workerUsers/' + uid), { name: w.name, workerId: w.id, linkedAt: Date.now() })
-    .then(() => { syncClientNames(true); showToast('✅ تم ربط الحساب — العامل يقدر يدخل الحين'); })
-    .catch(e => showToast('⚠️ ' + (e.code || e.message)));
+  dtAsk({ title: '🔑 ربط حساب دخول لـ ' + w.name, text: '١) أنشئ له حساب (إيميل + كلمة سر) من Firebase Console ← Authentication\n٢) خلّه يدخل على worker.html — بتطلع له رسالة فيها الرمز\n٣) الصق الرمز هنا:', input: true, ltr: true, placeholder: 'UID', ok: 'ربط' }).then(val => {
+    const uid = (val || '').trim();
+    if (!uid) return;
+    if (!/^[A-Za-z0-9]{20,40}$/.test(uid)) { showToast('⚠️ الرمز غير صحيح'); return; }
+    set(ref(db, 'workerUsers/' + uid), { name: w.name, workerId: w.id, linkedAt: Date.now() })
+      .then(() => { syncClientNames(true); showToast('✅ تم ربط الحساب — العامل يقدر يدخل الحين'); renderWorkers(); })
+      .catch(e => showToast('⚠️ ' + (e.code || e.message)));
+  });
+}
+
+// نافذة سؤال داخل التطبيق (بدل prompt/confirm اللي ما تشتغل في بعض المتصفحات)
+// ترجع النص المكتوب، أو '' لو بدون خانة، أو null لو انلغت
+function dtAsk(o) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';
+    wrap.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:400px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+      <div style="font-weight:800;font-size:16px;color:var(--gd);margin-bottom:8px">${escapeHtml(o.title || '')}</div>
+      <div style="font-size:13px;color:var(--muted);white-space:pre-line;line-height:1.7;margin-bottom:12px;word-break:break-all">${escapeHtml(o.text || '')}</div>
+      ${o.input ? `<input type="text" id="dt-ask-in" placeholder="${escapeHtml(o.placeholder || '')}" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:12px;${o.ltr ? 'direction:ltr;text-align:left;font-family:monospace' : ''}">` : ''}
+      <div style="display:flex;gap:8px">
+        <button type="button" id="dt-ask-ok" class="btn btn-primary" style="flex:1;${o.danger ? 'background:#C0392B' : ''}">${escapeHtml(o.ok || 'تم')}</button>
+        <button type="button" id="dt-ask-no" class="btn" style="flex:1;background:var(--gray);color:#333">إلغاء</button>
+      </div></div>`;
+    document.body.appendChild(wrap);
+    const inp = wrap.querySelector('#dt-ask-in');
+    const done = (v) => { wrap.remove(); resolve(v); };
+    wrap.querySelector('#dt-ask-ok').onclick = () => done(inp ? inp.value : '');
+    wrap.querySelector('#dt-ask-no').onclick = () => done(null);
+    wrap.onclick = (e) => { if (e.target === wrap) done(null); };
+    if (inp) { setTimeout(() => inp.focus(), 50); inp.onkeydown = (e) => { if (e.key === 'Enter') done(inp.value); if (e.key === 'Escape') done(null); }; }
+  });
 }
 
 // قائمة أسماء العملاء بس (بدون أي بيانات ثانية) — هذي اللي يشوفها العامل
