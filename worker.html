@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ne" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -10,7 +10,7 @@
 <style>
 :root{--gd:#1B4332;--gm:#2D6A4F;--gl:#52B788;--gp:#EAF5EE;--border:#DDE5E0;--muted:#64748B;--or:#D97706;--orl:#FEF3E2;--red:#C0392B;--gold:#B8860B;--goldl:#FBF3DC;--bg:#F4F7F5}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:#1E293B;font-size:15px}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","Noto Sans Devanagari","Nirmala UI",Tahoma,sans-serif;background:var(--bg);color:#1E293B;font-size:15px}
 .hdr{background:var(--gd);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
 .hdr b{font-size:18px}
 .hdr small{display:block;opacity:.8;font-size:12px;margin-top:2px}
@@ -32,7 +32,7 @@ textarea{min-height:70px;resize:vertical}
 .photos{display:flex;gap:8px;flex-wrap:wrap}
 .ph{position:relative;width:76px;height:76px;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)}
 .ph img{width:100%;height:100%;object-fit:cover}
-.ph button{position:absolute;top:3px;left:3px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;padding:0}
+.ph button{position:absolute;top:3px;inset-inline-end:3px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;padding:0}
 .add{width:76px;height:76px;border-radius:10px;border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;cursor:pointer;background:#fff}
 .add input{display:none}
 .log{border-bottom:1px solid #EEF2EF;padding:12px 0}
@@ -44,6 +44,8 @@ textarea{min-height:70px;resize:vertical}
 .muted{color:var(--muted);font-size:13px}
 .uid{direction:ltr;font-family:monospace;background:var(--gp);padding:10px;border-radius:8px;word-break:break-all;font-size:14px;text-align:center;margin:10px 0;user-select:all}
 .hidden{display:none!important}
+.lang{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;cursor:pointer;margin-inline-end:6px}
+.lang.dark{background:var(--gp);color:var(--gm);font-weight:700}
 </style>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -62,7 +64,67 @@ textarea{min-height:70px;resize:vertical}
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
   const fmt = (d) => { if (!d) return ''; const [y,m,dd] = d.split('-'); return dd + '/' + m + '/' + y; };
-  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
+  function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(el._h); el._h = setTimeout(() => el.classList.remove('show'), 2600); }
+
+  // ── اللغة: نيبالي (افتراضي) / عربي ──
+  const I18N = {
+    ne: {
+      dir: 'ltr', other: 'عربي',
+      loginTitle: 'कामदार लगइन', email: 'इमेल', password: 'पासवर्ड', login: 'लगइन', loggingIn: 'लगइन हुँदैछ...',
+      needCreds: 'इमेल र पासवर्ड लेख्नुहोस्', badCreds: 'इमेल वा पासवर्ड गलत छ', badPass: 'पासवर्ड गलत छ', noUser: 'खाता भेटिएन',
+      tooMany: 'धेरै प्रयास भयो — केही बेरपछि फेरि प्रयास गर्नुहोस्', noNet: 'इन्टरनेट छैन', loginFail: 'लगइन हुन सकेन',
+      logout: 'लगआउट', notActive: 'तपाईंको खाता अझै सक्रिय छैन', sendCode: 'यो कोड म्यानेजरलाई पठाउनुहोस्, उहाँले तपाईंको खाता सक्रिय गर्नुहुनेछ:',
+      copy: '📋 कपी', whatsapp: '💬 ह्वाट्सएप', autoOpen: 'खाता सक्रिय हुनेबित्तिकै यो पेज आफैं खुल्नेछ',
+      newWork: '➕ नयाँ काम दर्ता गर्नुहोस्', client: 'ग्राहक', chooseClient: 'ग्राहक छान्नुहोस्...', date: 'मिति', workDone: 'तपाईंले गरेको काम',
+      before: '📷 काम अघिका फोटो', after: '📷 काम पछिका फोटो', add: 'थप्नुहोस्',
+      notes: 'टिप्पणी', notesPh: 'म्यानेजरलाई थाहा हुनुपर्ने कुरा...', extra: 'थप काम (भए)', extraPh: 'उदाहरण: ग्राहकको अनुरोधमा ३ वटा थप रूख रोपियो',
+      send: '📤 पठाउनुहोस्', sending: 'पठाउँदैछ...', myWork: '📋 मेरो काम', noWork: 'अहिलेसम्म कुनै काम दर्ता गरिएको छैन',
+      pending: '⏳ जाँच हुन बाँकी', approved: '✅ स्वीकृत', rejected: '❌ अस्वीकृत', reason: 'कारण:',
+      del: '🗑 मेटाउनुहोस्', delConfirm: 'यो काम मेटाउने?', deleted: '🗑 मेटाइयो',
+      copied: '✅ कपी भयो', copyManual: 'कोड छानेर आफैं कपी गर्नुहोस्', clientsFail: '⚠️ ग्राहकको नाम लोड हुन सकेन',
+      preparing: '📸 फोटो तयार हुँदैछ...', needClient: '⚠️ ग्राहक र मिति छान्नुहोस्', needWork: '⚠️ गरेको काम छान्नुहोस् वा टिप्पणी लेख्नुहोस्',
+      savedOffline: '📴 सेभ भयो — इन्टरनेट आएपछि पठाइनेछ', sent: '✅ म्यानेजरलाई पठाइयो', sendFail: '⚠️ पठाउन सकिएन: ',
+      tasks: { 'قص العشب': 'घाँस काट्ने', 'تشذيب': 'छाँटकाँट', 'تسميد': 'मल हाल्ने', 'فحص ري': 'सिँचाइ जाँच', 'رش مبيد': 'विषादी छर्ने', 'تنظيف': 'सरसफाइ', 'زراعة': 'बिरुवा रोप्ने', 'مكافحة آفات': 'कीरा नियन्त्रण' }
+    },
+    ar: {
+      dir: 'rtl', other: 'नेपाली',
+      loginTitle: 'دخول العمال', email: 'البريد الإلكتروني', password: 'كلمة المرور', login: 'دخول', loggingIn: 'جاري الدخول...',
+      needCreds: 'أدخل البريد وكلمة المرور', badCreds: 'البريد أو كلمة المرور غلط', badPass: 'كلمة المرور غلط', noUser: 'الحساب غير موجود',
+      tooMany: 'محاولات كثيرة — جرّب بعد شوي', noNet: 'ما في إنترنت', loginFail: 'تعذّر الدخول',
+      logout: 'خروج', notActive: 'حسابك لسا مو مفعّل', sendCode: 'أرسل هذا الرمز للمدير عشان يفعّل حسابك:',
+      copy: '📋 نسخ', whatsapp: '💬 واتساب', autoOpen: 'الصفحة بتفتح تلقائياً أول ما يتفعّل الحساب',
+      newWork: '➕ تسجيل شغل جديد', client: 'العميل', chooseClient: 'اختر العميل...', date: 'التاريخ', workDone: 'الشغل اللي سويته',
+      before: '📷 صور قبل', after: '📷 صور بعد', add: 'إضافة',
+      notes: 'ملاحظات', notesPh: 'أي شي لازم المدير يعرفه...', extra: 'شغل إضافي (إذا في)', extraPh: 'مثال: زرعنا ٣ شجرات زيادة بطلب العميل',
+      send: '📤 إرسال', sending: 'جاري الإرسال...', myWork: '📋 شغلي', noWork: 'ما سجلت شغل بعد',
+      pending: '⏳ بانتظار المراجعة', approved: '✅ معتمد', rejected: '❌ مرفوض', reason: 'السبب:',
+      del: '🗑 حذف', delConfirm: 'حذف هذا الشغل؟', deleted: '🗑 تم الحذف',
+      copied: '✅ تم النسخ', copyManual: 'حدد الرمز وانسخه يدوياً', clientsFail: '⚠️ تعذّر تحميل أسماء العملاء',
+      preparing: '📸 جاري تجهيز الصور...', needClient: '⚠️ اختر العميل والتاريخ', needWork: '⚠️ حدد الشغل اللي سويته أو اكتب ملاحظة',
+      savedOffline: '📴 انحفظ — بيترسل أول ما يرجع النت', sent: '✅ تم الإرسال للمدير', sendFail: '⚠️ فشل الإرسال: ',
+      tasks: {}
+    }
+  };
+  let lang = 'ne';
+  try { const s = localStorage.getItem('dt_worker_lang'); if (s === 'ar' || s === 'ne') lang = s; } catch (e) {}
+  const t = (k) => (I18N[lang][k] ?? I18N.ar[k] ?? k);
+  const taskLabel = (task) => (I18N[lang].tasks[task] || task);
+  let lastMine = {};
+  function applyLang() {
+    document.documentElement.lang = lang === 'ne' ? 'ne' : 'ar';
+    document.documentElement.dir = t('dir');
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+    document.querySelectorAll('.t-cb').forEach(cb => { const sp = cb.nextElementSibling; if (sp) sp.textContent = taskLabel(cb.dataset.task); });
+    document.querySelectorAll('.lang').forEach(b => b.textContent = t('other'));
+    const opt0 = document.querySelector('#f-client option[value=""]'); if (opt0) opt0.textContent = t('chooseClient');
+    if (me) { renderPhotos('before'); renderPhotos('after'); renderMine(lastMine); }
+  }
+  window.toggleLang = () => {
+    lang = lang === 'ne' ? 'ar' : 'ne';
+    try { localStorage.setItem('dt_worker_lang', lang); } catch (e) {}
+    applyLang();
+  };
 
   let me = null;          // { uid, name }
   let photos = { before: [], after: [] };
@@ -73,13 +135,15 @@ textarea{min-height:70px;resize:vertical}
   window.doLogin = async () => {
     const email = $('l-email').value.trim(), pass = $('l-pass').value;
     const err = $('l-err');
-    if (!email || !pass) { err.textContent = 'أدخل البريد وكلمة المرور'; return; }
-    $('l-btn').disabled = true; $('l-btn').textContent = 'جاري الدخول...';
+    if (!email || !pass) { err.textContent = t('needCreds'); return; }
+    $('l-btn').disabled = true; $('l-btn').textContent = t('loggingIn');
     try { await signInWithEmailAndPassword(auth, email, pass); err.textContent = ''; $('l-pass').value = ''; }
-    catch (e) { err.textContent = ({'auth/invalid-credential':'البريد أو كلمة المرور غلط','auth/wrong-password':'كلمة المرور غلط','auth/user-not-found':'الحساب غير موجود','auth/too-many-requests':'محاولات كثيرة — جرّب بعد شوي','auth/network-request-failed':'ما في إنترنت'})[e.code] || 'تعذّر الدخول'; }
-    finally { $('l-btn').disabled = false; $('l-btn').textContent = 'دخول'; }
+    catch (e) { err.textContent = t(({'auth/invalid-credential':'badCreds','auth/invalid-login-credentials':'badCreds','auth/wrong-password':'badPass','auth/user-not-found':'noUser','auth/too-many-requests':'tooMany','auth/network-request-failed':'noNet'})[e.code] || 'loginFail'); }
+    finally { $('l-btn').disabled = false; $('l-btn').textContent = t('login'); }
   };
   window.doLogout = () => { unsub.forEach(f => f()); unsub = []; signOut(auth); };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyLang); else applyLang();
 
   onAuthStateChanged(auth, async (user) => {
     unsub.forEach(f => f()); unsub = [];
@@ -92,6 +156,7 @@ textarea{min-height:70px;resize:vertical}
       $('h-name').textContent = '👷 ' + me.name;
       show('v-app');
       startApp();
+      applyLang();
       return;
     }
     // المدير؟ رجّعه للتطبيق الرئيسي
@@ -104,12 +169,12 @@ textarea{min-height:70px;resize:vertical}
   });
 
   window.copyUid = () => {
-    const t = $('p-uid').textContent;
-    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('✅ تم النسخ')).catch(() => toast('حدد الرمز وانسخه يدوياً'));
+    const code = $('p-uid').textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(() => toast(t('copied'))).catch(() => toast(t('copyManual')));
   };
   window.shareUid = () => {
-    const t = 'رمز حسابي في Dr.Tree:\n' + $('p-uid').textContent;
-    window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+    const msg = 'رمز حسابي في Dr.Tree:\n' + $('p-uid').textContent;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
   };
 
   // ── App ──
@@ -118,10 +183,10 @@ textarea{min-height:70px;resize:vertical}
     unsub.push(onValue(ref(db, 'clientNames'), (s) => {
       const names = (Object.values(s.val() || {})).filter(n => typeof n === 'string');
       const sel = $('f-client'), cur = sel.value;
-      sel.innerHTML = '<option value="">اختر العميل...</option>' + names.map(n => `<option>${esc(n)}</option>`).join('');
+      sel.innerHTML = '<option value="">' + esc(t('chooseClient')) + '</option>' + names.map(n => `<option>${esc(n)}</option>`).join('');
       sel.value = cur;
-    }, () => toast('⚠️ تعذّر تحميل أسماء العملاء')));
-    unsub.push(onValue(ref(db, 'workLogs/' + me.uid), (s) => renderMine(s.val() || {}), () => {}));
+    }, () => toast(t('clientsFail'))));
+    unsub.push(onValue(ref(db, 'workLogs/' + me.uid), (s) => { lastMine = s.val() || {}; renderMine(lastMine); }, () => {}));
   }
 
   function resetForm() {
@@ -156,7 +221,7 @@ textarea{min-height:70px;resize:vertical}
 
   function renderPhotos(side) {
     const tiles = photos[side].map((u, i) => `<div class="ph"><img src="${u}"><button type="button" onclick="delPhoto('${side}',${i})">✕</button></div>`).join('');
-    const add = photos[side].length < MAX ? `<label class="add"><span style="font-size:22px">📷</span>إضافة<input type="file" accept="image/*" capture="environment" multiple onchange="addPhotos('${side}', this)"></label>` : '';
+    const add = photos[side].length < MAX ? `<label class="add"><span style="font-size:22px">📷</span>${esc(t('add'))}<input type="file" accept="image/*" capture="environment" multiple onchange="addPhotos('${side}', this)"></label>` : '';
     $('ph-' + side).innerHTML = tiles + add;
   }
   window.delPhoto = (side, i) => { photos[side].splice(i, 1); renderPhotos(side); };
@@ -164,7 +229,7 @@ textarea{min-height:70px;resize:vertical}
     const files = Array.from(input.files || []); input.value = '';
     const room = MAX - photos[side].length;
     if (room <= 0) return;
-    toast('📸 جاري تجهيز الصور...');
+    toast(t('preparing'));
     for (const f of files.slice(0, room)) { try { photos[side].push(await compress(f)); } catch (e) {} }
     renderPhotos(side);
   };
@@ -173,11 +238,11 @@ textarea{min-height:70px;resize:vertical}
     const client = $('f-client').value, date = $('f-date').value;
     $('f-client').classList.toggle('err', !client);
     $('f-date').classList.toggle('err', !date);
-    if (!client || !date) { toast('⚠️ اختر العميل والتاريخ'); return; }
+    if (!client || !date) { toast(t('needClient')); return; }
     const tasks = [...document.querySelectorAll('.t-cb')].filter(c => c.checked).map(c => c.dataset.task);
     const notes = $('f-notes').value.trim(), extra = $('f-extra').value.trim();
-    if (!tasks.length && !notes && !extra) { toast('⚠️ حدد الشغل اللي سويته أو اكتب ملاحظة'); return; }
-    const btn = $('f-btn'); btn.disabled = true; btn.textContent = 'جاري الإرسال...';
+    if (!tasks.length && !notes && !extra) { toast(t('needWork')); return; }
+    const btn = $('f-btn'); btn.disabled = true; btn.textContent = t('sending');
     try {
       const r = push(ref(db, 'workLogs/' + me.uid));
       const rec = {
@@ -187,19 +252,19 @@ textarea{min-height:70px;resize:vertical}
         status: 'pending', createdAt: Date.now()
       };
       const p = set(r, rec);
-      if (!navigator.onLine) { toast('📴 انحفظ — بيترسل أول ما يرجع النت'); resetForm(); }
+      if (!navigator.onLine) { toast(t('savedOffline')); resetForm(); }
       await p;
-      if (navigator.onLine) toast('✅ تم الإرسال للمدير');
+      if (navigator.onLine) toast(t('sent'));
       resetForm();
       window.scrollTo({ top: document.getElementById('mine').offsetTop - 70, behavior: 'smooth' });
     } catch (e) {
-      toast('⚠️ فشل الإرسال: ' + (e.code || e.message));
-    } finally { btn.disabled = false; btn.textContent = '📤 إرسال'; }
+      toast(t('sendFail') + (e.code || e.message));
+    } finally { btn.disabled = false; btn.textContent = t('send'); }
   };
 
   function renderMine(obj) {
     const rows = Object.values(obj).filter(Boolean).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 50);
-    const ST = { pending: ['⏳ بانتظار المراجعة', '#FBF3DC', '#8B6914'], approved: ['✅ معتمد', '#EAF5EE', '#2D6A4F'], rejected: ['❌ مرفوض', '#FDECEA', '#C0392B'] };
+    const ST = { pending: [t('pending'), '#FBF3DC', '#8B6914'], approved: [t('approved'), '#EAF5EE', '#2D6A4F'], rejected: [t('rejected'), '#FDECEA', '#C0392B'] };
     $('mine-count').textContent = rows.length ? '(' + rows.length + ')' : '';
     $('mine-list').innerHTML = rows.length ? rows.map(l => {
       const st = ST[l.status] || ST.pending;
@@ -209,17 +274,17 @@ textarea{min-height:70px;resize:vertical}
           <div><b>${esc(l.client)}</b><div class="muted">📅 ${fmt(l.date)}${n ? ' · 📷 ' + n : ''}</div></div>
           <span class="badge" style="background:${st[1]};color:${st[2]}">${st[0]}</span>
         </div>
-        ${(l.tasks || []).length ? `<div style="margin-top:6px">${l.tasks.map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : ''}
+        ${(l.tasks || []).length ? `<div style="margin-top:6px">${l.tasks.map(x => `<span class="chip">${esc(taskLabel(x))}</span>`).join('')}</div>` : ''}
         ${l.notes ? `<div style="font-size:13px;margin-top:6px">📝 ${esc(l.notes)}</div>` : ''}
         ${l.extra ? `<div style="font-size:13px;margin-top:4px;color:var(--or)">➕ ${esc(l.extra)}</div>` : ''}
-        ${l.status === 'rejected' && l.rejectReason ? `<div style="font-size:13px;margin-top:4px;color:var(--red)">السبب: ${esc(l.rejectReason)}</div>` : ''}
-        ${l.status === 'pending' ? `<button onclick="delLog('${esc(l.id)}')" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;color:var(--muted);cursor:pointer">🗑 حذف</button>` : ''}
+        ${l.status === 'rejected' && l.rejectReason ? `<div style="font-size:13px;margin-top:4px;color:var(--red)">${esc(t('reason'))} ${esc(l.rejectReason)}</div>` : ''}
+        ${l.status === 'pending' ? `<button onclick="delLog('${esc(l.id)}')" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;color:var(--muted);cursor:pointer">${esc(t('del'))}</button>` : ''}
       </div>`;
-    }).join('') : '<div class="muted" style="text-align:center;padding:16px">ما سجلت شغل بعد</div>';
+    }).join('') : '<div class="muted" style="text-align:center;padding:16px">' + esc(t('noWork')) + '</div>';
   }
   window.delLog = (id) => {
-    if (!confirm('حذف هذا الشغل؟')) return;
-    remove(ref(db, 'workLogs/' + me.uid + '/' + id)).then(() => toast('🗑 تم الحذف')).catch(e => toast('⚠️ ' + (e.code || e.message)));
+    if (!confirm(t('delConfirm'))) return;
+    remove(ref(db, 'workLogs/' + me.uid + '/' + id)).then(() => toast(t('deleted'))).catch(e => toast('⚠️ ' + (e.code || e.message)));
   };
 </script>
 </head>
@@ -230,29 +295,30 @@ textarea{min-height:70px;resize:vertical}
 <div id="v-login" class="hidden" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(180deg,#1B4332,#0c1f16)">
   <div class="card" style="max-width:360px;width:100%;margin:0">
     <div style="text-align:center;font-size:24px;font-weight:900;color:var(--gd)">🌳 Dr.Tree</div>
-    <div class="muted" style="text-align:center;margin:4px 0 18px">دخول العمال</div>
-    <div class="field"><label class="l">البريد الإلكتروني</label><input type="email" id="l-email" autocomplete="username" style="direction:ltr;text-align:left"></div>
-    <div class="field"><label class="l">كلمة المرور</label><input type="password" id="l-pass" autocomplete="current-password" style="direction:ltr;text-align:left" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="muted" style="text-align:center;margin:4px 0 18px" data-i18n="loginTitle">دخول العمال</div>
+    <div class="field"><label class="l" data-i18n="email">البريد الإلكتروني</label><input type="email" id="l-email" autocomplete="username" style="direction:ltr;text-align:left"></div>
+    <div class="field"><label class="l" data-i18n="password">كلمة المرور</label><input type="password" id="l-pass" autocomplete="current-password" style="direction:ltr;text-align:left" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div id="l-err" style="color:var(--red);font-size:13px;text-align:center;min-height:18px;margin-bottom:8px"></div>
-    <button class="btn" id="l-btn" onclick="doLogin()">دخول</button>
+    <button class="btn" id="l-btn" onclick="doLogin()" data-i18n="login">دخول</button>
+    <button class="lang dark" style="display:block;margin:14px auto 0" onclick="toggleLang()">عربي</button>
   </div>
 </div>
 
 <!-- حساب غير مفعّل -->
 <div id="v-pending" class="hidden">
-  <div class="hdr"><div><b>🌳 Dr.Tree</b></div><button onclick="doLogout()">خروج</button></div>
+  <div class="hdr"><div><b>🌳 Dr.Tree</b></div><div><button class="lang" onclick="toggleLang()">عربي</button><button onclick="doLogout()" data-i18n="logout">خروج</button></div></div>
   <div class="wrap">
     <div class="card" style="text-align:center">
       <div style="font-size:40px">🔑</div>
-      <h2>حسابك لسا مو مفعّل</h2>
-      <div class="muted">أرسل هذا الرمز للمدير عشان يفعّل حسابك:</div>
+      <h2 data-i18n="notActive">حسابك لسا مو مفعّل</h2>
+      <div class="muted" data-i18n="sendCode">أرسل هذا الرمز للمدير عشان يفعّل حسابك:</div>
       <div class="uid" id="p-uid"></div>
       <div class="muted" id="p-email" style="direction:ltr"></div>
       <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn" style="background:var(--gm)" onclick="copyUid()">📋 نسخ</button>
-        <button class="btn" style="background:#25D366" onclick="shareUid()">💬 واتساب</button>
+        <button class="btn" style="background:var(--gm)" onclick="copyUid()" data-i18n="copy">📋 نسخ</button>
+        <button class="btn" style="background:#25D366" onclick="shareUid()" data-i18n="whatsapp">💬 واتساب</button>
       </div>
-      <div class="muted" style="margin-top:12px">الصفحة بتفتح تلقائياً أول ما يتفعّل الحساب</div>
+      <div class="muted" style="margin-top:12px" data-i18n="autoOpen">الصفحة بتفتح تلقائياً أول ما يتفعّل الحساب</div>
     </div>
   </div>
 </div>
@@ -261,35 +327,35 @@ textarea{min-height:70px;resize:vertical}
 <div id="v-app" class="hidden">
   <div class="hdr">
     <div><b>🌳 Dr.Tree</b><small id="h-name"></small></div>
-    <button onclick="doLogout()">خروج</button>
+    <div><button class="lang" onclick="toggleLang()">عربي</button><button onclick="doLogout()" data-i18n="logout">خروج</button></div>
   </div>
   <div class="wrap">
     <div class="card">
-      <h2>➕ تسجيل شغل جديد</h2>
-      <div class="field"><label class="l">العميل</label><select id="f-client"><option value="">اختر العميل...</option></select></div>
-      <div class="field"><label class="l">التاريخ</label><input type="date" id="f-date"></div>
+      <h2 data-i18n="newWork">➕ تسجيل شغل جديد</h2>
+      <div class="field"><label class="l" data-i18n="client">العميل</label><select id="f-client"><option value="">اختر العميل...</option></select></div>
+      <div class="field"><label class="l" data-i18n="date">التاريخ</label><input type="date" id="f-date"></div>
       <div class="field">
-        <label class="l">الشغل اللي سويته</label>
+        <label class="l" data-i18n="workDone">الشغل اللي سويته</label>
         <div class="tasks">
-          <label><input type="checkbox" class="t-cb" data-task="قص العشب">قص العشب</label>
-          <label><input type="checkbox" class="t-cb" data-task="تشذيب">تشذيب</label>
-          <label><input type="checkbox" class="t-cb" data-task="تسميد">تسميد</label>
-          <label><input type="checkbox" class="t-cb" data-task="فحص ري">فحص ري</label>
-          <label><input type="checkbox" class="t-cb" data-task="رش مبيد">رش مبيد</label>
-          <label><input type="checkbox" class="t-cb" data-task="تنظيف">تنظيف</label>
-          <label><input type="checkbox" class="t-cb" data-task="زراعة">زراعة</label>
-          <label><input type="checkbox" class="t-cb" data-task="مكافحة آفات">مكافحة آفات</label>
+          <label><input type="checkbox" class="t-cb" data-task="قص العشب"><span>قص العشب</span></label>
+          <label><input type="checkbox" class="t-cb" data-task="تشذيب"><span>تشذيب</span></label>
+          <label><input type="checkbox" class="t-cb" data-task="تسميد"><span>تسميد</span></label>
+          <label><input type="checkbox" class="t-cb" data-task="فحص ري"><span>فحص ري</span></label>
+          <label><input type="checkbox" class="t-cb" data-task="رش مبيد"><span>رش مبيد</span></label>
+          <label><input type="checkbox" class="t-cb" data-task="تنظيف"><span>تنظيف</span></label>
+          <label><input type="checkbox" class="t-cb" data-task="زراعة"><span>زراعة</span></label>
+          <label><input type="checkbox" class="t-cb" data-task="مكافحة آفات"><span>مكافحة آفات</span></label>
         </div>
       </div>
-      <div class="field"><label class="l">📷 صور قبل</label><div class="photos" id="ph-before"></div></div>
-      <div class="field"><label class="l">📷 صور بعد</label><div class="photos" id="ph-after"></div></div>
-      <div class="field"><label class="l">ملاحظات</label><textarea id="f-notes" placeholder="أي شي لازم المدير يعرفه..."></textarea></div>
-      <div class="field"><label class="l">شغل إضافي (إذا في)</label><textarea id="f-extra" placeholder="مثال: زرعنا ٣ شجرات زيادة بطلب العميل"></textarea></div>
-      <button class="btn" id="f-btn" onclick="submitLog()">📤 إرسال</button>
+      <div class="field"><label class="l" data-i18n="before">📷 صور قبل</label><div class="photos" id="ph-before"></div></div>
+      <div class="field"><label class="l" data-i18n="after">📷 صور بعد</label><div class="photos" id="ph-after"></div></div>
+      <div class="field"><label class="l" data-i18n="notes">ملاحظات</label><textarea id="f-notes" data-i18n-ph="notesPh" placeholder="أي شي لازم المدير يعرفه..."></textarea></div>
+      <div class="field"><label class="l" data-i18n="extra">شغل إضافي (إذا في)</label><textarea id="f-extra" data-i18n-ph="extraPh" placeholder="مثال: زرعنا ٣ شجرات زيادة بطلب العميل"></textarea></div>
+      <button class="btn" id="f-btn" onclick="submitLog()" data-i18n="send">📤 إرسال</button>
     </div>
 
     <div class="card" id="mine">
-      <h2>📋 شغلي <span class="muted" id="mine-count"></span></h2>
+      <h2><span data-i18n="myWork">📋 شغلي</span> <span class="muted" id="mine-count"></span></h2>
       <div id="mine-list"></div>
     </div>
   </div>
