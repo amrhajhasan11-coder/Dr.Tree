@@ -6884,7 +6884,52 @@ function renderPlantRows(){
 function renderMaterialRows(){ document.getElementById('material-rows').innerHTML=materialItems.map((item,i)=>makeRow(item,i,'material')).join(''); updateQuoteSummary(); }
 function renderOtherRows(){ document.getElementById('other-rows').innerHTML=otherItems.map((item,i)=>makeRow(item,i,'other')).join(''); updateQuoteSummary(); }
 
-function addLaborRow(){ laborItems.push({desc:'',qty:1,unit:'يوم',price:0,note:'',paid:false}); renderLaborRows(); }
+function addLaborRow(){
+  // نافذة تختار منها أكثر من عامل مرة وحدة — كل عامل ينضاف كسطر مع أجرته
+  if (!workers || !workers.length) { laborItems.push({desc:'',qty:1,unit:'يوم',price:0,note:'',paid:false}); renderLaborRows(); return; }
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px';
+  wrap.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:400px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+    <div style="padding:16px 18px 8px;font-weight:800;font-size:16px;color:var(--gd)">👷 اختر العمال</div>
+    <div style="padding:0 18px 8px;display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)">
+      <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="lp-all" style="width:18px;height:18px;min-height:0;padding:0;margin:0;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--gm)"> الكل</label>
+      <span style="margin-right:auto">عدد الأيام</span>
+      <input type="number" id="lp-days" value="1" min="0" step="0.5" style="width:70px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;text-align:center">
+    </div>
+    <div id="lp-list" style="overflow:auto;padding:0 18px">${workers.map((w,i)=>`
+      <label style="display:flex;gap:10px;align-items:center;padding:10px 4px;border-bottom:1px solid #F0F0F0;cursor:pointer">
+        <input type="checkbox" class="lp-cb" data-i="${i}" style="width:20px;height:20px;min-height:0;padding:0;margin:0;flex:none;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--gm)">
+        <span style="flex:1;font-weight:600">${escapeHtml(w.name)}${w.role?` <span style="color:var(--muted);font-weight:400;font-size:12px">— ${escapeHtml(w.role)}</span>`:''}</span>
+        ${w.wageAmount?`<span style="font-size:12px;color:var(--gold);font-weight:700">${w.wageAmount.toLocaleString('en')} / ${escapeHtml(w.wageType||'يومي')}</span>`:''}
+      </label>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;padding:14px 18px">
+      <button type="button" id="lp-ok" class="btn btn-primary" style="flex:2">إضافة (0)</button>
+      <button type="button" id="lp-blank" class="btn" style="flex:1;background:var(--gray);color:#333;font-size:12px">سطر فاضي</button>
+      <button type="button" id="lp-no" class="btn" style="flex:1;background:var(--gray);color:#333">إلغاء</button>
+    </div></div>`;
+  document.body.appendChild(wrap);
+  const cbs = [...wrap.querySelectorAll('.lp-cb')];
+  const okBtn = wrap.querySelector('#lp-ok');
+  const refresh = () => { const n = cbs.filter(c=>c.checked).length; okBtn.textContent = 'إضافة (' + n + ')'; okBtn.disabled = !n; wrap.querySelector('#lp-all').checked = n === cbs.length; };
+  cbs.forEach(c => c.onchange = refresh);
+  wrap.querySelector('#lp-all').onchange = (e) => { cbs.forEach(c => c.checked = e.target.checked); refresh(); };
+  refresh();
+  const close = () => wrap.remove();
+  wrap.querySelector('#lp-no').onclick = close;
+  wrap.onclick = (e) => { if (e.target === wrap) close(); };
+  wrap.querySelector('#lp-blank').onclick = () => { laborItems.push({desc:'',qty:1,unit:'يوم',price:0,note:'',paid:false}); renderLaborRows(); close(); };
+  okBtn.onclick = () => {
+    const days = parseFloat(wrap.querySelector('#lp-days').value) || 1;
+    cbs.filter(c=>c.checked).forEach(c => {
+      const w = workers[+c.dataset.i];
+      const monthly = w.wageType === 'شهري';
+      laborItems.push({ desc: w.name, qty: monthly ? 1 : days, unit: monthly ? 'شهر' : 'يوم', price: w.wageAmount || 0, note: '', paid: false });
+    });
+    renderLaborRows(); close();
+    showToast('✅ تمت إضافة ' + cbs.filter(c=>c.checked).length + ' عامل');
+  };
+}
 function addPlantRow(){ plantItems.push({desc:'',qty:1,unit:'شجرة',price:0,note:'',paid:false}); renderPlantRows(); }
 function addMaterialRow(){ materialItems.push({desc:'',qty:1,unit:'وحدة',price:0,note:'',paid:false}); renderMaterialRows(); }
 function addOtherRow(){ otherItems.push({desc:'',qty:1,unit:'وحدة',price:0,note:'',paid:false}); renderOtherRows(); }
