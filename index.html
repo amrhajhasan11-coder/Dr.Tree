@@ -5579,6 +5579,7 @@ function openAddClient() {
   document.getElementById('client-modal-title').textContent = '👤 إضافة عميل جديد';
   document.getElementById('client-save-btn').textContent = '✚ إضافة';
   document.getElementById('cf-name').value = '';
+  const cfe0 = document.getElementById('cf-name-en'); if (cfe0) cfe0.value = '';
   document.getElementById('cf-area').value = '';
   document.getElementById('cf-phone').value = '';
   document.getElementById('cf-monthly').value = '';
@@ -5596,6 +5597,7 @@ function openEditClient(id) {
   document.getElementById('client-modal-title').textContent = '✏️ تعديل العميل';
   document.getElementById('client-save-btn').textContent = '💾 حفظ';
   document.getElementById('cf-name').value = c.name || '';
+  const cfe = document.getElementById('cf-name-en'); if (cfe) cfe.value = c.nameEn || '';
   document.getElementById('cf-area').value = c.area || '';
   document.getElementById('cf-phone').value = c.phone || '';
   document.getElementById('cf-monthly').value = c.monthly || '';
@@ -5620,9 +5622,10 @@ function saveClient() {
     visitsPerMonth: parseInt(vpmEl && vpmEl.value) || 4,
     location: locEl ? locEl.value.trim() : '',
     notes: document.getElementById('cf-notes').value.trim(),
+    nameEn: (document.getElementById('cf-name-en') || {}).value ? document.getElementById('cf-name-en').value.trim() : '',
   };
   if (window._editClientId) {
-    clients_data = clients_data.map(c => c.id === window._editClientId ? data : c);
+    clients_data = clients_data.map(c => c.id === window._editClientId ? { ...c, ...data } : c);
     showToast('✅ تم تعديل العميل!');
   } else {
     clients_data.unshift(data);
@@ -8164,6 +8167,9 @@ function renderWorkLogs() {
     el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>' + (f === 'pending' ? 'ما في شغل بانتظار المراجعة' : 'لا يوجد') + '</p></div>';
     return;
   }
+  // ترجمة تلقائية لملاحظات الشغل اللي بانتظار المراجعة
+  rows.filter(l => l.status === 'pending' && ((l.notes && !l.notesAr) || (l.extra && !l.extraAr))).slice(0, 10)
+    .forEach(l => translateWorkLogSilent(l));
   const ST = { pending: ['⏳ بانتظار', 'var(--goldl)', '#8B6914'], approved: ['✅ معتمد', 'var(--gp)', 'var(--gm)'], rejected: ['❌ مرفوض', '#FDECEA', '#C0392B'] };
   el.innerHTML = rows.map((l, i) => {
     const st = ST[l.status] || ST.pending;
@@ -8184,7 +8190,10 @@ function renderWorkLogs() {
       </div>
       ${tasks ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">${tasks}</div>` : ''}
       ${l.notes ? `<div style="font-size:13px;margin-top:8px">📝 ${escapeHtml(l.notes)}</div>` : ''}
+      ${l.notesAr && l.notesAr !== l.notes ? `<div style="font-size:13px;margin-top:2px;color:var(--blue)">🌐 ${escapeHtml(l.notesAr)}</div>` : ''}
       ${l.extra ? `<div style="font-size:13px;margin-top:6px;color:var(--or)">➕ عمل إضافي: ${escapeHtml(l.extra)}</div>` : ''}
+      ${l.extraAr && l.extraAr !== l.extra ? `<div style="font-size:13px;margin-top:2px;color:var(--blue)">🌐 ${escapeHtml(l.extraAr)}</div>` : ''}
+      ${(l.notes && !l.notesAr) || (l.extra && !l.extraAr) ? `<button type="button" onclick="translateWorkLogIdx(${idx})" style="margin-top:6px;background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--blue);cursor:pointer">🌐 ترجم للعربي</button>` : ''}
       ${thumbs}
       ${l.status === 'rejected' && l.rejectReason ? `<div style="font-size:12px;color:#C0392B;margin-top:6px">السبب: ${escapeHtml(l.rejectReason)}</div>` : ''}
       ${l.status === 'pending' ? `<div style="display:flex;gap:8px;margin-top:10px">
@@ -8208,8 +8217,8 @@ function approveWorkLog(idx) {
   if (l.client && typeof autoFillClientData === 'function') autoFillClientData(l.client);
   document.getElementById('f-date').value = l.date || TODAY;
   const fw = document.getElementById('f-worker'); if (fw) fw.value = l.workerName || '';
-  document.getElementById('f-notes').value = l.notes || '';
-  document.getElementById('f-extra').value = l.extra || '';
+  document.getElementById('f-notes').value = l.notesAr || l.notes || '';
+  document.getElementById('f-extra').value = l.extraAr || l.extra || '';
   const tasks = l.tasks || [];
   document.querySelectorAll('.task-cb').forEach(cb => { cb.checked = tasks.includes(cb.dataset.task); });
   formPhotos = { before: (l.photosBefore || []).slice(), after: (l.photosAfter || []).slice() };
@@ -8226,7 +8235,12 @@ function rejectWorkLog(idx) {
   if (!l) return;
   dtAsk({ title: '❌ رفض شغل ' + (l.workerName || ''), text: 'اكتب سبب الرفض — بيشوفه العامل:', input: true, ok: 'رفض', danger: true }).then(reason => {
     if (reason === null) return;
-    markWorkLog({ uid: l._uid, key: l._key }, { status: 'rejected', rejectReason: reason.trim(), reviewedAt: Date.now() });
+    const r = reason.trim();
+    (r ? dtTranslate(r, 'ne') : Promise.resolve('')).then(ne => {
+      const patch = { status: 'rejected', rejectReason: r, reviewedAt: Date.now() };
+      if (ne) patch.rejectReasonNe = ne;
+      markWorkLog({ uid: l._uid, key: l._key }, patch);
+    });
   });
 }
 
@@ -8295,12 +8309,79 @@ function syncClientNames(force) {
   if (!window._fbReady) return;
   const names = [...new Set([...(clients_data || []).map(c => c && c.name), ...(visits || []).map(v => v && v.client)]
     .filter(n => typeof n === 'string' && n.trim()).map(n => n.trim()))].sort((a, b) => a.localeCompare(b, 'ar'));
-  const sig = JSON.stringify(names);
+  // كل اسم يُرسل مع اسمه الإنجليزي: "الاسم العربي<TAB>English name"
+  const entries = names.map(n => {
+    const c = (clients_data || []).find(x => x && x.name === n);
+    const en = (c && c.nameEn) || _autoEn[n] || '';
+    return en ? n + '\t' + en : n;
+  });
+  const sig = JSON.stringify(entries);
   if (!force && sig === _lastClientNames) return;
   _lastClientNames = sig;
   const { db, ref, set } = window._fb;
-  set(ref(db, 'clientNames'), names).catch(() => {});
+  set(ref(db, 'clientNames'), entries).catch(() => {});
+  // ترجمة تلقائية للأسماء اللي ما لها اسم إنجليزي (مرة وحدة لكل اسم، وتنحفظ بالجهاز)
+  const missing = names.filter(n => { const c = (clients_data || []).find(x => x && x.name === n); return !(c && c.nameEn) && !_autoEn[n]; });
+  if (missing.length && !_autoEnBusy) {
+    _autoEnBusy = true;
+    (async () => {
+      for (const n of missing.slice(0, 30)) {
+        const en = await dtTranslate(n, 'en');
+        if (en && en !== n) _autoEn[n] = en;
+      }
+      try { localStorage.setItem('dt_client_en', JSON.stringify(_autoEn)); } catch {}
+      _autoEnBusy = false;
+      syncClientNames(false);
+    })();
+  }
 }
+let _autoEn = {}; try { _autoEn = JSON.parse(localStorage.getItem('dt_client_en') || '{}') || {}; } catch {}
+let _autoEnBusy = false;
+
+// ── ترجمة (Google Translate) — ترجع null إذا فشلت
+async function dtTranslate(text, to, from) {
+  if (!text || !String(text).trim()) return '';
+  try {
+    const u = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + (from || 'auto') + '&tl=' + to + '&dt=t&q=' + encodeURIComponent(text);
+    const r = await fetch(u);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j[0] || []).map(x => x[0]).join('').trim() || null;
+  } catch (e) { return null; }
+}
+function openGoogleTranslate(text, to) {
+  window.open('https://translate.google.com/?sl=auto&tl=' + to + '&op=translate&text=' + encodeURIComponent(text || ''), '_blank');
+}
+
+// ترجمة ملاحظات العامل للعربي وحفظها مع الشغل (مرة وحدة)
+const _wlTranslating = new Set();
+async function translateWorkLog(l) {
+  const id = l._uid + '/' + l._key;
+  showToast('🌐 جاري الترجمة...');
+  const patch = {};
+  if (l.notes && !l.notesAr) { const t = await dtTranslate(l.notes, 'ar'); if (t) patch.notesAr = t; }
+  if (l.extra && !l.extraAr) { const t = await dtTranslate(l.extra, 'ar'); if (t) patch.extraAr = t; }
+  if (Object.keys(patch).length && window._fbReady) {
+    const { db, ref, update } = window._fb;
+    update(ref(db, 'workLogs/' + id), patch).catch(() => {});
+  } else if (!Object.keys(patch).length) {
+    showToast('⚠️ الترجمة ما اشتغلت — بفتح لك ترجمة Google');
+    openGoogleTranslate([l.notes, l.extra].filter(Boolean).join('\n'), 'ar');
+  }
+}
+async function translateWorkLogSilent(l) {
+  const id = l._uid + '/' + l._key;
+  if (_wlTranslating.has(id)) return;
+  _wlTranslating.add(id);
+  const patch = {};
+  if (l.notes && !l.notesAr) { const t = await dtTranslate(l.notes, 'ar'); if (t) patch.notesAr = t; }
+  if (l.extra && !l.extraAr) { const t = await dtTranslate(l.extra, 'ar'); if (t) patch.extraAr = t; }
+  if (Object.keys(patch).length && window._fbReady) {
+    const { db, ref, update } = window._fb;
+    update(ref(db, 'workLogs/' + id), patch).catch(() => {});
+  }
+}
+function translateWorkLogIdx(idx) { const l = workLogs[idx]; if (l) translateWorkLog(l); }
 setInterval(() => syncClientNames(false), 15000);
 
 // ── PWA: service worker registration ──
@@ -8423,6 +8504,7 @@ if ('serviceWorker' in navigator) {
     <div class="modal-handle"></div>
     <div class="modal-title" id="client-modal-title">👤 إضافة عميل جديد</div>
     <div class="field"><label>اسم العميل *</label><input type="text" id="cf-name" placeholder="محمد العلي"></div>
+    <div class="field"><label>الاسم بالإنجليزي (يشوفه العمال)</label><input type="text" id="cf-name-en" placeholder="اتركه فاضي ويترجم تلقائياً" style="direction:ltr;text-align:left"></div>
     <div class="grid2">
       <div class="field"><label>المنطقة</label><input type="text" id="cf-area" placeholder="الدحيل"></div>
       <div class="field"><label>الجوال</label><input type="tel" id="cf-phone" placeholder="+974..."></div>

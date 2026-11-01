@@ -118,7 +118,7 @@ textarea{min-height:70px;resize:vertical}
     document.querySelectorAll('.t-cb').forEach(cb => { const sp = cb.nextElementSibling; if (sp) sp.textContent = taskLabel(cb.dataset.task); });
     document.querySelectorAll('.lang').forEach(b => b.textContent = t('other'));
     const opt0 = document.querySelector('#f-client option[value=""]'); if (opt0) opt0.textContent = t('chooseClient');
-    if (me) { renderPhotos('before'); renderPhotos('after'); renderMine(lastMine); }
+    if (me) { renderPhotos('before'); renderPhotos('after'); renderMine(lastMine); renderClientOptions(); }
   }
   window.toggleLang = () => {
     lang = lang === 'ne' ? 'ar' : 'ne';
@@ -181,12 +181,20 @@ textarea{min-height:70px;resize:vertical}
   function startApp() {
     resetForm();
     unsub.push(onValue(ref(db, 'clientNames'), (s) => {
-      const names = (Object.values(s.val() || {})).filter(n => typeof n === 'string');
-      const sel = $('f-client'), cur = sel.value;
-      sel.innerHTML = '<option value="">' + esc(t('chooseClient')) + '</option>' + names.map(n => `<option>${esc(n)}</option>`).join('');
-      sel.value = cur;
+      clients = (Object.values(s.val() || {})).filter(n => typeof n === 'string').map(n => { const [ar, en] = n.split('\t'); return { ar, en: en || '' }; });
+      renderClientOptions();
     }, () => toast(t('clientsFail'))));
     unsub.push(onValue(ref(db, 'workLogs/' + me.uid), (s) => { lastMine = s.val() || {}; renderMine(lastMine); }, () => {}));
+  }
+
+  // العميل: القيمة دايماً الاسم العربي (هذا اللي يوصل للمدير)، والظاهر للعامل بالإنجليزي إذا متوفر
+  let clients = [];
+  const clientLabel = (ar) => { if (lang !== 'ne') return ar; const c = clients.find(x => x.ar === ar); return (c && c.en) || ar; };
+  function renderClientOptions() {
+    const sel = $('f-client'), cur = sel.value;
+    const list = clients.slice().sort((a, b) => clientLabel(a.ar).localeCompare(clientLabel(b.ar)));
+    sel.innerHTML = '<option value="">' + esc(t('chooseClient')) + '</option>' + list.map(c => `<option value="${esc(c.ar)}">${esc(clientLabel(c.ar))}</option>`).join('');
+    sel.value = cur;
   }
 
   function resetForm() {
@@ -271,13 +279,13 @@ textarea{min-height:70px;resize:vertical}
       const n = (l.photosBefore || []).length + (l.photosAfter || []).length;
       return `<div class="log">
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
-          <div><b>${esc(l.client)}</b><div class="muted">📅 ${fmt(l.date)}${n ? ' · 📷 ' + n : ''}</div></div>
+          <div><b>${esc(clientLabel(l.client))}</b><div class="muted">📅 ${fmt(l.date)}${n ? ' · 📷 ' + n : ''}</div></div>
           <span class="badge" style="background:${st[1]};color:${st[2]}">${st[0]}</span>
         </div>
         ${(l.tasks || []).length ? `<div style="margin-top:6px">${l.tasks.map(x => `<span class="chip">${esc(taskLabel(x))}</span>`).join('')}</div>` : ''}
         ${l.notes ? `<div style="font-size:13px;margin-top:6px">📝 ${esc(l.notes)}</div>` : ''}
         ${l.extra ? `<div style="font-size:13px;margin-top:4px;color:var(--or)">➕ ${esc(l.extra)}</div>` : ''}
-        ${l.status === 'rejected' && l.rejectReason ? `<div style="font-size:13px;margin-top:4px;color:var(--red)">${esc(t('reason'))} ${esc(l.rejectReason)}</div>` : ''}
+        ${l.status === 'rejected' && l.rejectReason ? `<div style="font-size:13px;margin-top:4px;color:var(--red)">${esc(t('reason'))} ${esc(lang === 'ne' && l.rejectReasonNe ? l.rejectReasonNe : l.rejectReason)}</div>` : ''}
         ${l.status === 'pending' ? `<button onclick="delLog('${esc(l.id)}')" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-family:inherit;font-size:12px;color:var(--muted);cursor:pointer">${esc(t('del'))}</button>` : ''}
       </div>`;
     }).join('') : '<div class="muted" style="text-align:center;padding:16px">' + esc(t('noWork')) + '</div>';
