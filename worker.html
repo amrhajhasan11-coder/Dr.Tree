@@ -45,6 +45,7 @@ textarea{min-height:70px;resize:vertical}
 .uid{direction:ltr;font-family:monospace;background:var(--gp);padding:10px;border-radius:8px;word-break:break-all;font-size:14px;text-align:center;margin:10px 0;user-select:all}
 .hidden{display:none!important}
 .lang{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;cursor:pointer;margin-inline-end:6px}
+.info-btn{display:inline-block;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--gd);text-decoration:none;font-weight:700;font-size:14px}
 .lang.dark{background:var(--gp);color:var(--gm);font-weight:700}
 </style>
 <script type="module">
@@ -84,6 +85,7 @@ textarea{min-height:70px;resize:vertical}
       copied: '✅ कपी भयो', copyManual: 'कोड छानेर आफैं कपी गर्नुहोस्', clientsFail: '⚠️ ग्राहकको नाम लोड हुन सकेन',
       preparing: '📸 फोटो तयार हुँदैछ...', needClient: '⚠️ ग्राहक र मिति छान्नुहोस्', needWork: '⚠️ गरेको काम छान्नुहोस् वा टिप्पणी लेख्नुहोस्',
       savedOffline: '📴 सेभ भयो — इन्टरनेट आएपछि पठाइनेछ', sent: '✅ म्यानेजरलाई पठाइयो', sendFail: '⚠️ पठाउन सकिएन: ',
+      house: 'घर नम्बर', openMap: 'नक्सामा खोल्नुहोस्',
       tasks: { 'قص العشب': 'घाँस काट्ने', 'تشذيب': 'छाँटकाँट', 'تسميد': 'मल हाल्ने', 'فحص ري': 'सिँचाइ जाँच', 'رش مبيد': 'विषादी छर्ने', 'تنظيف': 'सरसफाइ', 'زراعة': 'बिरुवा रोप्ने', 'مكافحة آفات': 'कीरा नियन्त्रण' }
     },
     ar: {
@@ -102,6 +104,7 @@ textarea{min-height:70px;resize:vertical}
       copied: '✅ تم النسخ', copyManual: 'حدد الرمز وانسخه يدوياً', clientsFail: '⚠️ تعذّر تحميل أسماء العملاء',
       preparing: '📸 جاري تجهيز الصور...', needClient: '⚠️ اختر العميل والتاريخ', needWork: '⚠️ حدد الشغل اللي سويته أو اكتب ملاحظة',
       savedOffline: '📴 انحفظ — بيترسل أول ما يرجع النت', sent: '✅ تم الإرسال للمدير', sendFail: '⚠️ فشل الإرسال: ',
+      house: 'رقم البيت', openMap: 'افتح الخريطة',
       tasks: {}
     }
   };
@@ -181,7 +184,10 @@ textarea{min-height:70px;resize:vertical}
   function startApp() {
     resetForm();
     unsub.push(onValue(ref(db, 'clientNames'), (s) => {
-      clients = (Object.values(s.val() || {})).filter(n => typeof n === 'string').map(n => { const [ar, en] = n.split('\t'); return { ar, en: en || '' }; });
+      clients = (Object.values(s.val() || {})).filter(n => typeof n === 'string').map(n => {
+        const [ar, en, loc, house, phone2, phone2Label] = n.split('\t');
+        return { ar, en: en || '', loc: loc || '', house: house || '', phone2: phone2 || '', phone2Label: phone2Label || '' };
+      });
       renderClientOptions();
     }, () => toast(t('clientsFail'))));
     unsub.push(onValue(ref(db, 'workLogs/' + me.uid), (s) => { lastMine = s.val() || {}; renderMine(lastMine); }, () => {}));
@@ -195,10 +201,33 @@ textarea{min-height:70px;resize:vertical}
     const list = clients.slice().sort((a, b) => clientLabel(a.ar).localeCompare(clientLabel(b.ar)));
     sel.innerHTML = '<option value="">' + esc(t('chooseClient')) + '</option>' + list.map(c => `<option value="${esc(c.ar)}">${esc(clientLabel(c.ar))}</option>`).join('');
     sel.value = cur;
+    renderClientInfo();
+  }
+
+  // معلومات العميل للعامل: اللوكيشن، رقم البيت، والرقم الثاني (درايفر/عامل...)
+  const ROLE_NE = { 'درايفر': 'ड्राइभर', 'سائق': 'ड्राइभर', 'عامل': 'कामदार', 'حارس': 'गार्ड', 'مسؤول البيت': 'घरको जिम्मेवार' };
+  function mapsUrl(loc) { return /^https?:\/\//i.test(loc) ? loc : 'https://www.google.com/maps?q=' + encodeURIComponent(loc); }
+  window.renderClientInfo = () => renderClientInfo();
+  function renderClientInfo() {
+    const box = $('client-info'); if (!box) return;
+    const c = clients.find(x => x.ar === $('f-client').value);
+    if (!c || (!c.loc && !c.house && !c.phone2)) { box.innerHTML = ''; box.classList.add('hidden'); return; }
+    const role = c.phone2Label ? (lang === 'ne' ? (ROLE_NE[c.phone2Label] || c.phone2Label) : c.phone2Label) : '';
+    const tel = c.phone2.replace(/[^0-9+]/g, '');
+    const wa = tel.replace(/^\+/, '').replace(/^(?=[3-7]\d{7}$)/, '974');
+    box.innerHTML =
+      (c.house ? `<div style="margin-bottom:8px">🏠 <b>${esc(t('house'))}:</b> ${esc(c.house)}</div>` : '') +
+      `<div style="display:flex;gap:8px;flex-wrap:wrap">` +
+      (c.loc ? `<a class="info-btn" href="${esc(mapsUrl(c.loc))}" target="_blank" rel="noopener">📍 ${esc(t('openMap'))}</a>` : '') +
+      (tel ? `<a class="info-btn" href="tel:${esc(tel)}">📞 ${esc(c.phone2)}${role ? ' (' + esc(role) + ')' : ''}</a>` +
+             `<a class="info-btn" style="background:#25D366;color:#fff" href="https://wa.me/${esc(wa)}" target="_blank" rel="noopener">💬</a>` : '') +
+      `</div>`;
+    box.classList.remove('hidden');
   }
 
   function resetForm() {
     $('f-client').value = '';
+    renderClientInfo();
     $('f-date').value = today();
     $('f-date').max = today();
     document.querySelectorAll('.t-cb').forEach(c => c.checked = false);
@@ -340,7 +369,8 @@ textarea{min-height:70px;resize:vertical}
   <div class="wrap">
     <div class="card">
       <h2 data-i18n="newWork">➕ تسجيل شغل جديد</h2>
-      <div class="field"><label class="l" data-i18n="client">العميل</label><select id="f-client"><option value="">اختر العميل...</option></select></div>
+      <div class="field"><label class="l" data-i18n="client">العميل</label><select id="f-client" onchange="renderClientInfo()"><option value="">اختر العميل...</option></select>
+        <div id="client-info" class="hidden" style="margin-top:8px;background:var(--gp);border-radius:10px;padding:10px;font-size:14px"></div></div>
       <div class="field"><label class="l" data-i18n="date">التاريخ</label><input type="date" id="f-date"></div>
       <div class="field">
         <label class="l" data-i18n="workDone">الشغل اللي سويته</label>

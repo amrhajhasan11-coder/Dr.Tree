@@ -8319,11 +8319,15 @@ function syncClientNames(force) {
   if (!window._fbReady) return;
   const names = [...new Set([...(clients_data || []).map(c => c && c.name), ...(visits || []).map(v => v && v.client)]
     .filter(n => typeof n === 'string' && n.trim()).map(n => n.trim()))].sort((a, b) => a.localeCompare(b, 'ar'));
-  // كل اسم يُرسل مع اسمه الإنجليزي: "الاسم العربي<TAB>English name"
+  // كل عميل يُرسل للعمال كسطر واحد مفصول بـ TAB:
+  // الاسم العربي، الاسم الإنجليزي، اللوكيشن، رقم البيت، الرقم الثاني، صاحب الرقم الثاني
+  // (رقم جوال العميل الأساسي وباقي البيانات ما توصل للعمال)
+  const clean = (v) => String(v || '').replace(/[\t\n\r]+/g, ' ').trim();
   const entries = names.map(n => {
-    const c = (clients_data || []).find(x => x && x.name === n);
-    const en = (c && c.nameEn) || _autoEn[n] || '';
-    return en ? n + '\t' + en : n;
+    const c = (clients_data || []).find(x => x && x.name === n) || {};
+    const parts = [n, c.nameEn || _autoEn[n] || '', c.location, c.house, c.phone2, c.phone2Label].map(clean);
+    while (parts.length > 1 && !parts[parts.length - 1]) parts.pop();
+    return parts.join('\t');
   });
   const sig = JSON.stringify(entries);
   if (!force && sig === _lastClientNames) return;
