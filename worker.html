@@ -258,7 +258,7 @@ textarea{min-height:70px;resize:vertical}
 
   function renderPhotos(side) {
     const tiles = photos[side].map((u, i) => `<div class="ph"><img src="${u}"><button type="button" onclick="delPhoto('${side}',${i})">✕</button></div>`).join('');
-    const add = photos[side].length < MAX ? `<label class="add"><span style="font-size:22px">📷</span>${esc(t('add'))}<input type="file" accept="image/*" capture="environment" multiple onchange="addPhotos('${side}', this)"></label>` : '';
+    const add = photos[side].length < MAX ? `<label class="add"><span style="font-size:22px">📷</span>${esc(t('add'))}<input type="file" accept="image/*" multiple onchange="addPhotos('${side}', this)"></label>` : '';
     $('ph-' + side).innerHTML = tiles + add;
   }
   window.delPhoto = (side, i) => { photos[side].splice(i, 1); renderPhotos(side); };

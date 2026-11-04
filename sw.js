@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dr-tree-v6';
+const CACHE_NAME = 'dr-tree-v7';
 const APP_SHELL = [
   './',
   './index.html',

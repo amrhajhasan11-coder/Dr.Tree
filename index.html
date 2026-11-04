@@ -8225,7 +8225,7 @@ function renderPhotoGrid(side) {
         <button type="button" class="photo-tile-del" onclick="removePhotoNew('${side}', ${i})" title="حذف">✕</button>
       </div>`).join('');
     const canAdd = formPhotos[side].length < PHOTO_MAX_PER_SIDE;
-    const adder = canAdd ? `<label class="photo-add"><span>📷</span><span>إضافة</span><input type="file" accept="image/*" capture="environment" multiple onchange="onPhotoSelected('${side}', this)" style="display:none"></label>` : '';
+    const adder = canAdd ? `<label class="photo-add"><span>📷</span><span>إضافة</span><input type="file" accept="image/*" multiple onchange="onPhotoSelected('${side}', this)" style="display:none"></label>` : '';
     grid.innerHTML = tiles + adder;
   }
 
