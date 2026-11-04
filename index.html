@@ -1092,6 +1092,30 @@ textarea { min-height:72px; resize:vertical; }
     </div>
   </div>
 
+  <!-- SCHEDULE TAB (برنامج العمل) -->
+  <div id="tab-schedule" class="tab">
+    <div class="card">
+      <div class="card-header" style="background:var(--gm)"><h2>📅 إرسال برنامج عمل</h2></div>
+      <div style="padding:16px">
+        <div class="field"><label>اليوم</label><input type="date" id="sch-date" onchange="renderScheduleList()"></div>
+        <div class="field"><label>العمال</label><div id="sch-workers" style="display:flex;flex-wrap:wrap;gap:8px"></div></div>
+        <div class="field">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label style="margin:0">العملاء بالترتيب</label>
+            <button type="button" class="btn btn-sm" style="background:var(--gp);color:var(--gm);border:1px solid var(--gl)" onclick="schAddRow()">+ عميل</button>
+          </div>
+          <div id="sch-rows"></div>
+        </div>
+        <div class="field"><label>ملاحظة عامة (تنترجم للنيبالي)</label><textarea id="sch-note" placeholder="مثال: خذوا معكم ماكينة القص الكبيرة" style="min-height:60px"></textarea></div>
+        <button class="btn btn-primary btn-full" id="sch-send" onclick="schSend()">📤 إرسال للعمال</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header" style="background:var(--gd)"><h2 id="sch-list-title">📋 البرنامج المرسل</h2></div>
+      <div id="sch-list"></div>
+    </div>
+  </div>
+
   <!-- WORKER LOGS TAB (طلبات العمال) -->
   <div id="tab-worklogs" class="tab">
     <div class="card">
@@ -1141,6 +1165,10 @@ textarea { min-height:72px; resize:vertical; }
   <div class="nav-item" id="nav-workers" onclick="switchTab('workers')">
     <div class="nav-icon">👷</div>
     <div class="nav-label">العمال</div>
+  </div>
+  <div class="nav-item" id="nav-schedule" onclick="switchTab('schedule')">
+    <div class="nav-icon">📅</div>
+    <div class="nav-label">برنامج العمل</div>
   </div>
   <div class="nav-item" id="nav-worklogs" onclick="switchTab('worklogs')">
     <div class="nav-icon" style="position:relative">📥<span id="wl-badge" style="display:none;position:absolute;top:-6px;left:-10px;background:#C0392B;color:#fff;border-radius:10px;font-size:10px;font-weight:800;padding:1px 6px;line-height:1.4">0</span></div>
@@ -1281,6 +1309,8 @@ let formPhotos = { before: [], after: [] };
 let workLogs = [];      // شغل العمال (من workLogs)
 let workerUsers = {};   // حسابات دخول العمال
 let _approvingLog = null;
+let schedulesAll = {};   // schedules/<uid>/<date>
+let schRows = [];        // صفوف البرنامج اللي تنكتب الحين
 
 function loadData() {
   // Load from localStorage as fallback while Firebase loads
@@ -1504,6 +1534,10 @@ function initFirebase() {
     workLogs = arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
     updateWorkLogsBadge();
     if (document.getElementById('tab-worklogs')?.classList.contains('active')) renderWorkLogs();
+  }, () => {});
+  onValue(ref(db, 'schedules'), (snapshot) => {
+    schedulesAll = snapshot.val() || {};
+    if (document.getElementById('tab-schedule')?.classList.contains('active')) renderScheduleList();
   }, () => {});
   onValue(ref(db, 'workerUsers'), (snapshot) => {
     workerUsers = snapshot.val() || {};
@@ -1751,7 +1785,7 @@ function switchTab(tab) {
   closeNav();
   if (tab === 'finance') tab = 'finances';
   if (tab === 'quote') tab = 'quotation';
-  ['dashboard','log','clients','invoice','quotation','finances','workers','worklogs'].forEach(t => {
+  ['dashboard','log','clients','invoice','quotation','finances','workers','worklogs','schedule'].forEach(t => {
     const tabEl = document.getElementById('tab-'+t);
     const navEl = document.getElementById('nav-'+t);
     if (tabEl) tabEl.classList.toggle('active', t===tab);
@@ -1773,6 +1807,7 @@ function switchTab(tab) {
   if (tab === 'clients') renderClients();
   if (tab === 'workers') renderWorkers();
   if (tab === 'worklogs') renderWorkLogs();
+  if (tab === 'schedule') renderScheduleTab();
 }
 
 // ── Finance sub-tabs (نظرة عامة / المصاريف / المشاريع / تقارير متقدمة) ──
@@ -8362,9 +8397,107 @@ function rejectWorkLog(idx) {
 function markWorkLog(ref_, patch) {
   if (!window._fbReady) { showToast('⚠️ لازم اتصال بالإنترنت'); return; }
   const { db, ref, update } = window._fb;
+  const log = workLogs.find(l => l._uid === ref_.uid && l._key === ref_.key) || {};
   update(ref(db, 'workLogs/' + ref_.uid + '/' + ref_.key), patch)
+    .then(() => {
+      if (patch.status === 'approved' || patch.status === 'rejected')
+        sendWorkerNotif(ref_.uid, { type: patch.status, client: log.client || '', date: log.date || '', logId: ref_.key });
+    })
     .then(() => showToast(patch.status === 'approved' ? '✅ تم الاعتماد' : '❌ تم الرفض'))
     .catch(e => showToast('⚠️ فشل الحفظ: ' + (e.code || e.message)));
+}
+
+// ── إشعارات العمال (notifs/<uid>/<id>) ──
+function sendWorkerNotif(uid, data) {
+  if (!uid || !window._fbReady) return Promise.resolve();
+  const { db, ref, push, set } = window._fb;
+  const r = push(ref(db, 'notifs/' + uid));
+  return set(r, { ...data, id: r.key, createdAt: Date.now(), read: false }).catch(e => console.warn('notif', e));
+}
+
+// ── برنامج العمل ──
+function renderScheduleTab() {
+  const d = document.getElementById('sch-date');
+  if (d && !d.value) d.value = TODAY;
+  const box = document.getElementById('sch-workers');
+  if (box) {
+    box.innerHTML = workers.map(w => {
+      const uid = workerAccountUid(w);
+      return `<label style="display:flex;gap:6px;align-items:center;padding:8px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;cursor:${uid?'pointer':'not-allowed'};opacity:${uid?1:.45}" title="${uid?'':'ما عنده حساب دخول — اربطه من 👷 العمال'}">
+        <input type="checkbox" class="sch-w" value="${uid}" ${uid?'':'disabled'} style="width:16px;height:16px;min-height:0;padding:0;margin:0;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--gm)">
+        ${escapeHtml(w.name)}${uid?'':' 🔒'}</label>`;
+    }).join('') || '<div style="font-size:12px;color:var(--muted)">ما في عمال</div>';
+  }
+  if (!schRows.length) schRows = [{ client: '', note: '' }];
+  renderSchRows();
+  renderScheduleList();
+}
+function renderSchRows() {
+  const el = document.getElementById('sch-rows');
+  if (!el) return;
+  const opts = getClients();
+  el.innerHTML = schRows.map((r, i) => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+    <span style="font-weight:800;color:var(--gm);min-width:18px">${i+1}</span>
+    <select onchange="schRows[${i}].client=this.value" style="flex:1.3;min-width:0;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:#fafafa">
+      <option value="">اختر العميل...</option>${opts.map(c => `<option${c===r.client?' selected':''}>${escapeHtml(c)}</option>`).join('')}
+    </select>
+    <input type="text" placeholder="ملاحظة" value="${escapeHtml(r.note||'')}" oninput="schRows[${i}].note=this.value" style="flex:1;min-width:0;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:14px">
+    <button type="button" class="btn-icon" style="color:#ccc" onclick="schRows.splice(${i},1);renderSchRows()">✕</button>
+  </div>`).join('');
+}
+function schAddRow() { schRows.push({ client: '', note: '' }); renderSchRows(); }
+
+async function schSend() {
+  const date = document.getElementById('sch-date').value;
+  const uids = [...document.querySelectorAll('.sch-w:checked')].map(c => c.value).filter(Boolean);
+  const items = schRows.filter(r => r.client).map(r => ({ client: r.client, note: (r.note || '').trim() }));
+  const note = document.getElementById('sch-note').value.trim();
+  if (!date) { showToast('⚠️ اختر اليوم'); return; }
+  if (!uids.length) { showToast('⚠️ اختر عامل واحد على الأقل'); return; }
+  if (!items.length) { showToast('⚠️ أضف عميل واحد على الأقل'); return; }
+  if (!window._fbReady) { showToast('⚠️ لازم اتصال بالإنترنت'); return; }
+  const btn = document.getElementById('sch-send'); btn.disabled = true; btn.textContent = '⏳ جاري الترجمة والإرسال...';
+  try {
+    // ترجمة الملاحظات للنيبالي
+    const noteNe = note ? await dtTranslate(note, 'ne') : '';
+    for (const it of items) { if (it.note) it.noteNe = (await dtTranslate(it.note, 'ne')) || ''; }
+    const { db, ref, set } = window._fb;
+    for (const uid of uids) {
+      const rec = { date, items, note, noteNe: noteNe || '', sentAt: Date.now(), workerName: (workerUsers[uid] || {}).name || '' };
+      await set(ref(db, 'schedules/' + uid + '/' + date), rec);
+      await sendWorkerNotif(uid, { type: 'schedule', date, count: items.length });
+    }
+    showToast('✅ انرسل البرنامج لـ ' + uids.length + ' عامل');
+    schRows = [{ client: '', note: '' }]; document.getElementById('sch-note').value = '';
+    document.querySelectorAll('.sch-w').forEach(c => c.checked = false);
+    renderSchRows();
+  } catch (e) {
+    showToast('⚠️ فشل الإرسال: ' + (e.code || e.message));
+  } finally { btn.disabled = false; btn.textContent = '📤 إرسال للعمال'; }
+}
+
+function renderScheduleList() {
+  const el = document.getElementById('sch-list');
+  if (!el) return;
+  const date = document.getElementById('sch-date')?.value || TODAY;
+  const t = document.getElementById('sch-list-title'); if (t) t.textContent = '📋 البرنامج المرسل — ' + fmtDate(date);
+  const rows = Object.keys(schedulesAll || {}).map(uid => ({ uid, s: (schedulesAll[uid] || {})[date] })).filter(x => x.s);
+  if (!rows.length) { el.innerHTML = '<div class="empty"><div class="icon">📭</div><p>ما في برنامج مرسل لهذا اليوم</p></div>'; return; }
+  el.innerHTML = rows.map(({ uid, s }) => `<div style="padding:12px 16px;border-bottom:1px solid #F0F0F0">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <b>👷 ${escapeHtml(s.workerName || (workerUsers[uid] || {}).name || '')}</b>
+      <button class="btn-icon" style="color:#ccc" title="حذف" onclick="schDelete('${uid}','${date}')">🗑</button>
+    </div>
+    <ol style="margin:6px 0 0;padding-right:20px;font-size:13px">${(s.items || []).map(it => `<li>${escapeHtml(it.client)}${it.note ? ` <span style="color:var(--muted)">— ${escapeHtml(it.note)}</span>` : ''}</li>`).join('')}</ol>
+    ${s.note ? `<div style="font-size:12px;color:var(--blue);margin-top:4px">📝 ${escapeHtml(s.note)}</div>` : ''}
+  </div>`).join('');
+}
+function schDelete(uid, date) {
+  dtAsk({ title: '🗑 حذف البرنامج', text: 'تحذف برنامج ' + ((workerUsers[uid] || {}).name || '') + ' ليوم ' + fmtDate(date) + '؟', ok: 'حذف', danger: true }).then(r => {
+    if (r === null) return;
+    const { db, ref, remove } = window._fb;
+    remove(ref(db, 'schedules/' + uid + '/' + date)).then(() => showToast('🗑 انحذف')).catch(e => showToast('⚠️ ' + (e.code || e.message)));
+  });
 }
 
 // ── حسابات دخول العمال ──

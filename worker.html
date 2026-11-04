@@ -46,11 +46,19 @@ textarea{min-height:70px;resize:vertical}
 .hidden{display:none!important}
 .lang{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;cursor:pointer;margin-inline-end:6px}
 .info-btn{display:inline-block;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--gd);text-decoration:none;font-weight:700;font-size:14px}
+.bell{position:relative;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:8px 10px;font-size:15px;cursor:pointer;margin-inline-end:6px}
+.bell .cnt{position:absolute;top:-5px;inset-inline-end:-5px;background:#E53935;color:#fff;border-radius:10px;font-size:10px;font-weight:800;padding:1px 5px;line-height:1.4}
+#notif-panel{position:fixed;top:62px;inset-inline:10px;max-width:520px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);z-index:50;max-height:70vh;overflow:auto}
+.nt{padding:12px 14px;border-bottom:1px solid #EEF2EF;font-size:14px}
+.nt.unread{background:#F0F7F3;font-weight:700}
+.sch-item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #EEF2EF}
+.sch-item:last-child{border-bottom:none}
+.sch-num{background:var(--gm);color:#fff;border-radius:50%;min-width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
 .lang.dark{background:var(--gp);color:var(--gm);font-weight:700}
 </style>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, push, set, remove, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, push, set, update, remove, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const app = initializeApp({
@@ -86,6 +94,9 @@ textarea{min-height:70px;resize:vertical}
       preparing: '📸 फोटो तयार हुँदैछ...', needClient: '⚠️ ग्राहक र मिति छान्नुहोस्', needWork: '⚠️ गरेको काम छान्नुहोस् वा टिप्पणी लेख्नुहोस्',
       savedOffline: '📴 सेभ भयो — इन्टरनेट आएपछि पठाइनेछ', sent: '✅ म्यानेजरलाई पठाइयो', sendFail: '⚠️ पठाउन सकिएन: ',
       house: 'घर नम्बर', openMap: 'नक्सामा खोल्नुहोस्',
+      today: '📅 आजको काम', upcoming: '📅 आउँदै गरेको काम', logThis: '✍️ यो काम दर्ता गर्नुहोस्', noSchedule: 'आजको लागि कुनै कार्यतालिका छैन',
+      notifs: '🔔 सूचनाहरू', noNotifs: 'कुनै सूचना छैन', enableNotif: '🔔 फोनमा सूचना पाउन यहाँ थिच्नुहोस्', notifOn: '✅ सूचना सक्रिय भयो', notifBlocked: '⚠️ सूचना बन्द छ — फोनको सेटिङबाट खोल्नुहोस्',
+      nSchedule: (n) => `📅 नयाँ कार्यतालिका — ${n.dateF} (${n.count || 0} ग्राहक)`, nApproved: (n) => `✅ तपाईंको काम स्वीकृत भयो — ${n.clientL}`, nRejected: (n) => `❌ तपाईंको काम अस्वीकृत भयो — ${n.clientL}`,
       tasks: { 'قص العشب': 'घाँस काट्ने', 'تشذيب': 'छाँटकाँट', 'تسميد': 'मल हाल्ने', 'فحص ري': 'सिँचाइ जाँच', 'رش مبيد': 'विषादी छर्ने', 'تنظيف': 'सरसफाइ', 'زراعة': 'बिरुवा रोप्ने', 'مكافحة آفات': 'कीरा नियन्त्रण' }
     },
     ar: {
@@ -105,6 +116,9 @@ textarea{min-height:70px;resize:vertical}
       preparing: '📸 جاري تجهيز الصور...', needClient: '⚠️ اختر العميل والتاريخ', needWork: '⚠️ حدد الشغل اللي سويته أو اكتب ملاحظة',
       savedOffline: '📴 انحفظ — بيترسل أول ما يرجع النت', sent: '✅ تم الإرسال للمدير', sendFail: '⚠️ فشل الإرسال: ',
       house: 'رقم البيت', openMap: 'افتح الخريطة',
+      today: '📅 شغل اليوم', upcoming: '📅 الشغل الجاي', logThis: '✍️ سجّل هذا الشغل', noSchedule: 'ما في برنامج لليوم',
+      notifs: '🔔 الإشعارات', noNotifs: 'ما في إشعارات', enableNotif: '🔔 اضغط هنا عشان توصلك الإشعارات على الجوال', notifOn: '✅ تفعّلت الإشعارات', notifBlocked: '⚠️ الإشعارات مقفلة — فعّلها من إعدادات الجوال',
+      nSchedule: (n) => `📅 برنامج عمل جديد — ${n.dateF} (${n.count || 0} عميل)`, nApproved: (n) => `✅ تم اعتماد شغلك — ${n.clientL}`, nRejected: (n) => `❌ تم رفض شغلك — ${n.clientL}`,
       tasks: {}
     }
   };
@@ -121,7 +135,7 @@ textarea{min-height:70px;resize:vertical}
     document.querySelectorAll('.t-cb').forEach(cb => { const sp = cb.nextElementSibling; if (sp) sp.textContent = taskLabel(cb.dataset.task); });
     document.querySelectorAll('.lang').forEach(b => b.textContent = t('other'));
     const opt0 = document.querySelector('#f-client option[value=""]'); if (opt0) opt0.textContent = t('chooseClient');
-    if (me) { renderPhotos('before'); renderPhotos('after'); renderMine(lastMine); renderClientOptions(); }
+    if (me) { renderPhotos('before'); renderPhotos('after'); renderMine(lastMine); renderClientOptions(); renderSchedule(); renderNotifs(); renderNotifBtn(); }
   }
   window.toggleLang = () => {
     lang = lang === 'ne' ? 'ar' : 'ne';
@@ -191,6 +205,9 @@ textarea{min-height:70px;resize:vertical}
       renderClientOptions();
     }, () => toast(t('clientsFail'))));
     unsub.push(onValue(ref(db, 'workLogs/' + me.uid), (s) => { lastMine = s.val() || {}; renderMine(lastMine); }, () => {}));
+    unsub.push(onValue(ref(db, 'schedules/' + me.uid), (s) => { lastSched = s.val() || {}; renderSchedule(); }, () => {}));
+    unsub.push(onValue(ref(db, 'notifs/' + me.uid), (s) => { onNotifs(s.val() || {}); }, () => {}));
+    renderNotifBtn();
   }
 
   // العميل: القيمة دايماً الاسم العربي (هذا اللي يوصل للمدير)، والظاهر للعامل بالإنجليزي إذا متوفر
@@ -224,6 +241,91 @@ textarea{min-height:70px;resize:vertical}
       `</div>`;
     box.classList.remove('hidden');
   }
+
+  // ── برنامج العمل ──
+  let lastSched = {};
+  function renderSchedule() {
+    const card = $('sched-card'); if (!card) return;
+    const td = today();
+    const days = Object.keys(lastSched).filter(d => d >= td).sort().slice(0, 4);
+    if (!days.length) { card.innerHTML = `<h2>${esc(t('today'))}</h2><div class="muted" style="text-align:center;padding:8px">${esc(t('noSchedule'))}</div>`; return; }
+    card.innerHTML = days.map(d => {
+      const sc = lastSched[d] || {};
+      const title = d === td ? t('today') : t('upcoming') + ' — ' + fmt(d);
+      const gnote = lang === 'ne' && sc.noteNe ? sc.noteNe : sc.note;
+      return `<h2>${esc(title)}</h2>
+        ${gnote ? `<div style="background:var(--orl);color:#92400E;border-radius:10px;padding:8px 10px;font-size:14px;margin-bottom:8px">📝 ${esc(gnote)}</div>` : ''}
+        ${(sc.items || []).map((it, i) => {
+          const c = clients.find(x => x.ar === it.client) || {};
+          const nt = lang === 'ne' && it.noteNe ? it.noteNe : it.note;
+          const tel = (c.phone2 || '').replace(/[^0-9+]/g, '');
+          return `<div class="sch-item"><div class="sch-num">${i + 1}</div><div style="flex:1">
+            <b>${esc(clientLabel(it.client))}</b>${c.house ? ` <span class="muted">· 🏠 ${esc(c.house)}</span>` : ''}
+            ${nt ? `<div style="font-size:13px;margin-top:2px">📝 ${esc(nt)}</div>` : ''}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+              ${c.loc ? `<a class="info-btn" style="padding:6px 10px;font-size:13px" href="${esc(mapsUrl(c.loc))}" target="_blank" rel="noopener">📍</a>` : ''}
+              ${tel ? `<a class="info-btn" style="padding:6px 10px;font-size:13px" href="tel:${esc(tel)}">📞</a>` : ''}
+              ${d === td ? `<button class="info-btn" style="padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit" onclick="logFromSchedule(${JSON.stringify(it.client).replace(/"/g, '&quot;')})">${esc(t('logThis'))}</button>` : ''}
+            </div></div></div>`;
+        }).join('')}`;
+    }).join('<div style="height:14px"></div>');
+  }
+  window.logFromSchedule = (client) => {
+    $('f-client').value = client; renderClientInfo();
+    $('f-date').value = today();
+    $('f-client').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  // ── الإشعارات ──
+  let notifs = [];
+  let notifBase = null;          // أول تحميل: ما نطلع إشعارات للقديم
+  function notifText(n) {
+    const x = { ...n, dateF: fmt(n.date), clientL: clientLabel(n.client || '') };
+    const f = n.type === 'schedule' ? t('nSchedule') : n.type === 'approved' ? t('nApproved') : n.type === 'rejected' ? t('nRejected') : null;
+    return typeof f === 'function' ? f(x) : (n.text || '');
+  }
+  function onNotifs(obj) {
+    notifs = Object.values(obj).filter(Boolean).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 40);
+    const unread = notifs.filter(n => !n.read);
+    if (notifBase === null) notifBase = Date.now() - 1000;
+    else unread.filter(n => (n.createdAt || 0) > notifBase).forEach(showSystemNotif);
+    notifBase = Math.max(notifBase, ...notifs.map(n => n.createdAt || 0));
+    $('bell-cnt').textContent = unread.length; $('bell-cnt').classList.toggle('hidden', !unread.length);
+    try { if (navigator.setAppBadge) unread.length ? navigator.setAppBadge(unread.length) : navigator.clearAppBadge(); } catch (e) {}
+    renderNotifs();
+  }
+  async function showSystemNotif(n) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') { toast(notifText(n)); return; }
+    const opts = { body: notifText(n), icon: 'icon-192.png', badge: 'icon-192.png', tag: n.id || String(n.createdAt), data: { url: location.href } };
+    try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) { reg.showNotification('Dr.Tree', opts); return; } } catch (e) {}
+    try { new Notification('Dr.Tree', opts); } catch (e) { toast(notifText(n)); }
+  }
+  function renderNotifs() {
+    const el = $('notif-list'); if (!el) return;
+    el.innerHTML = notifs.length ? notifs.map(n => `<div class="nt ${n.read ? '' : 'unread'}">${esc(notifText(n))}<div class="muted" style="font-weight:400;font-size:11px;margin-top:2px">${new Date(n.createdAt || 0).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div></div>`).join('')
+      : `<div class="nt muted" style="text-align:center">${esc(t('noNotifs'))}</div>`;
+    $('notif-title').textContent = t('notifs');
+  }
+  window.toggleNotifs = () => {
+    const p = $('notif-panel'); const open = p.classList.contains('hidden');
+    p.classList.toggle('hidden', !open);
+    if (open) {
+      notifs.filter(n => !n.read && n.id).forEach(n => update(ref(db, 'notifs/' + me.uid + '/' + n.id), { read: true }).catch(() => {}));
+    }
+  };
+  function renderNotifBtn() {
+    const b = $('notif-enable'); if (!b) return;
+    if (!('Notification' in window)) { b.classList.add('hidden'); return; }
+    if (Notification.permission === 'granted') { b.classList.add('hidden'); return; }
+    b.classList.remove('hidden');
+    b.textContent = Notification.permission === 'denied' ? t('notifBlocked') : t('enableNotif');
+  }
+  window.enableNotifs = async () => {
+    try { const r = await Notification.requestPermission(); toast(r === 'granted' ? t('notifOn') : t('notifBlocked')); } catch (e) {}
+    renderNotifBtn();
+  };
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && me) renderSchedule(); });
 
   function resetForm() {
     $('f-client').value = '';
@@ -364,9 +466,15 @@ textarea{min-height:70px;resize:vertical}
 <div id="v-app" class="hidden">
   <div class="hdr">
     <div><b>🌳 Dr.Tree</b><small id="h-name"></small></div>
-    <div><button class="lang" onclick="toggleLang()">عربي</button><button onclick="doLogout()" data-i18n="logout">خروج</button></div>
+    <div><button class="bell" onclick="toggleNotifs()">🔔<span class="cnt hidden" id="bell-cnt">0</span></button><button class="lang" onclick="toggleLang()">عربي</button><button onclick="doLogout()" data-i18n="logout">خروج</button></div>
+  </div>
+  <div id="notif-panel" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border)"><b id="notif-title">🔔</b><button onclick="toggleNotifs()" style="background:none;border:none;font-size:18px;cursor:pointer">✕</button></div>
+    <div id="notif-list"></div>
   </div>
   <div class="wrap">
+    <button id="notif-enable" class="hidden" onclick="enableNotifs()" style="width:100%;background:#FFF8E1;border:1.5px solid #F6C343;color:#7A5B00;border-radius:12px;padding:12px;font-size:14px;font-weight:700;font-family:inherit;margin-bottom:14px;cursor:pointer"></button>
+    <div class="card" id="sched-card"></div>
     <div class="card">
       <h2 data-i18n="newWork">➕ تسجيل شغل جديد</h2>
       <div class="field"><label class="l" data-i18n="client">العميل</label><select id="f-client" onchange="renderClientInfo()"><option value="">اختر العميل...</option></select>

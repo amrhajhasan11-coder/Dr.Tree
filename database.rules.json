@@ -5,6 +5,7 @@
 //   • العامل  = أي حساب موجود في  workerUsers/<uid>   → ما يشوف أي بيانات،
 //               بس يقرأ أسماء العملاء (clientNames) ويضيف شغله في workLogs/<uid>
 //               ويشوف شغله هو بس. ما يقدر يعدّل شي بعد ما المدير يعتمده.
+//               ويقرأ برنامج عمله (schedules/<uid>) وإشعاراته (notifs/<uid>) ويعلّمها مقروءة.
 //   • أي حساب ثاني → ما يقدر يقرأ ولا يكتب أي شي.
 //
 // ⚠️ قبل النشر: لازم يكون حسابك (المدير) مسجّل في admins وإلا بتنقفل برّا.
@@ -26,6 +27,21 @@
         "$logId": {
           ".write": "auth != null && auth.uid === $uid && root.child('workerUsers').child(auth.uid).exists() && (!data.exists() || data.child('status').val() === 'pending') && (!newData.exists() || newData.child('status').val() === 'pending')",
           ".validate": "newData.val() === null || (newData.hasChildren(['client', 'date', 'status', 'createdAt']) && newData.child('workerUid').val() === $uid && newData.child('client').isString() && newData.child('client').val().length <= 200 && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'rejected'))"
+        }
+      }
+    },
+
+    "schedules": {
+      "$uid": { ".read": "auth != null && auth.uid === $uid && root.child('workerUsers').child(auth.uid).exists()" }
+    },
+    "notifs": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid && root.child('workerUsers').child(auth.uid).exists()",
+        "$id": {
+          "read": {
+            ".write": "auth != null && auth.uid === $uid && root.child('workerUsers').child(auth.uid).exists() && data.parent().exists()",
+            ".validate": "newData.isBoolean()"
+          }
         }
       }
     },

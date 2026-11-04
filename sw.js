@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dr-tree-v7';
+const CACHE_NAME = 'dr-tree-v8';
 const APP_SHELL = [
   './',
   './index.html',
@@ -51,6 +51,18 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;
       });
+    })
+  );
+});
+
+// فتح التطبيق لما العامل يضغط على الإشعار
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || './worker.html';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) { if (c.url.includes('worker.html') && 'focus' in c) return c.focus(); }
+      return self.clients.openWindow(url);
     })
   );
 });
