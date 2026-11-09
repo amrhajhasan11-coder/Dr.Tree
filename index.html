@@ -415,7 +415,7 @@ textarea { min-height:72px; resize:vertical; }
             <div style="font-size:12px;font-weight:700;color:#3B6D11">🌳 النباتات</div>
             <button onclick="addPlantRow()" style="background:#3B6D11;color:white;border:none;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer">+ إضافة</button>
           </div>
-          <datalist id="plants-datalist"></datalist>
+          
           <div id="plant-rows"></div>
         </div>
 
@@ -3344,7 +3344,7 @@ function markVisitsPaid() {
 
 function recordIssuedInvoice() {
   const client = document.getElementById('inv-client').value;
-  const invNum = document.getElementById('inv-num').value;
+  let invNum = document.getElementById('inv-num').value;
   if (!client || !invNum) return;
 
   const fee = parseFloat(document.getElementById('inv-fee').value)||0;
@@ -4777,7 +4777,7 @@ function updateQTotals() {
     cost    += q * (parseFloat(it.cost)||0);
   });
   if (totalsBox) {
-    totalsBox.style.display = 'block';
+    totalsBox.style.display = 'grid';
     document.getElementById('q-sum-revenue').textContent = revenue.toLocaleString('en') + ' QAR';
     document.getElementById('q-sum-cost').textContent    = cost.toLocaleString('en') + ' QAR';
     document.getElementById('q-sum-profit').textContent  = (revenue - cost).toLocaleString('en') + ' QAR';
@@ -8896,18 +8896,15 @@ if ('serviceWorker' in navigator) {
       <div id="q-items-totals" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;text-align:center">
         <div style="background:#fff;border-radius:8px;padding:8px">
           <div style="font-size:9px;color:var(--muted)">الإيراد</div>
-          <div id="q-total-revenue" style="font-size:13px;font-weight:900;color:var(--blue)">0</div>
-          <div id="q-sum-revenue" style="display:none"></div>
+          <div id="q-sum-revenue" style="font-size:13px;font-weight:900;color:var(--blue)">0</div>
         </div>
         <div style="background:#fff;border-radius:8px;padding:8px">
           <div style="font-size:9px;color:var(--muted)">التكلفة</div>
-          <div id="q-total-cost" style="font-size:13px;font-weight:900;color:var(--red)">0</div>
-          <div id="q-sum-cost" style="display:none"></div>
+          <div id="q-sum-cost" style="font-size:13px;font-weight:900;color:var(--red)">0</div>
         </div>
         <div style="background:#fff;border-radius:8px;padding:8px">
           <div style="font-size:9px;color:var(--muted)">الربح</div>
-          <div id="q-total-profit" style="font-size:13px;font-weight:900;color:var(--gm)">0</div>
-          <div id="q-sum-profit" style="display:none"></div>
+          <div id="q-sum-profit" style="font-size:13px;font-weight:900;color:var(--gm)">0</div>
         </div>
       </div>
     </div>
