@@ -2184,6 +2184,7 @@ function setInvType(type) {
   const monthField = document.getElementById('inv-month-field');
   if (monthField) monthField.style.display = type==='monthly' ? 'block' : 'none';
   if (type==='monthly') populateInvMonthOptions();
+  refreshInvoiceNumber();   // شهرية ↔ زيارة واحدة لها ترقيم مختلف
   renderInvVisits();
   renderOverdueAlert();
 }
@@ -2206,6 +2207,7 @@ function populateInvMonthOptions() {
 
 function onInvMonthChange() {
   selectedVisits = [];
+  refreshInvoiceNumber();   // رقم الفاتورة يتغير مع الشهر
   renderInvVisits();
 }
 
