@@ -1339,13 +1339,22 @@ function saveQuotations() {
 
 function _fbClean(x){ try { return JSON.parse(JSON.stringify(x)); } catch(e){ return x; } }
 // Store list as an object keyed by a stable id to avoid Firebase array data-loss quirks
+function _hashStr(str){ let h = 0; for (let i = 0; i < str.length; i++) { h = ((h << 5) - h + str.charCodeAt(i)) | 0; } return (h >>> 0).toString(36); }
 function _keyedObj(arr, idField){
   const o = {};
   (arr||[]).forEach((r,i) => {
     let k = r && r[idField] != null ? String(r[idField]) : ('rec_'+i);
     k = k.replace(/[.#$\[\]\/\s]/g,'_');
     if (!k) k = 'rec_'+i;
-    if (o[k]) k = k + '_' + i; // avoid collisions
+    if (o[k]) {
+      // نفس السجل مكرر حرفياً → نتجاهل النسخة (هذا كان يسبب تكاثر المصاريف)
+      if (JSON.stringify(o[k]) === JSON.stringify(r)) return;
+      // سجل مختلف بنفس الرقم (مثلاً نفس رقم الفاتورة لعميلين) → مفتاح ثابت ما يعتمد على الترتيب
+      let alt = k + '_' + _hashStr(String((r && r.client) || '') + '|' + i);
+      if (r && r.client != null) alt = k + '_' + _hashStr(String(r.client));
+      while (o[alt]) alt = alt + 'x';
+      k = alt;
+    }
     o[k] = r;
   });
   return o;
@@ -1375,8 +1384,10 @@ function _fbSyncSave(node, arr, idField) {
 }
 // Keep the "last known keys" baseline in sync with whatever the server confirms,
 // so future saves compute deletions against reality, not stale local state.
-function _fbTrackKeys(node, arr, idField) {
-  window._fbLastKeys[node] = Object.keys(_keyedObj(arr, idField));
+function _fbTrackKeys(node, arr, idField, data) {
+  // المفاتيح الفعلية بقاعدة البيانات (حتى القديمة/المكررة) → أول حفظ جاي يحذف الزايد منها
+  const real = (data && typeof data === 'object') ? Object.keys(data).filter(k => data[k] != null) : [];
+  window._fbLastKeys[node] = [...new Set([...Object.keys(_keyedObj(arr, idField)), ...real])];
 }
 
 function saveData() {
@@ -1432,7 +1443,7 @@ function initFirebase() {
     else if (data && typeof data === 'object') arr = Object.values(data).filter(r => r);
     if (arr) {
       visits = arr;
-      _fbTrackKeys('visits', visits, 'id');
+      _fbTrackKeys('visits', visits, 'id', data);
       try { localStorage.setItem('dt_visits', JSON.stringify(visits)); } catch {}
       renderAll();
       showSync();
@@ -1452,7 +1463,7 @@ function initFirebase() {
     else if (data && typeof data === 'object') records = Object.values(data).filter(r => r);
     if (records) {
       invoiceRecords = records;
-      _fbTrackKeys('invoiceRecords', invoiceRecords, 'invNum');
+      _fbTrackKeys('invoiceRecords', invoiceRecords, 'invNum', data);
       try { localStorage.setItem('dt_invoice_records', JSON.stringify(invoiceRecords)); } catch {}
       setCloudStatus(true);
       showSync();
@@ -1470,7 +1481,7 @@ function initFirebase() {
     else if (data && typeof data === 'object') arr = Object.values(data).filter(r => r);
     if (arr) {
       clients_data = arr;
-      _fbTrackKeys('clients', clients_data, 'id');
+      _fbTrackKeys('clients', clients_data, 'id', data);
       try { localStorage.setItem('dt_clients', JSON.stringify(clients_data)); } catch {}
       showSync();
       if (document.getElementById('tab-clients').classList.contains('active')) renderClients();
@@ -1483,7 +1494,7 @@ function initFirebase() {
     else if (data && typeof data === 'object') arr = Object.values(data).filter(r => r);
     if (arr) {
       workers = arr;
-      _fbTrackKeys('workers', workers, 'id');
+      _fbTrackKeys('workers', workers, 'id', data);
       try { localStorage.setItem('dt_workers', JSON.stringify(workers)); } catch {}
       showSync();
       updateWorkerSelects();
@@ -1497,7 +1508,7 @@ function initFirebase() {
     else if (data && typeof data === 'object') rows = Object.values(data).filter(r => r);
     if (rows) {
       quotations = rows;
-      _fbTrackKeys('quotations', quotations, 'id');
+      _fbTrackKeys('quotations', quotations, 'id', data);
       try { localStorage.setItem('dt_quotations', JSON.stringify(quotations)); } catch {}
       setCloudStatus(true);
       showSync();
@@ -1512,7 +1523,15 @@ function initFirebase() {
     if (Array.isArray(data)) rows = data.filter(r => r);
     else if (data && typeof data === 'object') rows = Object.values(data).filter(r => r);
     if (rows) {
-      expenses = rows;
+      const before = rows.length;
+      expenses = dedupeExpenses(rows);
+      _fbTrackKeys('expenses', expenses, 'id', data);
+      // إذا كان فيه نسخ مكررة بالسحابة، ننظفها مرة وحدة
+      if (expenses.length < before && !window._expDedupeDone) {
+        window._expDedupeDone = true;
+        console.warn('[expenses] removed', before - expenses.length, 'duplicate copies — resyncing');
+        _fbSyncSave('expenses', expenses, 'id').catch(e => console.warn('expenses resync failed', e));
+      }
       try { localStorage.setItem('dt_expenses', JSON.stringify(expenses)); } catch {}
       setCloudStatus(true);
       showSync();
@@ -4557,20 +4576,64 @@ ${(data.expenses||[]).length} مصروف
 const QUOTATION_CATEGORIES = ['بنزين ووقود','مواد زراعية','أشجار','شجيرات','مغطيات','مواد ري','أدوات ومعدات','صيانة معدات','عمالة','مهندس','رواتب','اتصالات وإنترنت','ضيافة وإقامة','رسوم وتراخيص','أخرى'];
 let _qItemsBuf = []; // working items buffer for the modal
 
-function nextQuotationNumber() {
-  const used = quotations.map(q => q.qNum||'').filter(Boolean);
-  let n = 1;
-  while (used.includes('Q-' + String(n).padStart(3,'0'))) n++;
-  return 'Q-' + String(n).padStart(3,'0');
+// ── ترقيم الكوتيشن ──
+// المسودة/المرسل/المرفوض: رقم مؤقت D-001…  — المقبول: رقم رسمي بالتسلسل Q-001…
+// الرقم الرسمي ينعطى مرة وحدة أول ما يصير الكوتيشن مقبول، وما يتغير بعدها.
+const Q_OFFICIAL_STATUSES = ['مقبول', 'منجز'];
+function _qMaxNum(prefix, exceptId) {
+  let max = 0;
+  const re = new RegExp('^' + prefix + '-(\\d+)$');
+  quotations.forEach(q => {
+    if (exceptId != null && q.id === exceptId) return;
+    [q.qNum, q.draftNum].forEach(n => { const m = String(n || '').match(re); if (m) max = Math.max(max, parseInt(m[1], 10)); });
+  });
+  return max;
+}
+function nextQuotationNumber(exceptId) { return 'Q-' + String(_qMaxNum('Q', exceptId) + 1).padStart(3, '0'); }
+function nextDraftNumber(exceptId)     { return 'D-' + String(_qMaxNum('D', exceptId) + 1).padStart(3, '0'); }
+function isOfficialQNum(n) { return /^Q-\d+$/.test(String(n || '')); }
+
+// يغيّر رقم الكوتيشن في المصاريف المربوطة فيه (الربط بالرقم + رقم البند)
+function relinkQuotationExpenses(oldNum, newNum, itemIds) {
+  if (!oldNum || oldNum === newNum) return 0;
+  const ids = itemIds ? new Set(itemIds) : null;
+  let n = 0;
+  expenses.forEach(e => {
+    if (e.sourceQuotation !== oldNum) return;
+    if (ids && !(e.sourceItemId != null && ids.has(e.sourceItemId))) return;
+    e.sourceQuotation = newNum;
+    if (typeof e.note === 'string') e.note = e.note.replace('[كوتيشن ' + oldNum + ']', '[كوتيشن ' + newNum + ']');
+    n++;
+  });
+  return n;
+}
+
+// يبيّن تحت خانة الرقم شو بيصير عند الحفظ
+function updateQNumHint() {
+  const hint = document.getElementById('q-num-hint'); if (!hint) return;
+  const num = document.getElementById('q-num').value.trim();
+  const status = document.getElementById('q-status').value;
+  const id = parseFloat(document.getElementById('q-id').value) || null;
+  if (Q_OFFICIAL_STATUSES.includes(status) && !isOfficialQNum(num)) {
+    hint.innerHTML = '✅ بياخذ الرقم الرسمي <b>' + nextQuotationNumber(id) + '</b> عند الحفظ';
+    hint.style.color = 'var(--gm)';
+  } else if (!isOfficialQNum(num)) {
+    hint.textContent = 'رقم مؤقت — يتثبت رقم رسمي أول ما يصير الكوتيشن مقبول';
+    hint.style.color = 'var(--muted)';
+  } else {
+    hint.textContent = 'رقم رسمي';
+    hint.style.color = 'var(--muted)';
+  }
 }
 
 function openQuotationModal() {
   _qItemsBuf = [{ id: Date.now()+Math.random(), desc:'', qty:1, unitPrice:0, cost:0, costCategory:'', note:'', paid:false }];
   document.getElementById('q-modal-title').textContent = '📑 كوتيشن جديد';
   document.getElementById('q-id').value = '';
-  document.getElementById('q-num').value = nextQuotationNumber();
+  document.getElementById('q-num').value = nextDraftNumber();
   document.getElementById('qm-date').value = TODAY;
   document.getElementById('q-status').value = 'مسودة';
+  updateQNumHint();
   populateQClientSelect('qm-client');
   document.getElementById('qm-client').value = '';
   document.getElementById('q-new-client-modal').style.display = 'none';
@@ -4594,6 +4657,7 @@ function editQuotation(id) {
   document.getElementById('q-num').value = q.qNum || '';
   document.getElementById('qm-date').value = q.date || TODAY;
   document.getElementById('q-status').value = q.status || 'مسودة';
+  updateQNumHint();
   populateQClientSelect('qm-client');
   document.getElementById('qm-client').value = q.client || '';
   document.getElementById('qm-desc').value = q.desc || '';
@@ -4791,7 +4855,7 @@ function updateQTotals() {
 
 function saveQuotation() {
   const id = parseFloat(document.getElementById('q-id').value);
-  const qNum = document.getElementById('q-num').value.trim();
+  let qNum = document.getElementById('q-num').value.trim();
   const date = document.getElementById('qm-date').value;
   const client = getQModalClient();
   const status = document.getElementById('q-status').value;
@@ -4834,7 +4898,28 @@ function saveQuotation() {
   const total = items.reduce((s,it) => s + (it.qty * it.unitPrice), 0);
   const totalCost = items.reduce((s,it) => s + (it.qty * it.cost), 0);
 
-  const rec = { id: id || (Date.now() + Math.random()), qNum, client, date, status, desc, items, total, totalCost };
+  // الترقيم: مقبول بدون رقم رسمي → ياخذ الرقم الرسمي الجاي. وأي رقم مكرر ياخذ رقم جديد.
+  const prev = id ? quotations.find(q => q.id === id) : null;
+  let draftNum = prev && prev.draftNum;
+  let numMsg = '';
+  if (Q_OFFICIAL_STATUSES.includes(status) && !isOfficialQNum(qNum)) {
+    draftNum = qNum;
+    qNum = nextQuotationNumber(id || null);
+    numMsg = ' — الرقم الرسمي: ' + qNum;
+  } else if (quotations.some(q => q.qNum === qNum && q.id !== id)) {
+    qNum = isOfficialQNum(qNum) ? nextQuotationNumber(id || null) : nextDraftNumber(id || null);
+    numMsg = ' — الرقم كان مستخدم، صار: ' + qNum;
+  }
+  if (prev && prev.qNum !== qNum) relinkQuotationExpenses(prev.qNum, qNum, (prev.items || []).map(it => it.id));
+
+  // نحافظ على أي معلومات ثانية للكوتيشن (مثل دفعات العميل) — قبل كانت تنمسح عند التعديل
+  const rec = { ...(prev || {}), id: id || (Date.now() + Math.random()), qNum, client, date, status, desc, items, total, totalCost };
+  if (draftNum && draftNum !== qNum) rec.draftNum = draftNum;
+  if (Array.isArray(rec.payments) && rec.payments.length) {
+    const paidSum = rec.payments.reduce((s,p) => s + (parseFloat(p.amount)||0), 0);
+    rec.paidAmount = paidSum;
+    rec.payStatus = paidSum <= 0 ? 'غير مدفوع' : (paidSum + 0.0001 >= total ? 'مدفوع' : 'مدفوع جزئياً');
+  }
   if (id) {
     quotations = quotations.map(q => q.id === id ? rec : q);
   } else {
@@ -4851,7 +4936,7 @@ function saveQuotation() {
   if (sync.removed) parts.push(`${sync.removed} حُذف`);
   if (sync.skipped) parts.push(`${sync.skipped} متخطّى (تكلفة=0 أو بلا تصنيف)`);
   const msg = parts.length ? `✅ تم حفظ الكوتيشن — ${parts.join('، ')}` : '✅ تم حفظ الكوتيشن (لا تكاليف لتحويلها)';
-  showToast(msg);
+  showToast(msg + numMsg);
 
   // Reset finance filters so the new expenses are visible
   const fm = document.getElementById('fin-month');
@@ -6146,7 +6231,9 @@ async function cleanDataCollection(node) {
       const existing = seen[key];
       ['payments','clientPayments'].forEach(pf => {
         if (Array.isArray(item[pf]) && item[pf].length) {
-          existing[pf] = [...(existing[pf]||[]), ...item[pf]];
+          // ندمج الدفعات الناقصة بس — النسخ المتطابقة ما تتكرر
+          const have = new Set((existing[pf]||[]).map(p => JSON.stringify(p)));
+          item[pf].forEach(p => { const s = JSON.stringify(p); if (!have.has(s)) { have.add(s); (existing[pf] = existing[pf]||[]).push(p); } });
         }
       });
     }
@@ -6156,10 +6243,9 @@ async function cleanDataCollection(node) {
   if (window._fbReady) {
     try {
       const { db, ref, set } = window._fb;
-      await set(ref(db, node), null);
-      const keyed = {};
-      clean.forEach(it => { keyed[String(it[c.idField])] = it; });
-      if (Object.keys(keyed).length) await set(ref(db, node), keyed);
+      // كتابة وحدة (بدون مسح أول) وبمفاتيح صالحة لـ Firebase
+      const keyed = _fbClean(_keyedObj(clean, c.idField));
+      await set(ref(db, node), Object.keys(keyed).length ? keyed : null);
       window._fbLastKeys[node] = Object.keys(keyed);
     } catch(e) { console.warn('cleanDataCollection firebase resync failed:', e); showToast('⚠️ تم التنظيف محلياً، لكن فشلت إعادة المزامنة السحابية'); }
   }
@@ -7455,6 +7541,24 @@ function editQuote(id){
 // ── Finance Calculations ──
 function loadExpenses() {
   try { expenses = JSON.parse(localStorage.getItem('dt_expenses') || '[]'); } catch { expenses = []; }
+}
+
+// يشيل النسخ المكررة من نفس المصروف (نفس الرقم). الدفعات تندمج بدون تكرار.
+function dedupeExpenses(rows) {
+  const byId = new Map(); const out = [];
+  (rows || []).forEach(e => {
+    if (!e) return;
+    if (e.id == null) { out.push(e); return; }
+    const k = String(e.id);
+    const first = byId.get(k);
+    if (!first) { byId.set(k, e); out.push(e); return; }
+    if (Array.isArray(e.payments) && e.payments.length) {
+      const seen = new Set((first.payments || []).map(p => JSON.stringify(p)));
+      e.payments.forEach(p => { const s = JSON.stringify(p); if (!seen.has(s)) { seen.add(s); (first.payments = first.payments || []).push(p); } });
+      first.paidAmount = (first.payments || []).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    }
+  });
+  return out;
 }
 
 function saveExpenses() {
@@ -8922,7 +9026,7 @@ if ('serviceWorker' in navigator) {
     <div class="modal-title" id="q-modal-title">📑 كوتيشن جديد</div>
     <input type="hidden" id="q-id">
     <div class="grid2">
-      <div class="field"><label>رقم الكوتيشن</label><input type="text" id="q-num"></div>
+      <div class="field"><label>رقم الكوتيشن</label><input type="text" id="q-num" oninput="updateQNumHint()"><div id="q-num-hint" style="font-size:11px;margin-top:4px"></div></div>
       <div class="field"><label>التاريخ</label><input type="date" id="qm-date"></div>
     </div>
     <div class="grid2">
@@ -8933,7 +9037,7 @@ if ('serviceWorker' in navigator) {
       </div>
       <div class="field">
         <label>الحالة</label>
-        <select id="q-status">
+        <select id="q-status" onchange="updateQNumHint()">
           <option>مسودة</option><option>مرسل</option><option>مقبول</option><option>مرفوض</option>
         </select>
       </div>
