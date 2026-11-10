@@ -4554,7 +4554,7 @@ ${(data.expenses||[]).length} مصروف
 }
 
 // ── Quotations ──
-const QUOTATION_CATEGORIES = ['بنزين ووقود','مواد زراعية','أشجار','أدوات ومعدات','صيانة معدات','عمالة','رواتب','اتصالات وإنترنت','ضيافة وإقامة','رسوم وتراخيص','أخرى'];
+const QUOTATION_CATEGORIES = ['بنزين ووقود','مواد زراعية','أشجار','شجيرات','مغطيات','مواد ري','أدوات ومعدات','صيانة معدات','عمالة','مهندس','رواتب','اتصالات وإنترنت','ضيافة وإقامة','رسوم وتراخيص','أخرى'];
 let _qItemsBuf = []; // working items buffer for the modal
 
 function nextQuotationNumber() {
@@ -4716,7 +4716,7 @@ function renderQItemsList() {
       .join('');
     const needsCat = (parseFloat(it.cost)||0) > 0 && !it.costCategory;
     const hasCost = (parseFloat(it.cost)||0) > 0;
-    const isTree = it.costCategory === 'أشجار';
+    const isTree = ['أشجار','شجيرات','مغطيات'].includes(it.costCategory);
     const _noteLines = String(it.note||'').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const _notePrev = _noteLines.length ? '<ul style="margin:4px 0 0;padding-right:18px;list-style-type:disc;color:#555">'+_noteLines.map(l => '<li style="margin:2px 0;font-size:11px;line-height:1.5">'+escapeHtml(l)+'</li>').join('')+'</ul>' : '';
     return `
@@ -8758,9 +8758,14 @@ if ('serviceWorker' in navigator) {
         <option value="">اختر التصنيف...</option>
         <option>بنزين ووقود</option>
         <option>مواد زراعية</option>
+        <option>أشجار</option>
+        <option>شجيرات</option>
+        <option>مغطيات</option>
+        <option>مواد ري</option>
         <option>أدوات ومعدات</option>
         <option>صيانة معدات</option>
         <option>عمالة</option>
+        <option>مهندس</option>
         <option>رواتب</option>
         <option>اتصالات وإنترنت</option>
         <option>ضيافة وإقامة</option>
