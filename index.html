@@ -306,6 +306,7 @@ textarea { min-height:72px; resize:vertical; }
     <span id="save-state" class="badge-saved">💾 محفوظ</span>
     <button id="btn-install" onclick="pwaInstall()" title="تثبيت التطبيق" style="display:none;background:var(--gm);color:#fff;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;min-height:40px">⬇️ تثبيت</button>
     <button id="btn-trash" onclick="openTrash()" title="سلة المهملات" style="position:relative;background:transparent;border:1.5px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center">🗑<span id="trash-count" style="display:none;position:absolute;top:-4px;right:-4px;background:#C0392B;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center">0</span></button>
+    <button id="btn-backup" onclick="downloadBackup()" title="نسخة احتياطية" style="position:relative;background:transparent;border:1.5px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center">💾<span id="backup-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#C0392B;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px">!</span></button>
     <button id="btn-datacheck" onclick="openDataCheck()" title="فحص البيانات المكررة" style="position:relative;background:transparent;border:1.5px solid var(--border);border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer;min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center">🧹<span id="datacheck-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#E07B39;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center">0</span></button>
   </div>
 </div>
@@ -528,6 +529,10 @@ textarea { min-height:72px; resize:vertical; }
   </div>
 <div id="tab-invoice" class="tab">
     <!-- End-of-month banner -->
+    <div id="backup-banner" style="background:#FDECEA;border:1.5px solid #F5B7B1;border-radius:12px;padding:12px 16px;margin-bottom:12px;display:none;align-items:center;gap:10px;justify-content:space-between">
+      <div style="font-size:13px;color:#922B21"><b>💾 صار لك أكثر من أسبوع بدون نسخة احتياطية</b><div id="backup-banner-sub" style="font-size:11px;margin-top:2px"></div></div>
+      <button class="btn btn-sm" style="background:#C0392B;color:#fff;white-space:nowrap" onclick="downloadBackup()">احفظ نسخة</button>
+    </div>
     <div id="eom-banner" style="display:none;background:linear-gradient(to left,var(--goldl),#fff);border:1.5px solid var(--gold);border-radius:12px;padding:14px 16px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <div>
@@ -6794,19 +6799,28 @@ function ensureUniqueInvNum(num, client) {
 
 function generateInvoiceNumber(client, type, month) {
   const code = buildClientCode(client);
+  // الأرقام المستخدمة تنحسب من الفواتير المحفوظة بالسحابة (invoiceRecords) — نفسها على كل الأجهزة —
+  // ومعها سجل هالجهاز احتياط. كذا الترقيم ما يتلخبط لو أصدرت من الجوال ومن الكمبيوتر.
   let invHistory = [];
   try { invHistory = JSON.parse(localStorage.getItem('dt_inv_history') || '[]'); } catch {}
+  const recs = (typeof invoiceRecords !== 'undefined' && Array.isArray(invoiceRecords)) ? invoiceRecords : [];
+  const used = new Set([...recs.map(r => r && r.invNum), ...invHistory.map(r => r && (r.invNum || r.num))].filter(Boolean));
   if (type === 'monthly') {
     const m = month || (new Date().toISOString().substring(0,7)); // YYYY-MM
     const [y, mo] = m.split('-');
     const mmm = String(parseInt(mo||'0',10)).padStart(3,'0'); // شهر 5 => 005
     const base = `${code}-${y}-${mmm}`;
-    const sameMonth = invHistory.filter(r => r.client === client && r.invType === 'monthly' && r.month === m);
-    const num = sameMonth.length === 0 ? base : `${base}-${sameMonth.length + 1}`;
+    let num = base, i = 2;
+    while (used.has(num)) num = `${base}-${i++}`;
     return ensureUniqueInvNum(num, client);
   }
-  const singles = invHistory.filter(r => r.client === client && r.invType === 'single');
-  const num = `${code}-V-${String(singles.length + 1).padStart(3,'0')}`;
+  // زيارة واحدة: الرقم اللي بعد أكبر رقم مستخدم لهالعميل
+  const re = new RegExp('^' + code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-V-(\\d+)');
+  let max = 0;
+  used.forEach(n => { const mm = String(n).match(re); if (mm) max = Math.max(max, parseInt(mm[1], 10)); });
+  max = Math.max(max, invHistory.filter(r => r.client === client && r.invType === 'single').length);
+  let num = `${code}-V-${String(max + 1).padStart(3,'0')}`;
+  while (used.has(num)) { max++; num = `${code}-V-${String(max + 1).padStart(3,'0')}`; }
   return ensureUniqueInvNum(num, client);
 }
 
@@ -8408,6 +8422,50 @@ function markWorkLog(ref_, patch) {
     .then(() => showToast(patch.status === 'approved' ? '✅ تم الاعتماد' : '❌ تم الرفض'))
     .catch(e => showToast('⚠️ فشل الحفظ: ' + (e.code || e.message)));
 }
+
+// ── النسخة الاحتياطية ──
+// تنزّل كل قاعدة البيانات كما هي من السحابة (كل الأقسام) في ملف JSON على الجهاز.
+// الاسترجاع: Firebase Console ← Realtime Database ← Data ← ⋮ ← Import JSON
+async function downloadBackup() {
+  if (!window._fbReady) { showToast('⚠️ لازم اتصال بالإنترنت عشان تنزل نسخة كاملة'); return; }
+  showToast('⏳ جاري تجهيز النسخة...');
+  try {
+    const { db, ref, get } = window._fb;
+    const snap = await get(ref(db, '/'));
+    const data = snap.val() || {};
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const d = new Date();
+    const stamp = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'DrTree-backup-' + stamp + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    try { localStorage.setItem('dt_last_backup', String(Date.now())); } catch {}
+    renderBackupReminder();
+    const counts = ['visits','clients','invoiceRecords','quotations','expenses','workers'].map(k => {
+      const v = data[k]; return v ? (Array.isArray(v) ? v.filter(Boolean).length : Object.keys(v).length) : 0;
+    });
+    showToast('✅ انحفظت النسخة (' + (blob.size/1048576).toFixed(1) + ' ميغا) — ' + counts[0] + ' زيارة، ' + counts[1] + ' عميل، ' + counts[2] + ' فاتورة');
+  } catch (e) {
+    showToast('⚠️ فشلت النسخة: ' + (e.code || e.message));
+  }
+}
+function renderBackupReminder() {
+  let last = 0; try { last = parseInt(localStorage.getItem('dt_last_backup') || '0', 10) || 0; } catch {}
+  const days = last ? Math.floor((Date.now() - last) / 86400000) : null;
+  const due = days === null || days >= 7;
+  const badge = document.getElementById('backup-badge'); if (badge) badge.style.display = due ? 'inline-block' : 'none';
+  const bn = document.getElementById('backup-banner');
+  if (bn) {
+    bn.style.display = due ? 'flex' : 'none';
+    const sub = document.getElementById('backup-banner-sub');
+    if (sub) sub.textContent = days === null ? 'ما في نسخة محفوظة من هالجهاز للحين' : 'آخر نسخة قبل ' + days + ' يوم';
+  }
+  const btn = document.getElementById('btn-backup');
+  if (btn) btn.title = days === null ? 'نسخة احتياطية — ما في نسخة للحين' : 'نسخة احتياطية — آخر نسخة قبل ' + days + ' يوم';
+}
+setTimeout(renderBackupReminder, 1500);
 
 // ── إشعارات العمال (notifs/<uid>/<id>) ──
 function sendWorkerNotif(uid, data) {
