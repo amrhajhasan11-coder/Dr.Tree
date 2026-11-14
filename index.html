@@ -1064,6 +1064,9 @@ textarea { min-height:72px; resize:vertical; }
         <h2>👥 قائمة العملاء</h2>
         <span id="clients-count" style="margin-right:auto;background:var(--gl);color:white;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700"></span>
       </div>
+      <div style="padding:10px 12px;border-bottom:1px solid #F0F0F0">
+        <input type="search" id="clients-search" placeholder="🔍 بحث بالاسم، المنطقة، الجوال..." oninput="renderClients()" style="width:100%">
+      </div>
       <div id="clients-list-body"></div>
     </div>
     <div class="card" id="prospects-card" style="display:none;margin-top:14px">
@@ -5874,50 +5877,234 @@ function renderClients() {
     return;
   }
 
-  el.innerHTML = realClients.map((c, i) => {
+  const _q = ((document.getElementById('clients-search') || {}).value || '').trim().toLowerCase();
+  const shown = !_q ? realClients : realClients.filter(c =>
+    [c.name, c.nameEn, c.area, c.phone, c.phone2, c.house].some(x => String(x || '').toLowerCase().includes(_q)));
+  if (!shown.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">🔍</div><p>لا توجد نتائج</p></div>';
+    if (typeof _refreshClientProfile === 'function') _refreshClientProfile();
+    return;
+  }
+
+  el.innerHTML = shown.map((c, i) => {
     const cVisits = visits.filter(v => v.client === c.name);
-    const lastVisit = cVisits[0];
+    const lastVisit = cVisits.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''))[0];
+    const cInv = invoiceRecords.filter(r => r.client === c.name);
+    const bal = cInv.reduce((s,r) => s + getRemaining(r,'total'), 0);
     const bg = i%2===0 ? '#fff' : 'var(--gray)';
-    return `<div style="padding:14px 16px;border-bottom:1px solid #F0F0F0;background:${bg}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-        <div>
-          <div style="font-weight:700;font-size:15px">${escapeHtml(c.name)}</div>
+    return `<div style="padding:14px 16px;border-bottom:1px solid #F0F0F0;background:${bg};cursor:pointer" onclick="openClientProfile(${c.id})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="min-width:0">
+          <div style="font-weight:700;font-size:15px">${escapeHtml(c.name)} <span style="color:var(--muted);font-size:13px">‹</span></div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">
             ${c.area ? '📍 '+escapeHtml(c.area) : ''}
             ${c.house ? ' &nbsp;🏠 '+escapeHtml(c.house) : ''}
             ${c.phone ? ' &nbsp;📞 '+escapeHtml(c.phone) : ''}
-            ${c.phone2 ? ` &nbsp;<a href="tel:${escapeHtml(c.phone2.replace(/[^0-9+]/g,''))}" style="color:inherit;text-decoration:none">📱 ${escapeHtml(c.phone2)}${c.phone2Label ? ' ('+escapeHtml(c.phone2Label)+')' : ''}</a>` : ''}
             ${!c.location ? ' &nbsp;<span style="color:#C0392B;font-weight:600">⚠️ بدون لوكيشن</span>' : ''}
-          ${c.monthly ? `<span style="background:var(--goldl);color:var(--gold);padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-right:4px">💰 ${c.monthly.toLocaleString('en')} QAR/شهر · ${c.visitsPerMonth||4} زيارات</span>` : ''}
           </div>
+          <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
+            <span style="background:var(--gp);color:var(--gm);padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">🌿 ${cVisits.length} زيارة</span>
+            <span style="background:#EEF2FF;color:#1A56DB;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">📄 ${cInv.length} فاتورة</span>
+            ${c.monthly ? `<span style="background:var(--goldl);color:var(--gold);padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">💰 ${c.monthly.toLocaleString('en')} QAR/شهر</span>` : ''}
+            ${bal > 0 ? `<span style="background:var(--redl);color:var(--red);padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">متبقي ${bal.toLocaleString('en')}</span>` : ''}
+          </div>
+          ${lastVisit ? `<div style="font-size:11px;color:var(--muted);margin-top:5px">آخر زيارة: ${fmtDate(lastVisit.date)} · ${escapeHtml(lastVisit.type||'')}</div>` : ''}
         </div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <span style="background:var(--gp);color:var(--gm);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${cVisits.length} زيارة</span>
-          <button class="btn-icon" title="كشف حساب" onclick="openClientStatement('${c.name.replace(/'/g,"\\'")}')">📊</button>
-          ${c.location ? `<button class="btn-icon" title="الموقع" style="color:#1A56DB" onclick="openClientMap('${c.name.replace(/'/g,"\\'")}')">📍</button>` : ''}
-          ${c.phone ? `<button class="btn-icon" title="واتساب" style="color:#25D366" onclick="openClientWhatsApp('${c.name.replace(/'/g,"\\'")}')">💬</button>` : ''}
+        <div style="display:flex;gap:2px;align-items:center;flex-shrink:0" onclick="event.stopPropagation()">
+          ${c.location ? `<button class="btn-icon" title="الموقع" style="color:#1A56DB" onclick="openClientMap(_clientNameById(${c.id}))">📍</button>` : ''}
+          ${c.phone ? `<button class="btn-icon" title="واتساب" style="color:#25D366" onclick="openClientWhatsApp(_clientNameById(${c.id}))">💬</button>` : ''}
           <button class="btn-icon" onclick="openEditClient(${c.id})">✏️</button>
           <button class="btn-icon" style="color:#ddd" onclick="delClient(${c.id})">🗑</button>
         </div>
       </div>
-      ${c.notes ? `<div style="font-size:11px;color:var(--blue);margin-bottom:6px">📝 ${c.notes}</div>` : ''}
-      ${lastVisit ? `<div style="font-size:11px;color:var(--muted)">آخر زيارة: ${fmtDate(lastVisit.date)} · ${lastVisit.type||''}</div>` : ''}
-      ${cVisits.length > 0 ? `<div style="margin-top:8px">
-        <details>
-          <summary style="font-size:12px;color:var(--gm);font-weight:600;cursor:pointer">عرض السجل (${cVisits.length} زيارة)</summary>
-          <div style="margin-top:8px;padding-right:8px;border-right:3px solid var(--gp)">
-            ${cVisits.map(v => `<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:12px">
-              <span style="color:var(--gm);font-weight:600">${fmtDate(v.date)}</span> · 
-              <span style="background:var(--gp);color:var(--gm);padding:1px 6px;border-radius:10px;font-size:10px">${escapeHtml(v.type||'')}</span>
-              ${v.work ? `<div style="color:#666;margin-top:2px">${escapeHtml(v.work)}</div>` : ''}
-              ${v.extra ? `<div style="color:var(--or);margin-top:2px">⚙ ${escapeHtml(v.extra)}${v.extraAmount?' — '+v.extraAmount.toLocaleString('en')+' QAR':''}</div>` : ''}
-            </div>`).join('')}
-          </div>
-        </details>
-      </div>` : ''}
     </div>`;
   }).join('');
+  if (typeof _refreshClientProfile === 'function') _refreshClientProfile();
 }
+
+// ── Client Profile (ملف العميل) ──
+let _cpId = null, _cpTab = 'invoices';
+function _clientNameById(id) { const c = clients_data.find(x => x.id === id); return c ? c.name : ''; }
+function _jsArg(v) { return escapeHtml(JSON.stringify(v)); }
+function _cpMonthLabel(ym) {
+  const ar = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  if (!ym) return '—';
+  const [y,m] = String(ym).split('-');
+  return (m && ar[parseInt(m)-1]) ? `${ar[parseInt(m)-1]} ${y}` : ym;
+}
+function _cpInvPayments(r) {
+  if (Array.isArray(r.payments) && r.payments.length) return r.payments;
+  const paid = getPaidAmount(r, 'total');
+  return paid > 0 ? [{ date: r.date || '', amount: paid, method: '', note: '' }] : [];
+}
+function openClientProfile(id) {
+  if (!clients_data.find(x => x.id === id)) return;
+  _cpId = id; _cpTab = 'invoices';
+  renderClientProfile();
+  document.getElementById('client-profile-modal').classList.add('open');
+}
+function closeClientProfile() {
+  document.getElementById('client-profile-modal').classList.remove('open');
+  _cpId = null;
+}
+function setClientProfileTab(t) { _cpTab = t; renderClientProfile(); }
+function _refreshClientProfile() {
+  const m = document.getElementById('client-profile-modal');
+  if (!m || !m.classList.contains('open') || _cpId == null) return;
+  if (!clients_data.find(x => x.id === _cpId)) { closeClientProfile(); return; }
+  renderClientProfile();
+}
+function renderClientProfile() {
+  const c = clients_data.find(x => x.id === _cpId);
+  if (!c) return;
+  const name = c.name;
+  const N = n => (parseFloat(n)||0).toLocaleString('en');
+  const cVisits = visits.filter(v => v.client === name).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const cInv = invoiceRecords.filter(r => r.client === name)
+    .sort((a,b) => (b.month||b.date||'').localeCompare(a.month||a.date||'') || (b.date||'').localeCompare(a.date||''));
+  const cQuotes = _allQuotes().filter(q => q && q.client === name);
+  const totalInv = cInv.reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+  const totalPaid = cInv.reduce((s,r) => s + getPaidAmount(r,'total'), 0);
+  const balance = cInv.reduce((s,r) => s + getRemaining(r,'total'), 0);
+
+  // كل الدفعات (فواتير + مشاريع)
+  const pays = [];
+  cInv.forEach(r => _cpInvPayments(r).forEach(p => pays.push({ date: p.date||'', amount: parseFloat(p.amount)||0, method: p.method||'', note: p.note||'', ref: r.invNum||'', sub: _cpMonthLabel(r.month) })));
+  cQuotes.forEach(q => getQClientPayments(q).forEach(p => pays.push({ date: p.date||'', amount: parseFloat(p.amount)||0, method: p.method||'', note: p.note||'', ref: q.qNum||'', sub: 'مشروع' })));
+  pays.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const paysTotal = pays.reduce((s,p) => s + p.amount, 0);
+
+  document.getElementById('cp-title').textContent = '👤 ' + name;
+  const row = (k, v) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed #cfe8d6;font-size:12.5px"><span style="color:var(--muted)">${k}</span><span style="color:var(--gd);font-weight:600;text-align:left">${v}</span></div>`;
+  const tel = p => `<a href="tel:${escapeHtml(String(p).replace(/[^0-9+]/g,''))}" style="color:inherit;text-decoration:none">${escapeHtml(p)}</a>`;
+  const firstVisit = cVisits.length ? cVisits[cVisits.length-1] : null;
+
+  let h = '';
+  // ── المعلومات ──
+  h += `<div style="background:var(--gp);padding:10px 12px;border-radius:12px;margin-bottom:10px">`;
+  if (c.nameEn) h += row('الاسم بالإنجليزي', `<span dir="ltr">${escapeHtml(c.nameEn)}</span>`);
+  h += row('المنطقة', c.area ? escapeHtml(c.area) : '—');
+  if (c.house) h += row('رقم البيت', escapeHtml(c.house));
+  h += row('الجوال', c.phone ? tel(c.phone) : '—');
+  if (c.phone2) h += row('رقم ثاني' + (c.phone2Label ? ' ('+escapeHtml(c.phone2Label)+')' : ''), tel(c.phone2));
+  h += row('الباقة الشهرية', c.monthly ? `<bdi>${N(c.monthly)} QAR</bdi> · <bdi>${c.visitsPerMonth||4} زيارات بالشهر</bdi>` : '—');
+  if (firstVisit) h += row('عميل منذ', fmtDate(firstVisit.date));
+  if (cVisits[0]) h += row('آخر زيارة', fmtDate(cVisits[0].date));
+  if (c.notes) h += `<div style="font-size:12px;color:var(--blue);padding-top:7px">📝 ${escapeHtml(c.notes)}</div>`;
+  h += `</div>`;
+  // أزرار
+  h += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+    ${c.phone ? `<button class="btn btn-sm" style="background:#E8F8EE;color:#128C7E;border:1px solid #BFE8CF" onclick="openClientWhatsApp(_clientNameById(${c.id}))">💬 واتساب</button>` : ''}
+    ${c.location ? `<button class="btn btn-sm" style="background:#EEF2FF;color:#1A56DB;border:1px solid #C7D2FE" onclick="openClientMap(_clientNameById(${c.id}))">📍 الموقع</button>` : `<span style="font-size:11px;color:#C0392B;font-weight:600;align-self:center">⚠️ بدون لوكيشن</span>`}
+    <button class="btn btn-sm" style="background:var(--goldl);color:var(--gold);border:1px solid #F0DFA0" onclick="openClientStatement(_clientNameById(${c.id}))">📊 كشف حساب</button>
+    <button class="btn btn-sm btn-secondary" onclick="openEditClient(${c.id})">✏️ تعديل</button>
+  </div>`;
+  // ── ملخص ──
+  const kpi = (lbl, val, bg, col) => `<div style="background:${bg};border-radius:10px;padding:9px 4px;text-align:center"><div style="font-size:10px;color:var(--muted);font-weight:700">${lbl}</div><div style="font-size:16px;font-weight:900;color:${col}">${val}</div></div>`;
+  h += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">
+    ${kpi('الفواتير', N(totalInv), 'var(--gp)', 'var(--gm)')}
+    ${kpi('المدفوع', N(totalPaid), 'var(--goldl)', 'var(--gold)')}
+    ${kpi('المتبقي', N(balance), balance>0?'var(--redl)':'var(--gp)', balance>0?'var(--red)':'var(--gm)')}
+    ${kpi('الزيارات', cVisits.length, '#EEF2FF', '#1A56DB')}
+  </div>`;
+  // ── تبويبات ──
+  const tabs = [['invoices', `📄 الفواتير (${cInv.length})`], ['payments', `💵 الدفعات (${pays.length})`], ['visits', `🌿 الزيارات (${cVisits.length})`]];
+  if (cQuotes.length) tabs.push(['projects', `📑 كوتيشن (${cQuotes.length})`]);
+  if (!tabs.some(t => t[0] === _cpTab)) _cpTab = 'invoices';
+  h += `<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px">` + tabs.map(([k, l]) =>
+    `<button class="btn btn-sm" style="white-space:nowrap;flex-shrink:0;${_cpTab===k ? 'background:var(--gd);color:#fff;border:1px solid var(--gd)' : 'background:#fff;color:var(--gd);border:1px solid var(--border)'}" onclick="setClientProfileTab('${k}')">${l}</button>`).join('') + `</div>`;
+  const empty = t => `<div style="padding:24px;text-align:center;color:var(--muted);background:#fafafa;border-radius:10px">${t}</div>`;
+  const payLine = p => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px dashed #eee"><span>${fmtDate(p.date)}${p.method ? ' · '+escapeHtml(p.method) : ''}${p.note ? ' · '+escapeHtml(p.note) : ''}</span><b style="color:var(--gm);white-space:nowrap">${N(p.amount)} QAR</b></div>`;
+
+  if (_cpTab === 'invoices') {
+    if (!cInv.length) h += empty('لا توجد فواتير');
+    cInv.forEach(r => {
+      const paid = getPaidAmount(r,'total'), rem = getRemaining(r,'total');
+      const st = r.payStatus || derivePayStatus(r,'total');
+      const ps = _cpInvPayments(r);
+      h += `<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><b style="font-size:13px">${escapeHtml(r.invNum||'—')}</b> <span style="font-size:11px;color:var(--muted)">· ${r.type==='monthly' ? _cpMonthLabel(r.month) : 'زيارة'} · ${fmtDate(r.date)}</span></div>
+          ${badge(st, true)}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;font-size:11px;text-align:center">
+          <div style="background:#f7f7f7;border-radius:8px;padding:5px"><div style="color:var(--muted)">الإجمالي</div><b>${N(r.total)}</b></div>
+          <div style="background:#f7f7f7;border-radius:8px;padding:5px"><div style="color:var(--muted)">المدفوع</div><b style="color:var(--gm)">${N(paid)}</b></div>
+          <div style="background:#f7f7f7;border-radius:8px;padding:5px"><div style="color:var(--muted)">المتبقي</div><b style="color:${rem>0?'var(--red)':'var(--gm)'}">${N(rem)}</b></div>
+        </div>
+        ${ps.length ? `<div style="margin-top:8px"><div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:2px">الدفعات:</div>${ps.map(payLine).join('')}</div>` : ''}
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-sm" style="background:var(--gp);color:var(--gm);border:1px solid var(--gl)" onclick="openInvoicePaymentsModal(${_jsArg(r.invNum)})">💳 الدفعات</button>
+          <button class="btn btn-sm btn-secondary" onclick="exportInvoicePDF(${_jsArg(r.invNum)})">📎 PDF</button>
+          <button class="btn btn-sm btn-secondary" onclick="openInvoiceEditModal(${_jsArg(r.invNum)})">✏️ تعديل</button>
+        </div>
+      </div>`;
+    });
+  } else if (_cpTab === 'payments') {
+    if (!pays.length) h += empty('لا توجد دفعات مسجلة');
+    else {
+      h += `<div style="background:var(--goldl);border-radius:10px;padding:9px 12px;margin-bottom:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:var(--gd)"><span>إجمالي ما دفعه العميل</span><span>${N(paysTotal)} QAR</span></div>`;
+      h += `<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">` + pays.map((p, i) =>
+        `<div style="padding:9px 12px;background:${i%2 ? '#f7f7f7' : '#fff'};border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="font-size:12px"><b style="color:var(--gm)">${fmtDate(p.date)}</b>${p.method ? ' · '+escapeHtml(p.method) : ''}
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${escapeHtml(p.ref)}${p.sub ? ' · '+escapeHtml(p.sub) : ''}${p.note ? ' · '+escapeHtml(p.note) : ''}</div></div>
+          <b style="font-size:13px;white-space:nowrap">${N(p.amount)} QAR</b>
+        </div>`).join('') + `</div>`;
+    }
+  } else if (_cpTab === 'visits') {
+    if (!cVisits.length) h += empty('لا توجد زيارات');
+    let curM = null;
+    cVisits.forEach(v => {
+      const ym = (v.date||'').slice(0,7);
+      if (ym !== curM) {
+        curM = ym;
+        const n = cVisits.filter(x => (x.date||'').slice(0,7) === ym).length;
+        h += `<div style="font-size:12px;font-weight:700;color:var(--gd);margin:10px 2px 6px">${_cpMonthLabel(ym)} <span style="color:var(--muted);font-weight:600">· ${n} زيارة</span></div>`;
+      }
+      const nb = (v.photosBefore||[]).length || (v.photoBefore ? 1 : 0);
+      const na = (v.photosAfter||[]).length || (v.photoAfter ? 1 : 0);
+      const tasks = Array.isArray(v.tasks) && v.tasks.length ? v.tasks.join(' · ') : '';
+      h += `<div style="border:1px solid var(--border);border-radius:12px;padding:9px 12px;margin-bottom:6px;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+          <div style="font-size:12.5px"><b style="color:var(--gm)">${fmtDate(v.date)}</b> <span style="background:var(--gp);color:var(--gm);padding:1px 7px;border-radius:10px;font-size:10px">${escapeHtml(v.type||'—')}</span>${v.worker ? ` <span style="font-size:11px;color:var(--muted)">👷 ${escapeHtml(v.worker)}</span>` : ''}</div>
+          <div style="display:flex;align-items:center;flex-shrink:0">
+            ${(nb+na) ? `<button class="btn-icon" style="font-size:13px" title="الصور" onclick="openVisitPhotos(${_jsArg(v.id)},'before',0)">📷${nb+na}</button>` : ''}
+            <button class="btn-icon" style="font-size:15px" onclick="openEdit(${_jsArg(v.id)})">✏️</button>
+          </div>
+        </div>
+        ${tasks ? `<div style="font-size:11.5px;color:#555;margin-top:3px">✔ ${escapeHtml(tasks)}</div>` : ''}
+        ${v.work ? `<div style="font-size:11.5px;color:#555;margin-top:3px">${escapeHtml(v.work)}</div>` : ''}
+        ${v.notes ? `<div style="font-size:11.5px;color:var(--blue);margin-top:3px">📝 ${escapeHtml(v.notes)}</div>` : ''}
+        ${v.extra ? `<div style="font-size:11.5px;color:var(--or);margin-top:3px">⚙ ${escapeHtml(v.extra)}${v.extraAmount ? ' — '+N(v.extraAmount)+' QAR' : ''}</div>` : ''}
+      </div>`;
+    });
+  } else if (_cpTab === 'projects') {
+    cQuotes.slice().sort((a,b) => (b.date||'').localeCompare(a.date||'')).forEach(q => {
+      const paid = getQClientPaidTotal(q), tot = parseFloat(q.total)||0;
+      h += `<div style="border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><b style="font-size:13px">${escapeHtml(q.qNum||'—')}</b> <span style="font-size:11px;color:var(--muted)">· ${fmtDate(q.date)}</span></div>
+          ${q.status ? `<span class="badge badge-sm ${badgeClass(q.status)}">${escapeHtml(q.status)}</span>` : ''}
+        </div>
+        ${q.desc ? `<div style="font-size:11.5px;color:#555;margin-top:4px">${escapeHtml(q.desc)}</div>` : ''}
+        <div style="font-size:12px;margin-top:6px;display:flex;justify-content:space-between"><span>الإجمالي: <b>${N(tot)} QAR</b></span>${paid > 0 ? `<span>المدفوع: <b style="color:var(--gm)">${N(paid)} QAR</b></span>` : ''}</div>
+      </div>`;
+    });
+  }
+  const body = document.getElementById('cp-body');
+  const st = body.scrollTop;
+  body.innerHTML = h;
+  body.scrollTop = st;
+}
+// حدّث ملف العميل تلقائياً لما تتسكّر أي نافذة فوقه (دفعة، تعديل فاتورة، تعديل زيارة...)
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    const mo = new MutationObserver(muts => {
+      if (muts.some(m => m.target.id !== 'client-profile-modal' && !m.target.classList.contains('open'))) setTimeout(_refreshClientProfile, 50);
+    });
+    document.querySelectorAll('.modal').forEach(m => mo.observe(m, { attributes: true, attributeFilter: ['class'] }));
+  } catch (e) {}
+});
 
 // ── Render all ──
 function renderAll() {
@@ -9178,6 +9365,18 @@ if ('serviceWorker' in navigator) {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('overdue-modal').classList.remove('open')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client Profile Modal -->
+<div class="modal" id="client-profile-modal" style="z-index:190" onclick="if(event.target===this)closeClientProfile()">
+  <div class="modal-box" style="max-width:720px;max-height:94dvh;display:flex;flex-direction:column;overflow:hidden">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="cp-title" style="margin-bottom:10px">👤 ملف العميل</div>
+    <div id="cp-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0"></div>
+    <div class="modal-footer" style="margin-top:10px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeClientProfile()">إغلاق</button>
     </div>
   </div>
 </div>
